@@ -35,6 +35,9 @@ void context_list(GtkTreeStore *store, GtkTreeIter *parent, struct program *p)
 	header = rbug_get_message(con, NULL);
 	list = (struct rbug_proto_context_list_reply *)header;
 
+	g_assert(header);
+	g_assert(header->opcode == RBUG_OP_CONTEXT_LIST_REPLY);
+
 	for (i = 0; i < list->contexts_len; i++) {
 		GtkTreeIter iter;
 		gtk_tree_store_insert_with_values(store, &iter, parent, -1,
