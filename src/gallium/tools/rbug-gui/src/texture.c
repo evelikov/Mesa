@@ -221,6 +221,7 @@ struct texture_action_read
 	unsigned width;
 	unsigned height;
 	unsigned stride;
+	unsigned size;
 	enum pipe_format format;
 	struct pipe_format_block block;
 	void *data;
@@ -294,10 +295,9 @@ static void texture_action_read_upload(struct texture_action_read *action,
 		g_assert(0);
 	}
 #endif
-	GLint format, internal_format, type;
-	uint32_t w, h, step_h, i;
-	uint32_t dst_stride, src_stride;
-	float *rgba;
+	GLint internal_format;
+	uint32_t w, h;
+	uint32_t src_stride;
 	void *data;
 
 	if (!action)
@@ -306,26 +306,49 @@ static void texture_action_read_upload(struct texture_action_read *action,
 	data = action->data;
 	w = action->width;
 	h = action->height;
-	step_h = action->block.height;
+
 	src_stride = action->stride;
-	dst_stride = 4 * 4 * w;
-	rgba = g_malloc(dst_stride * h);
 
-	for (i = 0; i < h; i += step_h) {
-		pipe_tile_raw_to_rgba(action->format, data + src_stride * i,
-		                      w, step_h,
-		                      &rgba[w * 4 * i], dst_stride);
+	if (!pf_is_compressed(action->format)) {
+		uint32_t dst_stride = 4 * 4 * w;
+		uint32_t step_h = action->block.height;
+		float *rgba = g_malloc(dst_stride * h);
+		GLint format, type;
+		unsigned i;
+
+
+		for (i = 0; i < h; i += step_h) {
+			pipe_tile_raw_to_rgba(action->format, data + src_stride * i,
+			                      w, step_h,
+			                      &rgba[w * 4 * i], dst_stride);
+		}
+
+		internal_format = 4;
+		format = GL_RGBA;
+		type = GL_FLOAT;
+
+		glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+		             w, h, 0,
+		             format, type, rgba);
+
+		g_free(rgba);
+	} else if (pf_is_compressed(action->format)) {
+
+		if (action->format == PIPE_FORMAT_DXT1_RGB)
+			internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
+		else if (action->format == PIPE_FORMAT_DXT1_RGBA)
+			internal_format = GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
+		else if (action->format == PIPE_FORMAT_DXT3_RGBA)
+			internal_format = GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
+		else if (action->format == PIPE_FORMAT_DXT5_RGBA)
+			internal_format = GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
+		else
+			g_assert(0);
+
+		glCompressedTexImage2D(GL_TEXTURE_2D, 0, internal_format,
+		                       w, h, 0,
+		                       action->size, data);
 	}
-
-	internal_format = 4;
-	format = GL_RGBA;
-	type = GL_FLOAT;
-
-	glTexImage2D(GL_TEXTURE_2D, 0, internal_format,
-	             w, h, 0,
-	             format, type, rgba);
-
-	g_free(rgba);
 
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_R, GL_REPEAT);
 	glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
@@ -359,14 +382,19 @@ static void texture_action_read_read(struct rbug_event *e,
 	if (!action->running)
 		goto error;
 
-	/* calculate needed size */
-	size = pf_get_nblocksy(&action->block, action->height) * read->stride;
+	if (pf_is_compressed(action->format)) {
+		size = read->data_len;
+	} else {
+		/* calculate needed size */
+		size = pf_get_nblocksy(&action->block, action->height) * read->stride;
 
-	if (read->data_len < size)
-		goto error;
+		if (read->data_len < size)
+			goto error;
+	}
 
 	action->stride = read->stride;
 	action->data = g_malloc(size);
+	action->size = size;
 	memcpy(action->data, read->data, size);
 
 	if (draw_gl_begin(p)) {
