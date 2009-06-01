@@ -222,6 +222,11 @@ static void icon_setup(struct program *p)
 	icon_add("res/rgb.png", "rgb", p);
 	icon_add("res/rgb.png", "bgr", p);
 
+	icon_add("res/dxt1_rgb.png", "dxt1_rgb", p);
+	icon_add("res/dxt1_rgba.png", "dxt1_rgba", p);
+	icon_add("res/dxt3_rgba.png", "dxt3_rgba", p);
+	icon_add("res/dxt5_rgba.png", "dxt5_rgba", p);
+
 	icon_add("res/screen.png", "screen", p);
 
 	icon_add("res/shader_on_normal.png", "shader_on_normal", p);

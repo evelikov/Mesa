@@ -394,6 +394,7 @@ static void texture_action_read_info(struct rbug_event *e,
 	struct rbug_proto_texture_info_reply *info;
 	struct texture_action_read *action;
 	uint32_t serial = 0;
+	GdkPixbuf *buf = NULL;
 
 	info = (struct rbug_proto_texture_info_reply *)header;
 	action = (struct texture_action_read *)e;
@@ -407,9 +408,8 @@ static void texture_action_read_info(struct rbug_event *e,
 	}
 
 	if (pf_layout(info->format) == PIPE_FORMAT_LAYOUT_RGBAZS) {
-		GdkPixbuf *buf = NULL;
-
 		int swz = (info->format >> 2) &  0xFFF;
+
 		if (!swz)
 			;
 		else if (swz == _PIPE_FORMAT_RGBA)
@@ -432,8 +432,20 @@ static void texture_action_read_info(struct rbug_event *e,
 		else if (swz == _PIPE_FORMAT_Z000)
 			buf = icon_get("z24x8", p);
 
-		gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_PIXBUF, buf, -1);
+	} else if (pf_layout(info->format) == PIPE_FORMAT_LAYOUT_DXT) {
+
+		if (info->format == PIPE_FORMAT_DXT1_RGB)
+			buf = icon_get("dxt1_rgb", p);
+		else if (info->format == PIPE_FORMAT_DXT1_RGBA)
+			buf = icon_get("dxt1_rgba", p);
+		else if (info->format == PIPE_FORMAT_DXT3_RGBA)
+			buf = icon_get("dxt3_rgba", p);
+		else if (info->format == PIPE_FORMAT_DXT5_RGBA)
+			buf = icon_get("dxt5_rgba", p);
+
 	}
+
+	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_PIXBUF, buf, -1);
 
 	/* no longer interested in this action */
 	if (!action->running || p->texture.read != action)
