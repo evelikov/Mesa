@@ -369,9 +369,9 @@ static void texture_action_read_upload(struct texture_action_read *action,
 	p->texture.height = action->height;
 }
 
-static void texture_action_read_read(struct rbug_event *e,
-                                     struct rbug_header *header,
-                                     struct program *p)
+static gboolean texture_action_read_read(struct rbug_event *e,
+                                         struct rbug_header *header,
+                                         struct program *p)
 {
 	struct rbug_proto_texture_read_reply *read;
 	struct texture_action_read *action;
@@ -418,15 +418,17 @@ static void texture_action_read_read(struct rbug_event *e,
 		texture_action_read_clean(action, p);
 	}
 
-	return;
+	return FALSE;
 
 error:
 	texture_stop_read_action(action, p);
+
+	return FALSE;
 }
 
-static void texture_action_read_info(struct rbug_event *e,
-                                     struct rbug_header *header,
-                                     struct program *p)
+static gboolean texture_action_read_info(struct rbug_event *e,
+                                         struct rbug_header *header,
+                                         struct program *p)
 {
 	struct rbug_connection *con = p->rbug.con;
 	struct rbug_proto_texture_info_reply *info;
@@ -505,12 +507,14 @@ static void texture_action_read_info(struct rbug_event *e,
 
 	/* hock up event callback */
 	action->e.func = texture_action_read_read;
-	rbug_add_event(&action->e, serial, p);
+	rbug_add_reply(&action->e, serial, p);
 
-	return;
+	return FALSE;
 
 error:
 	texture_stop_read_action(action, p);
+
+	return FALSE;
 }
 
 static void texture_stop_read_action(struct texture_action_read *action, struct program *p)
@@ -561,7 +565,7 @@ texture_start_read_action(rbug_texture_t t, GtkTreeIter *iter, struct program *p
 	action->pending = TRUE;
 	action->running = TRUE;
 
-	rbug_add_event(&action->e, serial, p);
+	rbug_add_reply(&action->e, serial, p);
 
 	return action;
 }
@@ -574,9 +578,9 @@ struct texture_action_list
 	GtkTreeIter parent;
 };
 
-static void texture_action_list_list(struct rbug_event *e,
-                                     struct rbug_header *header,
-                                     struct program *p)
+static gboolean texture_action_list_list(struct rbug_event *e,
+                                         struct rbug_header *header,
+                                         struct program *p)
 {
 
 	struct rbug_proto_texture_list_reply *list;
@@ -602,6 +606,8 @@ static void texture_action_list_list(struct rbug_event *e,
 	}
 
 	g_free(action);
+
+	return FALSE;
 }
 
 static void texture_start_list_action(GtkTreeStore *store, GtkTreeIter *parent, struct program *p)
@@ -619,5 +625,5 @@ static void texture_start_list_action(GtkTreeStore *store, GtkTreeIter *parent, 
 	action->store = store;
 	action->parent = *parent;
 
-	rbug_add_event(&action->e, serial, p);
+	rbug_add_reply(&action->e, serial, p);
 }

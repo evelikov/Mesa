@@ -30,8 +30,14 @@
 
 #include "rbug/rbug.h"
 
+struct program;
 struct texture_action_read;
 struct shader_action_info;
+
+struct rbug_event
+{
+	gboolean (*func)(struct rbug_event *, struct rbug_header *, struct program *);
+};
 
 enum columns {
 	COLUMN_ID = 0,
@@ -131,17 +137,13 @@ struct program
 		struct rbug_connection *con;
 		GIOChannel *channel;
 		gint event;
-		GHashTable *hash;
+		GHashTable *hash_event;
+		GHashTable *hash_reply;
 	} rbug;
 
 	struct {
 		GHashTable *hash;
 	} icon;
-};
-
-struct rbug_event
-{
-	void (*func)(struct rbug_event *, struct rbug_header *, struct program *);
 };
 
 
@@ -159,7 +161,8 @@ GdkPixbuf* icon_get(const char *name, struct program *p);
 
 
 /* src/rbug.c */
-void rbug_add_event(struct rbug_event *e, uint32_t serial, struct program *p);
+void rbug_add_reply(struct rbug_event *e, uint32_t serial, struct program *p);
+void rbug_add_event(struct rbug_event *e, int16_t op, struct program *p);
 void rbug_glib_io_watch(struct program *p);
 void rbug_finish_and_emit_events(struct program *p);
 

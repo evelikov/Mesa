@@ -405,7 +405,8 @@ void main_quit(struct program *p)
 		rbug_disconnect(p->rbug.con);
 		g_io_channel_unref(p->rbug.channel);
 		g_source_remove(p->rbug.event);
-		g_hash_table_unref(p->rbug.hash);
+		g_hash_table_unref(p->rbug.hash_event);
+		g_hash_table_unref(p->rbug.hash_reply);
 	}
 
 	g_free(p->ask.host);

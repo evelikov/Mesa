@@ -239,9 +239,9 @@ static void shader_action_info_clean(struct shader_action_info *action, struct p
 	g_free(action);
 }
 
-static void shader_action_info_info(struct rbug_event *e,
-                                    struct rbug_header *header,
-                                    struct program *p)
+static gboolean shader_action_info_info(struct rbug_event *e,
+                                        struct rbug_header *header,
+                                        struct program *p)
 {
 	struct rbug_proto_shader_info_reply *info;
 	struct shader_action_info *action;
@@ -286,6 +286,7 @@ static void shader_action_info_info(struct rbug_event *e,
 
 out:
 	shader_action_info_clean(action, p);
+	return FALSE;
 }
 
 static struct shader_action_info *
@@ -310,7 +311,7 @@ shader_start_info_action(rbug_context_t c,
 	action->pending = TRUE;
 	action->running = TRUE;
 
-	rbug_add_event(&action->e, serial, p);
+	rbug_add_reply(&action->e, serial, p);
 
 	return action;
 }
@@ -336,9 +337,9 @@ struct shader_action_list
 	GtkTreeIter parent;
 };
 
-static void shader_action_list_list(struct rbug_event *e,
-                                     struct rbug_header *header,
-                                     struct program *p)
+static gboolean shader_action_list_list(struct rbug_event *e,
+                                        struct rbug_header *header,
+                                        struct program *p)
 {
 
 	struct rbug_proto_shader_list_reply *list;
@@ -364,6 +365,8 @@ static void shader_action_list_list(struct rbug_event *e,
 	}
 
 	g_free(action);
+
+	return FALSE;
 }
 
 static void shader_start_list_action(GtkTreeStore *store, GtkTreeIter *parent,
@@ -383,5 +386,5 @@ static void shader_start_list_action(GtkTreeStore *store, GtkTreeIter *parent,
 	action->store = store;
 	action->parent = *parent;
 
-	rbug_add_event(&action->e, serial, p);
+	rbug_add_reply(&action->e, serial, p);
 }
