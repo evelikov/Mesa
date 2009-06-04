@@ -161,6 +161,13 @@ out:
 	g_free(text);
 }
 
+void shader_refresh(struct program *p)
+{
+	g_assert(p->viewed.type == TYPE_SHADER);
+
+	shader_start_info_action(p->viewed.parent, p->viewed.id, &p->viewed.iter, p);
+}
+
 void shader_viewed(struct program *p)
 {
 	g_assert(p->viewed.type == TYPE_SHADER);
@@ -196,12 +203,12 @@ void shader_unviewed(struct program *p)
 
 void shader_unselected(struct program *p)
 {
-	main_set_viewed(NULL, p);
+	main_set_viewed(NULL, FALSE, p);
 }
 
 void shader_selected(struct program *p)
 {
-	main_set_viewed(&p->selected.iter, p);
+	main_set_viewed(&p->selected.iter, FALSE, p);
 }
 
 void shader_list(GtkTreeStore *store, GtkTreeIter *parent,

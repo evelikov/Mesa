@@ -135,12 +135,16 @@ static void changed(GtkTreeSelection *s, gpointer data)
 				shader_unselected(p);
 			else if (old_type == TYPE_TEXTURE)
 				texture_unselected(p);
+			else if (old_type == TYPE_CONTEXT)
+				context_unselected(p);
 		}
 		if (p->selected.id) {
 			if (p->selected.type == TYPE_SHADER)
 				shader_selected(p);
 			else if (p->selected.type == TYPE_TEXTURE)
 				texture_selected(p);
+			else if (p->selected.type == TYPE_CONTEXT)
+				context_selected(p);
 		}
 	}
 }
@@ -235,7 +239,50 @@ static void icon_setup(struct program *p)
 	icon_add("res/shader_off_replaced.png", "shader_off_replaced", p);
 }
 
-void main_set_viewed(GtkTreeIter *iter, struct program *p)
+struct find_struct
+{
+	GtkTreeIter *out;
+	guint64 id;
+	gboolean result;
+};
+
+static gboolean find_foreach(GtkTreeModel *model,
+                             GtkTreePath *path,
+                             GtkTreeIter *iter,
+                             gpointer data)
+{
+	struct find_struct *find = (struct find_struct *)data;
+	guint64 id;
+	(void)path;
+
+	gtk_tree_model_get(model, iter,
+	                   COLUMN_ID, &id,
+	                  -1);
+
+	if (id == find->id) {
+		*find->out = *iter;
+		find->result = TRUE;
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+gboolean main_find_id(guint64 id, GtkTreeIter *out, struct program *p)
+{
+	GtkTreeModel *model = GTK_TREE_MODEL(p->main.treestore);
+	struct find_struct find;
+
+	find.out = out;
+	find.id = id;
+	find.result = FALSE;
+
+	gtk_tree_model_foreach(model, find_foreach, &find);
+
+	return find.result;
+}
+
+void main_set_viewed(GtkTreeIter *iter, gboolean force_update, struct program *p)
 {
 	GtkTreeModel *model = GTK_TREE_MODEL(p->main.treestore);
 	GtkTreeIter parent;
@@ -286,11 +333,19 @@ void main_set_viewed(GtkTreeIter *iter, struct program *p)
 			else if (old_type == TYPE_TEXTURE)
 				texture_unviewed(p);
 		}
+
 		if (p->viewed.id) {
 			if (p->viewed.type == TYPE_SHADER)
 				shader_viewed(p);
-			else if (p->selected.type == TYPE_TEXTURE)
+			else if (p->viewed.type == TYPE_TEXTURE)
 				texture_viewed(p);
+		}
+	} else {
+		if (force_update || p->viewed.id) {
+			if (p->viewed.type == TYPE_SHADER)
+				shader_refresh(p);
+			else if (p->viewed.type == TYPE_TEXTURE)
+				texture_refresh(p);
 		}
 	}
 }
@@ -303,12 +358,18 @@ void main_window_create(struct program *p)
 	GObject *selection;
 	GtkDrawingArea *draw;
 	GtkTextView *textview;
+	GtkWidget *context_view;
 	GtkWidget *textview_scrolled;
 	GtkTreeView *treeview;
 	GtkTreeStore *treestore;
 
 	GObject *tool_quit;
 	GObject *tool_refresh;
+
+	GObject *tool_break_before;
+	GObject *tool_break_after;
+	GObject *tool_step;
+	GObject *tool_separator;
 
 	GObject *tool_back;
 	GObject *tool_forward;
@@ -332,11 +393,17 @@ void main_window_create(struct program *p)
 	treeview = GTK_TREE_VIEW(gtk_builder_get_object(builder, "treeview"));
 	treestore = GTK_TREE_STORE(gtk_builder_get_object(builder, "treestore"));
 	selection = G_OBJECT(gtk_tree_view_get_selection(treeview));
+	context_view = GTK_WIDGET(gtk_builder_get_object(builder, "context_view"));
 	textview_scrolled = GTK_WIDGET(gtk_builder_get_object(builder, "textview_scrolled"));
 
 
 	tool_quit = gtk_builder_get_object(builder, "tool_quit");
 	tool_refresh = gtk_builder_get_object(builder, "tool_refresh");
+
+	tool_break_before = gtk_builder_get_object(builder, "tool_break_before");
+	tool_break_after = gtk_builder_get_object(builder, "tool_break_after");
+	tool_step = gtk_builder_get_object(builder, "tool_step");
+	tool_separator = gtk_builder_get_object(builder, "tool_separator");
 
 	tool_back = gtk_builder_get_object(builder, "tool_back");
 	tool_forward = gtk_builder_get_object(builder, "tool_forward");
@@ -357,12 +424,31 @@ void main_window_create(struct program *p)
 	g_signal_connect(tool_refresh, "clicked", G_CALLBACK(refresh), p);
 	g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(destroy), p);
 
+	p->context.ra[0] = gtk_builder_get_object(builder, "ra_ctx_fragment");
+	p->context.ra[1] = gtk_builder_get_object(builder, "ra_ctx_vertex");
+	p->context.ra[2] = gtk_builder_get_object(builder, "ra_ctx_geom");
+	p->context.ra[3] = gtk_builder_get_object(builder, "ra_ctx_zs");
+	p->context.ra[4] = gtk_builder_get_object(builder, "ra_ctx_color0");
+	p->context.ra[5] = gtk_builder_get_object(builder, "ra_ctx_color1");
+	p->context.ra[6] = gtk_builder_get_object(builder, "ra_ctx_color2");
+	p->context.ra[7] = gtk_builder_get_object(builder, "ra_ctx_color3");
+	p->context.ra[8] = gtk_builder_get_object(builder, "ra_ctx_color4");
+	p->context.ra[9] = gtk_builder_get_object(builder, "ra_ctx_color5");
+	p->context.ra[10] = gtk_builder_get_object(builder, "ra_ctx_color6");
+	p->context.ra[11] = gtk_builder_get_object(builder, "ra_ctx_color7");
+
 	p->main.draw = draw;
 	p->main.window = window;
 	p->main.textview = textview;
 	p->main.treeview = treeview;
 	p->main.treestore = treestore;
+	p->main.context_view = context_view;
 	p->main.textview_scrolled = textview_scrolled;
+
+	p->tool.break_before = GTK_WIDGET(tool_break_before);
+	p->tool.break_after = GTK_WIDGET(tool_break_after);
+	p->tool.step = GTK_WIDGET(tool_step);
+	p->tool.separator = GTK_WIDGET(tool_separator);
 
 	p->tool.back = GTK_WIDGET(tool_back);
 	p->tool.forward = GTK_WIDGET(tool_forward);
@@ -394,6 +480,8 @@ void main_window_create(struct program *p)
 	gtk_widget_show(window);
 
 	icon_setup(p);
+
+	context_init(p);
 
 	/* do a refresh */
 	refresh(GTK_WIDGET(tool_refresh), p);

@@ -149,7 +149,7 @@ static gboolean expose(GtkWidget* widget, GdkEventExpose* e, gpointer data)
 	if (!gdk_gl_drawable_gl_begin(drawable, context))
 		return FALSE;
 
-	if (p->selected.type == TYPE_TEXTURE)
+	if (p->viewed.type == TYPE_TEXTURE)
 		texture_draw(p);
 	else
 		draw_tri(p);

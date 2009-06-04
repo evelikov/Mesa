@@ -36,12 +36,50 @@
               </packing>
             </child>
             <child>
-              <object class="GtkSeparatorToolItem" id="separator">
+              <object class="GtkSeparatorToolItem" id="_separatortoolitem1">
                 <property name="visible">True</property>
               </object>
               <packing>
                 <property name="expand">False</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToggleToolButton" id="tool_break_before">
+                <property name="label" translatable="yes">Break Before</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-stop</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
                 <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToggleToolButton" id="tool_break_after">
+                <property name="label" translatable="yes">Break After</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-stop</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkToolButton" id="tool_step">
+                <property name="label" translatable="yes">Step</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-jump-to</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
+              <object class="GtkSeparatorToolItem" id="tool_separator"/>
+              <packing>
+                <property name="expand">False</property>
               </packing>
             </child>
             <child>
@@ -217,6 +255,160 @@
                 <property name="visible">True</property>
                 <property name="orientation">vertical</property>
                 <child>
+                  <object class="GtkHBox" id="context_view">
+                    <child>
+                      <object class="GtkTable" id="_table1">
+                        <property name="visible">True</property>
+                        <property name="n_rows">2</property>
+                        <property name="n_columns">2</property>
+                        <child>
+                          <object class="GtkLabel" id="_label1">
+                            <property name="visible">True</property>
+                            <property name="xalign">1</property>
+                            <property name="label" translatable="yes">Shaders: </property>
+                          </object>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="_label2">
+                            <property name="visible">True</property>
+                            <property name="xalign">1</property>
+                            <property name="label" translatable="yes">Surfaces: </property>
+                          </object>
+                          <packing>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkHButtonBox" id="_hbuttonbox1">
+                            <property name="visible">True</property>
+                            <property name="spacing">2</property>
+                            <property name="layout_style">start</property>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton1">
+                                <property name="label" translatable="yes">Fragment</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_fragment</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton2">
+                                <property name="label" translatable="yes">Vertex</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_vertex</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkHButtonBox" id="_hbuttonbox2">
+                            <property name="visible">True</property>
+                            <property name="spacing">2</property>
+                            <property name="layout_style">start</property>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton3">
+                                <property name="label" translatable="yes">Color 1</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_color0</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton4">
+                                <property name="label" translatable="yes">Color 2</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_color1</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton5">
+                                <property name="label" translatable="yes">Color 3</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_color2</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton6">
+                                <property name="label" translatable="yes">ZS</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_zs</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">False</property>
+                        <property name="padding">2</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <placeholder/>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">False</property>
+                    <property name="padding">4</property>
+                    <property name="position">0</property>
+                  </packing>
+                </child>
+                <child>
+                  <placeholder/>
+                </child>
+                <child>
                   <object class="GtkScrolledWindow" id="textview_scrolled">
                     <property name="visible">True</property>
                     <property name="can_focus">True</property>
@@ -229,17 +421,14 @@
                     </child>
                   </object>
                   <packing>
-                    <property name="position">0</property>
+                    <property name="position">2</property>
                   </packing>
                 </child>
                 <child>
                   <object class="GtkDrawingArea" id="draw"/>
                   <packing>
-                    <property name="position">1</property>
+                    <property name="position">3</property>
                   </packing>
-                </child>
-                <child>
-                  <placeholder/>
                 </child>
               </object>
               <packing>
@@ -263,5 +452,53 @@
         </child>
       </object>
     </child>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_fragment">
+    <property name="draw_as_radio">True</property>
+    <property name="active">True</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_vertex">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_geom">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color0">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color1">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color2">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color3">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color4">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color5">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color6">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color7">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_zs">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
   </object>
 </interface>

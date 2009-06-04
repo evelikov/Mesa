@@ -205,12 +205,12 @@ void texture_viewed(struct program *p)
 
 void texture_unselected(struct program *p)
 {
-	main_set_viewed(NULL, p);
+	main_set_viewed(NULL, FALSE, p);
 }
 
 void texture_selected(struct program *p)
 {
-	main_set_viewed(&p->selected.iter, p);
+	main_set_viewed(&p->selected.iter, FALSE, p);
 }
 
 /*

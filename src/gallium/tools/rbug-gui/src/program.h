@@ -54,6 +54,22 @@ enum types {
 	TYPE_SHADER,
 };
 
+enum ctx_view_id {
+	CTX_VIEW_FRAGMENT = 0,
+	CTX_VIEW_VERTEX,
+	CTX_VIEW_GEOM,
+	CTX_VIEW_ZS,
+	CTX_VIEW_COLOR0,
+	CTX_VIEW_COLOR1,
+	CTX_VIEW_COLOR2,
+	CTX_VIEW_COLOR3,
+	CTX_VIEW_COLOR4,
+	CTX_VIEW_COLOR5,
+	CTX_VIEW_COLOR6,
+	CTX_VIEW_COLOR7,
+	CTX_VIEW_NUM,
+};
+
 struct program
 {
 	struct {
@@ -74,6 +90,7 @@ struct program
 
 	struct {
 		GtkWidget *window;
+		GtkWidget *context_view;
 		GtkTextView *textview;
 		GtkWidget *textview_scrolled;
 		GtkTreeView *treeview;
@@ -98,6 +115,11 @@ struct program
 	} viewed;
 
 	struct {
+		GtkWidget *break_before;
+		GtkWidget *break_after;
+		GtkWidget *step;
+		GtkWidget *separator;
+
 		GtkWidget *back;
 		GtkWidget *forward;
 		GtkWidget *background;
@@ -109,6 +131,17 @@ struct program
 		GtkWidget *save;
 		GtkWidget *revert;
 	} tool;
+
+	struct {
+		/* signal ids */
+		gulong sid[16];
+
+		GObject *ra[12];
+
+		enum ctx_view_id view_id;
+
+		struct rbug_event blocked_event;
+	} context;
 
 	struct {
 		gulong id[8];
@@ -155,7 +188,8 @@ gboolean ask_connect(struct program *p);
 /* src/main.c */
 void main_window_create(struct program *p);
 void main_quit(struct program *p);
-void main_set_viewed(GtkTreeIter *iter, struct program *p);
+gboolean main_find_id(guint64 id, GtkTreeIter *out, struct program *p);
+void main_set_viewed(GtkTreeIter *iter, gboolean force_update, struct program *p);
 void icon_add(const char *filename, const char *name, struct program *p);
 GdkPixbuf* icon_get(const char *name, struct program *p);
 
@@ -168,9 +202,13 @@ void rbug_finish_and_emit_events(struct program *p);
 
 
 /* src/context.c */
+void context_unselected(struct program *p);
+void context_selected(struct program *p);
+void context_init(struct program *p);
 void context_list(GtkTreeStore *store,
                   GtkTreeIter *parent,
                   struct program *p);
+
 
 /* src/texture.c */
 void texture_list(GtkTreeStore *store, GtkTreeIter *parent, struct program *p);
@@ -187,6 +225,7 @@ void shader_unselected(struct program *p);
 void shader_selected(struct program *p);
 void shader_unviewed(struct program *p);
 void shader_viewed(struct program *p);
+void shader_refresh(struct program *p);
 void shader_list(GtkTreeStore *store,
                  GtkTreeIter *parent,
                  rbug_context_t ctx,
