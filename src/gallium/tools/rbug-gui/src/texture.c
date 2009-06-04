@@ -82,7 +82,7 @@ static void automatic(GtkWidget *widget, struct program *p)
 	p->texture.automatic = !p->texture.automatic;
 
 	if (p->texture.automatic)
-		texture_start_if_new_read_action(p->selected.id, &p->selected.iter, p);
+		texture_start_if_new_read_action(p->viewed.id, &p->viewed.iter, p);
 }
 
 static void background(GtkWidget *widget, struct program *p)
@@ -109,7 +109,7 @@ void texture_list(GtkTreeStore *store, GtkTreeIter *parent, struct program *p)
 
 void texture_refresh(struct program *p)
 {
-	texture_start_if_new_read_action(p->selected.id, &p->selected.iter, p);
+	texture_start_if_new_read_action(p->viewed.id, &p->viewed.iter, p);
 }
 
 void texture_draw(struct program *p)
@@ -134,7 +134,7 @@ void texture_draw(struct program *p)
 		break;
 	}
 
-	if (p->texture.id != p->selected.id)
+	if (p->texture.id != p->viewed.id)
 		return;
 
 	w = p->texture.width;
@@ -162,10 +162,10 @@ void texture_draw(struct program *p)
 	glDisable(GL_BLEND);
 
 	if (p->texture.automatic)
-		texture_start_if_new_read_action(p->selected.id, &p->selected.iter, p);
+		texture_start_if_new_read_action(p->viewed.id, &p->viewed.iter, p);
 }
 
-void texture_unselected(struct program *p)
+void texture_unviewed(struct program *p)
 {
 	(void)p;
 
@@ -183,11 +183,11 @@ void texture_unselected(struct program *p)
 	g_signal_handler_disconnect(p->tool.background, p->texture.tid[2]);
 }
 
-void texture_selected(struct program *p)
+void texture_viewed(struct program *p)
 {
-	g_assert(p->selected.type == TYPE_TEXTURE);
+	g_assert(p->viewed.type == TYPE_TEXTURE);
 
-	texture_start_if_new_read_action(p->selected.id, &p->selected.iter, p);
+	texture_start_if_new_read_action(p->viewed.id, &p->viewed.iter, p);
 
 	gtk_widget_show(p->tool.alpha);
 	gtk_widget_show(p->tool.automatic);
@@ -201,6 +201,16 @@ void texture_selected(struct program *p)
 	p->texture.tid[0] = g_signal_connect(p->tool.alpha, "clicked", G_CALLBACK(alpha), p);
 	p->texture.tid[1] = g_signal_connect(p->tool.automatic, "clicked", G_CALLBACK(automatic), p);
 	p->texture.tid[2] = g_signal_connect(p->tool.background, "clicked", G_CALLBACK(background), p);
+}
+
+void texture_unselected(struct program *p)
+{
+	main_set_viewed(NULL, p);
+}
+
+void texture_selected(struct program *p)
+{
+	main_set_viewed(&p->selected.iter, p);
 }
 
 /*
@@ -522,7 +532,7 @@ static void texture_start_if_new_read_action(rbug_texture_t t,
 	/* are we currently trying download anything? */
 	if (p->texture.read) {
 		/* ok we are downloading something, but is it the one we want? */
-		if (p->texture.read->id == p->selected.id) {
+		if (p->texture.read->id == p->viewed.id) {
 			/* don't need to do anything */
 			return;
 		} else {

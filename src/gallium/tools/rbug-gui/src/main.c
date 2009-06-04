@@ -235,6 +235,66 @@ static void icon_setup(struct program *p)
 	icon_add("res/shader_off_replaced.png", "shader_off_replaced", p);
 }
 
+void main_set_viewed(GtkTreeIter *iter, struct program *p)
+{
+	GtkTreeModel *model = GTK_TREE_MODEL(p->main.treestore);
+	GtkTreeIter parent;
+	enum types old_type;
+	uint64_t old_id;
+	GValue typename;
+	GValue type;
+	GValue id;
+
+	old_id = p->viewed.id;
+	old_type = p->viewed.type;
+
+	if (iter) {
+		memset(&id, 0, sizeof(id));
+		memset(&type, 0, sizeof(type));
+		memset(&typename, 0, sizeof(typename));
+
+		gtk_tree_model_get_value(model, iter, COLUMN_ID, &id);
+		gtk_tree_model_get_value(model, iter, COLUMN_TYPE, &type);
+		gtk_tree_model_get_value(model, iter, COLUMN_TYPENAME, &typename);
+
+		g_assert(G_VALUE_HOLDS_UINT64(&id));
+		g_assert(G_VALUE_HOLDS_INT(&type));
+		g_assert(G_VALUE_HOLDS_STRING(&typename));
+
+		p->viewed.iter = *iter;
+		p->viewed.id = g_value_get_uint64(&id);
+		p->viewed.type = g_value_get_int(&type);
+
+		if (gtk_tree_model_iter_parent(model, &parent, iter)) {
+			g_value_unset(&id);
+			gtk_tree_model_get_value(model, &parent, COLUMN_ID, &id);
+			g_assert(G_VALUE_HOLDS_UINT64(&id));
+			p->viewed.parent = g_value_get_uint64(&id);
+		} else {
+			/* Everything else then the screen must have a parent */
+			g_assert(p->viewed.id != 0);
+		}
+	} else {
+		memset(&p->viewed, 0, sizeof(p->viewed));
+	}
+
+	if (p->viewed.id != old_id ||
+	    p->viewed.type != old_type) {
+		if (old_id) {
+			if (old_type == TYPE_SHADER)
+				shader_unviewed(p);
+			else if (old_type == TYPE_TEXTURE)
+				texture_unviewed(p);
+		}
+		if (p->viewed.id) {
+			if (p->viewed.type == TYPE_SHADER)
+				shader_viewed(p);
+			else if (p->selected.type == TYPE_TEXTURE)
+				texture_viewed(p);
+		}
+	}
+}
+
 void main_window_create(struct program *p)
 {
 	GtkBuilder *builder;

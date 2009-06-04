@@ -85,6 +85,13 @@ struct program
 	} selected;
 
 	struct {
+		GtkTreeIter iter;
+		enum types type;
+		guint64 parent;
+		guint64 id;
+	} viewed;
+
+	struct {
 		GtkWidget *back;
 		GtkWidget *forward;
 		GtkWidget *background;
@@ -146,6 +153,7 @@ gboolean ask_connect(struct program *p);
 /* src/main.c */
 void main_window_create(struct program *p);
 void main_quit(struct program *p);
+void main_set_viewed(GtkTreeIter *iter, struct program *p);
 void icon_add(const char *filename, const char *name, struct program *p);
 GdkPixbuf* icon_get(const char *name, struct program *p);
 
@@ -165,6 +173,8 @@ void context_list(GtkTreeStore *store,
 void texture_list(GtkTreeStore *store, GtkTreeIter *parent, struct program *p);
 void texture_unselected(struct program *p);
 void texture_selected(struct program *p);
+void texture_unviewed(struct program *p);
+void texture_viewed(struct program *p);
 void texture_refresh(struct program *p);
 void texture_draw(struct program *p);
 
@@ -172,6 +182,8 @@ void texture_draw(struct program *p);
 /* src/shader.c */
 void shader_unselected(struct program *p);
 void shader_selected(struct program *p);
+void shader_unviewed(struct program *p);
+void shader_viewed(struct program *p);
 void shader_list(GtkTreeStore *store,
                  GtkTreeIter *parent,
                  rbug_context_t ctx,

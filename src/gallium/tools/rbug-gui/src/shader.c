@@ -56,16 +56,16 @@ static void disable(GtkWidget *widget, struct program *p)
 	struct rbug_connection *con = p->rbug.con;
 	(void)widget;
 
-	g_assert(p->selected.type == TYPE_SHADER);
+	g_assert(p->viewed.type == TYPE_SHADER);
 
 	rbug_finish_and_emit_events(p);
-	rbug_send_shader_disable(con, p->selected.parent, p->selected.id, true, NULL);
+	rbug_send_shader_disable(con, p->viewed.parent, p->viewed.id, true, NULL);
 	rbug_finish_and_emit_events(p);
 
 	gtk_widget_hide(p->tool.disable);
 	gtk_widget_show(p->tool.enable);
 
-	shader_start_info_action(p->selected.parent, p->selected.id, &p->selected.iter, p);
+	shader_start_info_action(p->viewed.parent, p->viewed.id, &p->viewed.iter, p);
 }
 
 static void enable(GtkWidget *widget, struct program *p)
@@ -73,16 +73,16 @@ static void enable(GtkWidget *widget, struct program *p)
 	struct rbug_connection *con = p->rbug.con;
 	(void)widget;
 
-	g_assert(p->selected.type == TYPE_SHADER);
+	g_assert(p->viewed.type == TYPE_SHADER);
 
 	rbug_finish_and_emit_events(p);
-	rbug_send_shader_disable(con, p->selected.parent, p->selected.id, false, NULL);
+	rbug_send_shader_disable(con, p->viewed.parent, p->viewed.id, false, NULL);
 	rbug_finish_and_emit_events(p);
 
 	gtk_widget_show(p->tool.disable);
 	gtk_widget_hide(p->tool.enable);
 
-	shader_start_info_action(p->selected.parent, p->selected.id, &p->selected.iter, p);
+	shader_start_info_action(p->viewed.parent, p->viewed.id, &p->viewed.iter, p);
 }
 
 static void update_text(struct rbug_proto_shader_info_reply *info, struct program *p)
@@ -110,13 +110,13 @@ static void revert(GtkWidget *widget, struct program *p)
 	struct rbug_connection *con = p->rbug.con;
 	(void)widget;
 
-	g_assert(p->selected.type == TYPE_SHADER);
+	g_assert(p->viewed.type == TYPE_SHADER);
 
 	rbug_finish_and_emit_events(p);
-	rbug_send_shader_replace(con, p->selected.parent, p->selected.id, NULL, 0, NULL);
+	rbug_send_shader_replace(con, p->viewed.parent, p->viewed.id, NULL, 0, NULL);
 	rbug_finish_and_emit_events(p);
 
-	shader_start_info_action(p->selected.parent, p->selected.id, &p->selected.iter, p);
+	shader_start_info_action(p->viewed.parent, p->viewed.id, &p->viewed.iter, p);
 }
 
 static void save(GtkWidget *widget, struct program *p)
@@ -131,7 +131,7 @@ static void save(GtkWidget *widget, struct program *p)
 	unsigned num;
 	(void)widget;
 
-	g_assert(p->selected.type == TYPE_SHADER);
+	g_assert(p->viewed.type == TYPE_SHADER);
 	g_assert(sizeof(struct tgsi_token) == 4);
 
 	rbug_finish_and_emit_events(p);
@@ -148,22 +148,22 @@ static void save(GtkWidget *widget, struct program *p)
 
 	num = tgsi_num_tokens(tokens);
 
-	rbug_send_shader_replace(con, p->selected.parent, p->selected.id,
+	rbug_send_shader_replace(con, p->viewed.parent, p->viewed.id,
 	                         (uint32_t*)tokens, num, NULL);
 
 	gtk_widget_show(p->tool.revert);
 
 	rbug_finish_and_emit_events(p);
 
-	shader_start_info_action(p->selected.parent, p->selected.id, &p->selected.iter, p);
+	shader_start_info_action(p->viewed.parent, p->viewed.id, &p->viewed.iter, p);
 
 out:
 	g_free(text);
 }
 
-void shader_selected(struct program *p)
+void shader_viewed(struct program *p)
 {
-	g_assert(p->selected.type == TYPE_SHADER);
+	g_assert(p->viewed.type == TYPE_SHADER);
 
 	p->shader.id[0] = g_signal_connect(p->tool.save, "clicked", G_CALLBACK(save), p);
 	p->shader.id[1] = g_signal_connect(p->tool.revert, "clicked", G_CALLBACK(revert), p);
@@ -176,10 +176,10 @@ void shader_selected(struct program *p)
 	if (p->shader.info)
 		shader_stop_info_action(p->shader.info, p);
 
-	shader_start_info_action(p->selected.parent, p->selected.id, &p->selected.iter, p);
+	shader_start_info_action(p->viewed.parent, p->viewed.id, &p->viewed.iter, p);
 }
 
-void shader_unselected(struct program *p)
+void shader_unviewed(struct program *p)
 {
 	g_signal_handler_disconnect(p->tool.save, p->shader.id[0]);
 	g_signal_handler_disconnect(p->tool.revert, p->shader.id[1]);
@@ -192,6 +192,16 @@ void shader_unselected(struct program *p)
 	gtk_widget_hide(p->tool.revert);
 	gtk_widget_hide(GTK_WIDGET(p->main.textview));
 	gtk_widget_hide(p->main.textview_scrolled);
+}
+
+void shader_unselected(struct program *p)
+{
+	main_set_viewed(NULL, p);
+}
+
+void shader_selected(struct program *p)
+{
+	main_set_viewed(&p->selected.iter, p);
 }
 
 void shader_list(GtkTreeStore *store, GtkTreeIter *parent,
@@ -243,6 +253,8 @@ static void shader_action_info_info(struct rbug_event *e,
 	/* ack pending message */
 	action->pending = FALSE;
 
+	g_assert(header->opcode == RBUG_OP_SHADER_INFO_REPLY);
+
 	if (info->disabled) {
 		if (info->replaced_len == 0)
 			buf = icon_get("shader_off_normal", p);
@@ -256,7 +268,7 @@ static void shader_action_info_info(struct rbug_event *e,
 	}
 	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_PIXBUF, buf, -1);
 
-	if (p->selected.id != action->sid)
+	if (p->viewed.id != action->sid)
 		goto out;
 
 	update_text(info, p);
