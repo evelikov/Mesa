@@ -165,7 +165,7 @@ static void refresh(GtkWidget *widget, gpointer data)
 	gtk_tree_store_clear(p->main.treestore);
 
 	gtk_tree_store_insert_with_values(store, &p->main.top, NULL, -1,
-	                                  COLUMN_ID, 0,
+	                                  COLUMN_ID, (guint64)0,
 	                                  COLUMN_TYPE, TYPE_SCREEN,
 	                                  COLUMN_TYPENAME, "screen",
 	                                  COLUMN_PIXBUF, icon_get("screen", p),
