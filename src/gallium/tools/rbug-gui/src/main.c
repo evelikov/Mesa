@@ -369,6 +369,7 @@ void main_window_create(struct program *p)
 	GObject *tool_break_before;
 	GObject *tool_break_after;
 	GObject *tool_step;
+	GObject *tool_flush;
 	GObject *tool_separator;
 
 	GObject *tool_back;
@@ -403,6 +404,7 @@ void main_window_create(struct program *p)
 	tool_break_before = gtk_builder_get_object(builder, "tool_break_before");
 	tool_break_after = gtk_builder_get_object(builder, "tool_break_after");
 	tool_step = gtk_builder_get_object(builder, "tool_step");
+	tool_flush = gtk_builder_get_object(builder, "tool_flush");
 	tool_separator = gtk_builder_get_object(builder, "tool_separator");
 
 	tool_back = gtk_builder_get_object(builder, "tool_back");
@@ -448,6 +450,7 @@ void main_window_create(struct program *p)
 	p->tool.break_before = GTK_WIDGET(tool_break_before);
 	p->tool.break_after = GTK_WIDGET(tool_break_after);
 	p->tool.step = GTK_WIDGET(tool_step);
+	p->tool.flush = GTK_WIDGET(tool_flush);
 	p->tool.separator = GTK_WIDGET(tool_separator);
 
 	p->tool.back = GTK_WIDGET(tool_back);

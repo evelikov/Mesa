@@ -118,6 +118,7 @@ struct program
 		GtkWidget *break_before;
 		GtkWidget *break_after;
 		GtkWidget *step;
+		GtkWidget *flush;
 		GtkWidget *separator;
 
 		GtkWidget *back;

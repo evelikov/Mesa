@@ -116,6 +116,17 @@ static void step(GtkWidget *widget, struct program *p)
 	                            RBUG_BLOCK_BEFORE | RBUG_BLOCK_AFTER, NULL);
 }
 
+static void flush(GtkWidget *widget, struct program *p)
+{
+	(void)widget;
+
+	rbug_send_context_flush(p->rbug.con, p->selected.id,
+	                        PIPE_FLUSH_TEXTURE_CACHE |
+	                        PIPE_FLUSH_RENDER_CACHE, NULL);
+
+	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);
+}
+
 static gboolean blocked(struct rbug_event *e, struct rbug_header *h, struct program *p)
 {
 	struct rbug_proto_context_draw_blocked *b = (struct rbug_proto_context_draw_blocked *)h;
@@ -177,6 +188,7 @@ void context_unselected(struct program *p)
 	gtk_widget_hide(p->tool.break_before);
 	gtk_widget_hide(p->tool.break_after);
 	gtk_widget_hide(p->tool.step);
+	gtk_widget_hide(p->tool.flush);
 	gtk_widget_hide(p->tool.separator);
 
 	for (i = 0; i < CTX_VIEW_NUM; i++)
@@ -184,6 +196,7 @@ void context_unselected(struct program *p)
 	g_signal_handler_disconnect(p->tool.step, p->context.sid[12]);
 	g_signal_handler_disconnect(p->tool.break_before, p->context.sid[13]);
 	g_signal_handler_disconnect(p->tool.break_after, p->context.sid[14]);
+	g_signal_handler_disconnect(p->tool.flush, p->context.sid[15]);
 }
 
 void context_selected(struct program *p)
@@ -196,11 +209,13 @@ void context_selected(struct program *p)
 	p->context.sid[12] = g_signal_connect(p->tool.step, "clicked", G_CALLBACK(step), p);
 	p->context.sid[13] = g_signal_connect(p->tool.break_before, "toggled", G_CALLBACK(break_before), p);
 	p->context.sid[14] = g_signal_connect(p->tool.break_after, "toggled", G_CALLBACK(break_after), p);
+	p->context.sid[15] = g_signal_connect(p->tool.flush, "clicked", G_CALLBACK(flush), p);
 
 	gtk_widget_show(p->main.context_view);
 	gtk_widget_show(p->tool.break_before);
 	gtk_widget_show(p->tool.break_after);
 	gtk_widget_show(p->tool.step);
+	gtk_widget_show(p->tool.flush);
 	gtk_widget_show(p->tool.separator);
 
 	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);

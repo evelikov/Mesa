@@ -77,6 +77,17 @@
               </packing>
             </child>
             <child>
+              <object class="GtkToolButton" id="tool_flush">
+                <property name="label" translatable="yes">Flush</property>
+                <property name="use_underline">True</property>
+                <property name="stock_id">gtk-convert</property>
+              </object>
+              <packing>
+                <property name="expand">False</property>
+                <property name="homogeneous">True</property>
+              </packing>
+            </child>
+            <child>
               <object class="GtkSeparatorToolItem" id="tool_separator"/>
               <packing>
                 <property name="expand">False</property>
