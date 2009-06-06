@@ -118,11 +118,10 @@ static gboolean blocked(struct rbug_event *e, struct rbug_header *h, struct prog
 	GtkTreeIter iter;
 	(void)e;
 
-	/* auto flush on break */
-	if (b->block & RBUG_BLOCK_AFTER)
-		rbug_send_context_flush(p->rbug.con, b->context,
-		                        PIPE_FLUSH_TEXTURE_CACHE |
-		                        PIPE_FLUSH_RENDER_CACHE, NULL);
+
+	rbug_send_context_flush(p->rbug.con, b->context,
+	                        PIPE_FLUSH_TEXTURE_CACHE |
+	                        PIPE_FLUSH_RENDER_CACHE, NULL);
 
 	if (main_find_id(b->context, &iter, p))
 		context_start_info_action(b->context, &iter, p);
