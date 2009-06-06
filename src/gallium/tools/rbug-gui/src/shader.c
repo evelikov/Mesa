@@ -88,19 +88,20 @@ static void enable(GtkWidget *widget, struct program *p)
 static void update_text(struct rbug_proto_shader_info_reply *info, struct program *p)
 {
 	GtkTextBuffer *buffer;
-	gchar text[2048];
+#define TEXT_SIZE 16*1024
+	gchar text[TEXT_SIZE];
 
 	/* just in case */
 	g_assert(sizeof(struct tgsi_token) == 4);
 
 	if (info->replaced_len > 0)
-		tgsi_dump_str((struct tgsi_token *)info->replaced, 0, text, 2048);
+		tgsi_dump_str((struct tgsi_token *)info->replaced, 0, text, TEXT_SIZE);
 	else
-		tgsi_dump_str((struct tgsi_token *)info->original, 0, text, 2048);
+		tgsi_dump_str((struct tgsi_token *)info->original, 0, text, TEXT_SIZE);
 
 	/* just in case */
-	text[2047] = 0;
-
+	text[TEXT_SIZE-1] = 0;
+#undef TEXT_SIZE
 	buffer = gtk_text_view_get_buffer(p->main.textview);
 	gtk_text_buffer_set_text(buffer, text, -1);
 }
