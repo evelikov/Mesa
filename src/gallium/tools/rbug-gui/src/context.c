@@ -34,7 +34,7 @@
 struct context_action_info;
 
 static struct context_action_info *
-context_start_info_action(rbug_context_t c, GtkTreeIter *iter, struct program *p);
+context_start_info_action(rbug_context_t c, GtkTreeIter *iter, gboolean force_update, struct program *p);
 static void
 context_stop_info_action(struct context_action_info *info, struct program *p);
 
@@ -62,7 +62,7 @@ static void ra(GtkWidget *widget, struct program *p)
 
 	p->context.view_id = i;
 
-	context_start_info_action(p->selected.id, &p->selected.iter, p);
+	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);
 }
 
 static void break_before(GtkWidget *widget, struct program *p)
@@ -81,6 +81,8 @@ static void break_before(GtkWidget *widget, struct program *p)
 	else
 		rbug_send_context_draw_unblock(con, p->selected.id,
 		                               RBUG_BLOCK_BEFORE, NULL);
+
+	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);
 }
 
 static void break_after(GtkWidget *widget, struct program *p)
@@ -99,6 +101,8 @@ static void break_after(GtkWidget *widget, struct program *p)
 	else
 		rbug_send_context_draw_unblock(con, p->selected.id,
 		                               RBUG_BLOCK_AFTER, NULL);
+
+	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);
 }
 
 static void step(GtkWidget *widget, struct program *p)
@@ -124,7 +128,7 @@ static gboolean blocked(struct rbug_event *e, struct rbug_header *h, struct prog
 	                        PIPE_FLUSH_RENDER_CACHE, NULL);
 
 	if (main_find_id(b->context, &iter, p))
-		context_start_info_action(b->context, &iter, p);
+		context_start_info_action(b->context, &iter, TRUE, p);
 
 	(void)context_stop_info_action;
 
@@ -199,7 +203,7 @@ void context_selected(struct program *p)
 	gtk_widget_show(p->tool.step);
 	gtk_widget_show(p->tool.separator);
 
-	context_start_info_action(p->selected.id, &p->selected.iter, p);
+	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);
 }
 
 void context_init(struct program *p)
@@ -222,6 +226,7 @@ struct context_action_info
 	rbug_context_t cid;
 
 	GtkTreeIter iter;
+	gboolean update;
 
 	gboolean running;
 	gboolean pending;
@@ -316,7 +321,7 @@ static gboolean context_action_info_info(struct rbug_event *e,
 	}
 
 	if (ret)
-		main_set_viewed(&iter, TRUE, p);
+		main_set_viewed(&iter, action->update, p);
 	else
 		main_set_viewed(NULL, FALSE, p);
 
@@ -328,6 +333,7 @@ out:
 static struct context_action_info *
 context_start_info_action(rbug_context_t c,
                           GtkTreeIter *iter,
+                          gboolean force_update,
                           struct program *p)
 {
 	struct rbug_connection *con = p->rbug.con;
@@ -344,6 +350,7 @@ context_start_info_action(rbug_context_t c,
 	action->iter = *iter;
 	action->pending = TRUE;
 	action->running = TRUE;
+	action->update = force_update;
 
 	rbug_add_reply(&action->e, serial, p);
 
