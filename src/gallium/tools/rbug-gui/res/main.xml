@@ -270,7 +270,7 @@
                     <child>
                       <object class="GtkTable" id="_table1">
                         <property name="visible">True</property>
-                        <property name="n_rows">2</property>
+                        <property name="n_rows">3</property>
                         <property name="n_columns">2</property>
                         <child>
                           <object class="GtkLabel" id="_label1">
@@ -283,11 +283,22 @@
                           <object class="GtkLabel" id="_label2">
                             <property name="visible">True</property>
                             <property name="xalign">1</property>
-                            <property name="label" translatable="yes">Surfaces: </property>
+                            <property name="label" translatable="yes">Textures: </property>
                           </object>
                           <packing>
                             <property name="top_attach">1</property>
                             <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkLabel" id="_label3">
+                            <property name="visible">True</property>
+                            <property name="xalign">1</property>
+                            <property name="label" translatable="yes">Surfaces: </property>
+                          </object>
+                          <packing>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
                           </packing>
                         </child>
                         <child>
@@ -333,9 +344,91 @@
                           <object class="GtkHButtonBox" id="_hbuttonbox2">
                             <property name="visible">True</property>
                             <property name="spacing">2</property>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton4">
+                                <property name="label" translatable="yes">Texture 1</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture0</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">0</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton5">
+                                <property name="label" translatable="yes">Texture 2</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture1</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">1</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton6">
+                                <property name="label" translatable="yes">Texture 3</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture2</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">2</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton7">
+                                <property name="label" translatable="yes">Texture 4</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture3</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">3</property>
+                              </packing>
+                            </child>
+                            <child>
+                              <object class="GtkToggleButton" id="_togglebutton8">
+                                <property name="label" translatable="yes">Texture 5</property>
+                                <property name="visible">True</property>
+                                <property name="can_focus">True</property>
+                                <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture4</property>
+                              </object>
+                              <packing>
+                                <property name="expand">False</property>
+                                <property name="fill">False</property>
+                                <property name="position">4</property>
+                              </packing>
+                            </child>
+                          </object>
+                          <packing>
+                            <property name="left_attach">1</property>
+                            <property name="right_attach">2</property>
+                            <property name="top_attach">1</property>
+                            <property name="bottom_attach">2</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkHButtonBox" id="_hbuttonbox3">
+                            <property name="visible">True</property>
+                            <property name="spacing">2</property>
                             <property name="layout_style">start</property>
                             <child>
-                              <object class="GtkToggleButton" id="_togglebutton3">
+                              <object class="GtkToggleButton" id="_togglebutton19">
                                 <property name="label" translatable="yes">Color 1</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
@@ -349,7 +442,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkToggleButton" id="_togglebutton4">
+                              <object class="GtkToggleButton" id="_togglebutton20">
                                 <property name="label" translatable="yes">Color 2</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
@@ -363,7 +456,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkToggleButton" id="_togglebutton5">
+                              <object class="GtkToggleButton" id="_togglebutton21">
                                 <property name="label" translatable="yes">Color 3</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
@@ -377,7 +470,7 @@
                               </packing>
                             </child>
                             <child>
-                              <object class="GtkToggleButton" id="_togglebutton6">
+                              <object class="GtkToggleButton" id="_togglebutton22">
                                 <property name="label" translatable="yes">ZS</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
@@ -394,8 +487,8 @@
                           <packing>
                             <property name="left_attach">1</property>
                             <property name="right_attach">2</property>
-                            <property name="top_attach">1</property>
-                            <property name="bottom_attach">2</property>
+                            <property name="top_attach">2</property>
+                            <property name="bottom_attach">3</property>
                           </packing>
                         </child>
                       </object>
@@ -509,6 +602,70 @@
     <property name="group">ra_ctx_fragment</property>
   </object>
   <object class="GtkRadioAction" id="ra_ctx_zs">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture0">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture1">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture2">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture3">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture4">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture5">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture6">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture7">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture8">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture9">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture10">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture11">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture12">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture13">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture14">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_texture15">
     <property name="draw_as_radio">True</property>
     <property name="group">ra_ctx_fragment</property>
   </object>

@@ -439,6 +439,25 @@ void main_window_create(struct program *p)
 	p->context.ra[10] = gtk_builder_get_object(builder, "ra_ctx_color6");
 	p->context.ra[11] = gtk_builder_get_object(builder, "ra_ctx_color7");
 
+	p->context.ra[12] = gtk_builder_get_object(builder, "ra_ctx_texture0");
+	p->context.ra[13] = gtk_builder_get_object(builder, "ra_ctx_texture1");
+	p->context.ra[14] = gtk_builder_get_object(builder, "ra_ctx_texture2");
+	p->context.ra[15] = gtk_builder_get_object(builder, "ra_ctx_texture3");
+	p->context.ra[16] = gtk_builder_get_object(builder, "ra_ctx_texture4");
+	p->context.ra[17] = gtk_builder_get_object(builder, "ra_ctx_texture5");
+	p->context.ra[18] = gtk_builder_get_object(builder, "ra_ctx_texture6");
+	p->context.ra[19] = gtk_builder_get_object(builder, "ra_ctx_texture7");
+	p->context.ra[20] = gtk_builder_get_object(builder, "ra_ctx_texture8");
+	p->context.ra[21] = gtk_builder_get_object(builder, "ra_ctx_texture9");
+	p->context.ra[22] = gtk_builder_get_object(builder, "ra_ctx_texture10");
+	p->context.ra[23] = gtk_builder_get_object(builder, "ra_ctx_texture11");
+	p->context.ra[24] = gtk_builder_get_object(builder, "ra_ctx_texture12");
+	p->context.ra[25] = gtk_builder_get_object(builder, "ra_ctx_texture13");
+	p->context.ra[26] = gtk_builder_get_object(builder, "ra_ctx_texture14");
+	p->context.ra[27] = gtk_builder_get_object(builder, "ra_ctx_texture15");
+
+	g_assert(27 < CTX_VIEW_NUM);
+
 	p->main.draw = draw;
 	p->main.window = window;
 	p->main.textview = textview;

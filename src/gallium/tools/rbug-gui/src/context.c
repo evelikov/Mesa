@@ -193,10 +193,10 @@ void context_unselected(struct program *p)
 
 	for (i = 0; i < CTX_VIEW_NUM; i++)
 		g_signal_handler_disconnect(p->context.ra[i], p->context.sid[i]);
-	g_signal_handler_disconnect(p->tool.step, p->context.sid[12]);
-	g_signal_handler_disconnect(p->tool.break_before, p->context.sid[13]);
-	g_signal_handler_disconnect(p->tool.break_after, p->context.sid[14]);
-	g_signal_handler_disconnect(p->tool.flush, p->context.sid[15]);
+	g_signal_handler_disconnect(p->tool.step, p->context.sid[i++]);
+	g_signal_handler_disconnect(p->tool.break_before, p->context.sid[i++]);
+	g_signal_handler_disconnect(p->tool.break_after, p->context.sid[i++]);
+	g_signal_handler_disconnect(p->tool.flush, p->context.sid[i++]);
 }
 
 void context_selected(struct program *p)
@@ -206,10 +206,10 @@ void context_selected(struct program *p)
 
 	for (i = 0; i < CTX_VIEW_NUM; i++)
 		p->context.sid[i] = g_signal_connect(p->context.ra[i], "toggled", G_CALLBACK(ra), p);
-	p->context.sid[12] = g_signal_connect(p->tool.step, "clicked", G_CALLBACK(step), p);
-	p->context.sid[13] = g_signal_connect(p->tool.break_before, "toggled", G_CALLBACK(break_before), p);
-	p->context.sid[14] = g_signal_connect(p->tool.break_after, "toggled", G_CALLBACK(break_after), p);
-	p->context.sid[15] = g_signal_connect(p->tool.flush, "clicked", G_CALLBACK(flush), p);
+	p->context.sid[i++] = g_signal_connect(p->tool.step, "clicked", G_CALLBACK(step), p);
+	p->context.sid[i++] = g_signal_connect(p->tool.break_before, "toggled", G_CALLBACK(break_before), p);
+	p->context.sid[i++] = g_signal_connect(p->tool.break_after, "toggled", G_CALLBACK(break_after), p);
+	p->context.sid[i++] = g_signal_connect(p->tool.flush, "clicked", G_CALLBACK(flush), p);
 
 	gtk_widget_show(p->main.context_view);
 	gtk_widget_show(p->tool.break_before);
@@ -306,31 +306,52 @@ static gboolean context_action_info_info(struct rbug_event *e,
 		ret = main_find_id(info->vertex, &iter, p);
 		break;
 	case CTX_VIEW_COLOR0:
-		if (info->cbufs_len < 1)
-			break;
-		if (info->cbufs[0] == 0)
-			break;
-		ret = main_find_id(info->cbufs[0], &iter, p);
-		break;
 	case CTX_VIEW_COLOR1:
-		if (info->cbufs_len < 2)
-			break;
-		if (info->cbufs[1] == 0)
-			break;
-		ret = main_find_id(info->cbufs[1], &iter, p);
-		break;
 	case CTX_VIEW_COLOR2:
-		if (info->cbufs_len < 3)
+	case CTX_VIEW_COLOR3:
+	case CTX_VIEW_COLOR4:
+	case CTX_VIEW_COLOR5:
+	case CTX_VIEW_COLOR6:
+	case CTX_VIEW_COLOR7:
+		{
+			unsigned i = p->context.view_id - CTX_VIEW_COLOR0;
+			if (info->cbufs_len < i + 1)
+				break;
+			if (info->cbufs[i] == 0)
+				break;
+			ret = main_find_id(info->cbufs[i], &iter, p);
 			break;
-		if (info->cbufs[2] == 0)
-			break;
-		ret = main_find_id(info->cbufs[2], &iter, p);
-		break;
+		}
 	case CTX_VIEW_ZS:
 		if (info->zsbuf == 0)
 			break;
 		ret = main_find_id(info->zsbuf, &iter, p);
 		break;
+	case CTX_VIEW_TEXTURE0:
+	case CTX_VIEW_TEXTURE1:
+	case CTX_VIEW_TEXTURE2:
+	case CTX_VIEW_TEXTURE3:
+	case CTX_VIEW_TEXTURE4:
+	case CTX_VIEW_TEXTURE5:
+	case CTX_VIEW_TEXTURE6:
+	case CTX_VIEW_TEXTURE7:
+	case CTX_VIEW_TEXTURE8:
+	case CTX_VIEW_TEXTURE9:
+	case CTX_VIEW_TEXTURE10:
+	case CTX_VIEW_TEXTURE11:
+	case CTX_VIEW_TEXTURE12:
+	case CTX_VIEW_TEXTURE13:
+	case CTX_VIEW_TEXTURE14:
+	case CTX_VIEW_TEXTURE15:
+		{
+			unsigned i = p->context.view_id - CTX_VIEW_TEXTURE0;
+			if (info->texs_len < i + 1)
+				break;
+			if (info->texs[i] == 0)
+				break;
+			ret = main_find_id(info->texs[i], &iter, p);
+			break;
+		}
 	default:
 		break;
 	}
