@@ -27,9 +27,32 @@ needed libraries excist:
 	$(MESA)src/gallium/auxiliary/tgsi/libtgsi.a
 	$(MESA)src/gallium/auxiliary/util/libutil.a
 
-Then just do
+
+The gtk dependancies should be satisfied on debian based system with:
+
+sudo apt-get install libgtk2.0-dev libgtkglext1-dev
+
+
+Then just do:
  ./autogen.sh
  make
+
+
+= Usage =
+
+Make sure that you driver has trace integration, see above. Then from on
+the computer that you want to debug do:
+
+ export GALLIUM_RBUG=true
+
+ <launch app>
+
+From the debugging computer launch rbug-gui from this folder.
+
+./rbug-gui [ip|hostname]
+
+If no ip/hostname is give rbug-gui will ask you for a ip and port. You can
+also call "make run" which will connect automaticaly to localhost.
 
 
 --
