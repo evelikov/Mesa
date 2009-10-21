@@ -55,5 +55,48 @@ If no ip/hostname is give rbug-gui will ask you for a ip and port. You can
 also call "make run" which will connect automaticaly to localhost.
 
 
+You should now see the debugger. On the left you have a list of resources
+created by the driver. They are arranged in a tree view where the, with
+textures and contexts under the screen and shaders under each owning context.
+
+The toolbar display different icons depending on what you have selected.
+
+All:
+	Update - Update the current view
+
+Screen:
+	Update - Download the list of objects again.
+
+Texture view: View first level of texture
+	Update - Download the texture again.
+	Backgroud - Change the background of the current window
+	Alpha - Turn on/off alpha blending in the view
+	Auto - Automaticaly update the texture
+
+Shader view: Display TGSI code for current shader
+	Udpate - Download the current shader again
+	Disable - Discard any rendering done with this shader
+	Save - Compile and replace the current with the edited shader
+	Revert - Restore original shader
+
+Context view:
+	Udpate - Get context information
+	Before - Break before draw call is executed
+	After - Break after draw call is executed
+	Step - Step to next draw call
+	Flush - Flush context
+	<seperator> - After this seperator the current viewed object icons appear
+
+
+= Quirks =
+
+Often when you step in the context view you find that textures, shaders don't
+appear after a step select the screen press update to update the list of
+object, rbug-gui doesn't currently support automaticaly updateing the list.
+
+Connecting to the X server causes rbug-gui to disconnect often when clients are
+sending data. Forceing you to reconnect.
+
+
 --
 Jakob Bornecrantz <jakob@vmware.com>
