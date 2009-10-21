@@ -266,6 +266,7 @@ static gboolean context_action_info_info(struct rbug_event *e,
 	GtkTreeIter iter;
 	GdkPixbuf *buf = NULL;
 	gboolean ret;
+	int k;
 
 
 	info = (struct rbug_proto_context_info_reply *)header;
@@ -297,6 +298,25 @@ static gboolean context_action_info_info(struct rbug_event *e,
 	else
 		gtk_toggle_tool_button_set_active(GTK_TOGGLE_TOOL_BUTTON(p->tool.break_after), FALSE);
 
+
+
+	/* disable buttons that don't have a valid target */
+	gtk_action_set_sensitive(GTK_ACTION(p->context.ra[CTX_VIEW_FRAGMENT]), (info->fragment));
+	gtk_action_set_sensitive(GTK_ACTION(p->context.ra[CTX_VIEW_VERTEX]), (info->vertex));
+	gtk_action_set_sensitive(GTK_ACTION(p->context.ra[CTX_VIEW_GEOM]), false);
+
+	for (k = 0; k < 8; k++) {
+		bool active = (unsigned)k < info->cbufs_len && info->cbufs[k];
+		gtk_action_set_sensitive(GTK_ACTION(p->context.ra[CTX_VIEW_COLOR0+k]), active);
+	}
+	gtk_action_set_sensitive(GTK_ACTION(p->context.ra[CTX_VIEW_ZS]), (info->zsbuf));
+
+	for (k = 0; k < 16; k++) {
+		bool active = (unsigned)k < info->texs_len && info->texs[k];
+		gtk_action_set_sensitive(GTK_ACTION(p->context.ra[CTX_VIEW_TEXTURE0+k]), active);
+	}
+
+	/* find the proper view */
 	ret = FALSE;
 	switch (p->context.view_id) {
 	case CTX_VIEW_FRAGMENT:
