@@ -44,6 +44,8 @@ enum columns {
 	COLUMN_TYPE,
 	COLUMN_TYPENAME,
 	COLUMN_PIXBUF,
+	COLUMN_INFO_SHORT, /* used for info feild */
+	COLUMN_INFO_LONG,  /* used for statusbar */
 };
 
 enum types {

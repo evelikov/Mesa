@@ -434,6 +434,7 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	struct rbug_proto_texture_info_reply *info;
 	struct texture_action_read *action;
 	uint32_t serial = 0;
+	char info_string[128];
 	GdkPixbuf *buf = NULL;
 
 	info = (struct rbug_proto_texture_info_reply *)header;
@@ -485,7 +486,13 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 
 	}
 
+
 	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_PIXBUF, buf, -1);
+	snprintf(info_string, 128, "%ux%ux%u", info->width[0], info->height[0], info->depth[0]);
+	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_INFO_SHORT, info_string, -1);
+	snprintf(info_string, 128, "%s (%ux%ux%u) %u", pf_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
+	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_INFO_LONG, info_string + 12, -1);
+
 
 	/* no longer interested in this action */
 	if (!action->running || p->texture.read != action)

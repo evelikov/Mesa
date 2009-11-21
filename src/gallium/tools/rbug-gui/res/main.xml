@@ -12,6 +12,10 @@
       <column type="gchararray"/>
       <!-- column-name pixbuf -->
       <column type="GdkPixbuf"/>
+      <!-- column-name short_string -->
+      <column type="gchararray"/>
+      <!-- column-name long_string -->
+      <column type="gchararray"/>
     </columns>
   </object>
   <object class="GtkWindow" id="window">
@@ -239,8 +243,8 @@
                     <property name="headers_clickable">False</property>
                     <property name="search_column">0</property>
                     <child>
-                      <object class="GtkTreeViewColumn" id="col_string">
-                        <property name="title">Name</property>
+                      <object class="GtkTreeViewColumn" id="col_type">
+                        <property name="title">Type</property>
                       </object>
                     </child>
                     <child>
@@ -251,6 +255,11 @@
                     <child>
                       <object class="GtkTreeViewColumn" id="col_icon">
                         <property name="sizing">autosize</property>
+                      </object>
+                    </child>
+                    <child>
+                      <object class="GtkTreeViewColumn" id="col_info">
+                        <property name="title">Info</property>
                       </object>
                     </child>
                   </object>

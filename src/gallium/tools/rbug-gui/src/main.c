@@ -194,17 +194,23 @@ static void setup_cols(GtkBuilder *builder, GtkTreeView *view, struct program *p
 	gtk_tree_view_column_pack_start(col, renderer, TRUE);
 	gtk_tree_view_column_add_attribute(col, renderer, "text", COLUMN_ID);
 
-	/* column format */
-	col = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "col_string"));
+	/* column type */
+	col = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "col_type"));
 	renderer = gtk_cell_renderer_text_new();
 	gtk_tree_view_column_pack_start(col, renderer, TRUE);
 	gtk_tree_view_column_add_attribute(col, renderer, "text", COLUMN_TYPENAME);
 
-	/* column format */
+	/* column icon */
 	col = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "col_icon"));
 	renderer = gtk_cell_renderer_pixbuf_new();
 	gtk_tree_view_column_pack_start(col, renderer, TRUE);
 	gtk_tree_view_column_add_attribute(col, renderer, "pixbuf", COLUMN_PIXBUF);
+
+	/* column info */
+	col = GTK_TREE_VIEW_COLUMN(gtk_builder_get_object(builder, "col_info"));
+	renderer = gtk_cell_renderer_text_new();
+	gtk_tree_view_column_pack_start(col, renderer, TRUE);
+	gtk_tree_view_column_add_attribute(col, renderer, "text", COLUMN_INFO_SHORT);
 
 	g_object_set(G_OBJECT(renderer), "xalign", (gfloat)0.0f, NULL);
 }
