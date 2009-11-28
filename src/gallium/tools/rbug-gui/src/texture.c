@@ -174,7 +174,6 @@ void texture_unviewed(struct program *p)
 	gtk_widget_hide(p->tool.background);
 	gtk_widget_hide(GTK_WIDGET(p->main.draw));
 
-	p->texture.alpha = TRUE;
 	p->texture.automatic = FALSE;
 	p->texture.back = BACK_CHECKER;
 
@@ -194,9 +193,10 @@ void texture_viewed(struct program *p)
 	gtk_widget_show(p->tool.background);
 	gtk_widget_show(GTK_WIDGET(p->main.draw));
 
-	p->texture.alpha = TRUE;
 	p->texture.automatic = FALSE;
 	p->texture.back = BACK_CHECKER;
+	gtk_toggle_tool_button_set_active(GTK_TOGGLE_TOOL_BUTTON(p->tool.alpha), p->texture.alpha);
+	gtk_toggle_tool_button_set_active(GTK_TOGGLE_TOOL_BUTTON(p->tool.automatic), FALSE);
 
 	p->texture.tid[0] = g_signal_connect(p->tool.alpha, "clicked", G_CALLBACK(alpha), p);
 	p->texture.tid[1] = g_signal_connect(p->tool.automatic, "clicked", G_CALLBACK(automatic), p);

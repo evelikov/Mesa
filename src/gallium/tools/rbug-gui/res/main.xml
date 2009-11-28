@@ -130,10 +130,10 @@
               </packing>
             </child>
             <child>
-              <object class="GtkToolButton" id="tool_alpha">
+              <object class="GtkToggleToolButton" id="tool_alpha">
                 <property name="label" translatable="yes">Alpha Blend</property>
                 <property name="use_underline">True</property>
-                <property name="icon_name">format-text-bold</property>
+                <property name="stock_id">gtk-bold</property>
               </object>
               <packing>
                 <property name="expand">False</property>
@@ -141,7 +141,7 @@
               </packing>
             </child>
             <child>
-              <object class="GtkToolButton" id="tool_auto">
+              <object class="GtkToggleToolButton" id="tool_auto">
                 <property name="label" translatable="yes">Auto</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-execute</property>
