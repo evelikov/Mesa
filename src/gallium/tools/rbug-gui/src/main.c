@@ -149,6 +149,61 @@ static void changed(GtkTreeSelection *s, gpointer data)
 	}
 }
 
+/**
+ * Update the statusbar.
+ *
+ * Called when the data of the currently view entity
+ * has change or a different entity is viewed.
+ */
+static void update_statusbar(struct program *p)
+{
+	GtkTreeModel *model = GTK_TREE_MODEL(p->main.treestore);
+	GValue string;
+
+	gtk_statusbar_pop(p->main.statusbar, p->main.sb_id);
+
+	if (!p->viewed.id)
+		return;
+
+	memset(&string, 0, sizeof(string));
+	gtk_tree_model_get_value(model, &p->viewed.iter,
+	                         COLUMN_INFO_LONG, &string);
+
+	if (g_value_get_string(&string))
+		gtk_statusbar_push(p->main.statusbar, p->main.sb_id, g_value_get_string(&string));
+
+	g_value_unset(&string);
+}
+
+/**
+ * Update the UI on changes.
+ *
+ * When ever the database holding all the object infromation
+ * changes check if the currently selected item changed and
+ * update the UI. For now only the status bar.
+ */
+static void row_changed(GtkTreeModel *model,
+                        GtkTreePath  *path,
+                        GtkTreeIter  *iter,
+                        struct program *p)
+{
+	GValue id;
+
+	(void)path;
+
+	memset(&id, 0, sizeof(id));
+
+	gtk_tree_model_get_value(model, iter, COLUMN_ID, &id);
+
+	g_assert(G_VALUE_HOLDS_UINT64(&id));
+
+	if (p->viewed.id == g_value_get_uint64(&id)) {
+		update_statusbar(p);
+	}
+
+	g_value_unset(&id);
+}
+
 static void refresh(GtkWidget *widget, gpointer data)
 {
 	struct program *p = (struct program *)data;
@@ -331,6 +386,8 @@ void main_set_viewed(GtkTreeIter *iter, gboolean force_update, struct program *p
 		memset(&p->viewed, 0, sizeof(p->viewed));
 	}
 
+	update_statusbar(p);
+
 	if (p->viewed.id != old_id ||
 	    p->viewed.type != old_type) {
 		if (old_id) {
@@ -368,6 +425,7 @@ void main_window_create(struct program *p)
 	GtkWidget *textview_scrolled;
 	GtkTreeView *treeview;
 	GtkTreeStore *treestore;
+	GtkStatusbar *statusbar;
 
 	GObject *tool_quit;
 	GObject *tool_refresh;
@@ -400,6 +458,7 @@ void main_window_create(struct program *p)
 	treeview = GTK_TREE_VIEW(gtk_builder_get_object(builder, "treeview"));
 	treestore = GTK_TREE_STORE(gtk_builder_get_object(builder, "treestore"));
 	selection = G_OBJECT(gtk_tree_view_get_selection(treeview));
+	statusbar = GTK_STATUSBAR(gtk_builder_get_object(builder, "statusbar"));
 	context_view = GTK_WIDGET(gtk_builder_get_object(builder, "context_view"));
 	textview_scrolled = GTK_WIDGET(gtk_builder_get_object(builder, "textview_scrolled"));
 
@@ -428,9 +487,12 @@ void main_window_create(struct program *p)
 
 	/* manualy set up signals */
 	g_signal_connect(selection, "changed", G_CALLBACK(changed), p);
+	g_signal_connect(treestore, "row-changed", G_CALLBACK(row_changed), p);
 	g_signal_connect(tool_quit, "clicked", G_CALLBACK(destroy), p);
 	g_signal_connect(tool_refresh, "clicked", G_CALLBACK(refresh), p);
 	g_signal_connect(G_OBJECT(window), "destroy", G_CALLBACK(destroy), p);
+
+	p->main.sb_id = gtk_statusbar_get_context_id(statusbar, "texture");
 
 	p->context.ra[CTX_VIEW_FRAGMENT] = gtk_builder_get_object(builder, "ra_ctx_fragment");
 	p->context.ra[CTX_VIEW_VERTEX] = gtk_builder_get_object(builder, "ra_ctx_vertex");
@@ -469,6 +531,7 @@ void main_window_create(struct program *p)
 	p->main.textview = textview;
 	p->main.treeview = treeview;
 	p->main.treestore = treestore;
+	p->main.statusbar = statusbar;
 	p->main.context_view = context_view;
 	p->main.textview_scrolled = textview_scrolled;
 

@@ -114,6 +114,10 @@ struct program
 		GtkTreeView *treeview;
 		GtkTreeStore *treestore;
 		GtkDrawingArea *draw;
+		GtkStatusbar *statusbar;
+
+		/* status bar context id */
+		guint sb_id;
 
 		GtkTreeIter top;
 	} main;
