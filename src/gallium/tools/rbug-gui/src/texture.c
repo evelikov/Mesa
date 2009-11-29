@@ -434,7 +434,8 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	struct rbug_proto_texture_info_reply *info;
 	struct texture_action_read *action;
 	uint32_t serial = 0;
-	char info_string[128];
+	char info_short_string[64];
+	char info_long_string[128];
 	GdkPixbuf *buf = NULL;
 
 	info = (struct rbug_proto_texture_info_reply *)header;
@@ -486,13 +487,13 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 
 	}
 
+	snprintf(info_short_string, 64, "%ux%ux%u", info->width[0], info->height[0], info->depth[0]);
+	snprintf(info_long_string, 128, "%s (%ux%ux%u) %u", pf_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
 
-	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_PIXBUF, buf, -1);
-	snprintf(info_string, 128, "%ux%ux%u", info->width[0], info->height[0], info->depth[0]);
-	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_INFO_SHORT, info_string, -1);
-	snprintf(info_string, 128, "%s (%ux%ux%u) %u", pf_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
-	gtk_tree_store_set(p->main.treestore, &action->iter, COLUMN_INFO_LONG, info_string + 12, -1);
-
+	gtk_tree_store_set(p->main.treestore, &action->iter,
+	                   COLUMN_PIXBUF, buf,
+	                   COLUMN_INFO_SHORT, info_short_string,
+	                   COLUMN_INFO_LONG, info_long_string, -1);
 
 	/* no longer interested in this action */
 	if (!action->running || p->texture.read != action)
@@ -607,9 +608,14 @@ static gboolean texture_action_list_list(struct rbug_event *e,
 		                                  COLUMN_ID, list->textures[i],
 		                                  COLUMN_TYPE, TYPE_TEXTURE,
 		                                  COLUMN_TYPENAME, "texture",
+		                                  COLUMN_INFO_SHORT, "(?x?x?) ?",
+		                                  COLUMN_INFO_LONG, "PIPE_FORMAT_UNKNOWN (?x?x?) ?",
 		                                  -1);
-
+#if 1
 		texture_start_read_action(list->textures[i], &iter, p);
+#else
+		(void)p;
+#endif
 	}
 
 	g_free(action);
