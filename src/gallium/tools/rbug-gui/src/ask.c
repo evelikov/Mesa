@@ -28,12 +28,19 @@
 
 gboolean ask_connect(struct program *p)
 {
-	int socket;
+	uint16_t port = p->ask.port;
+	int socket = -1;
 
-	socket = u_socket_connect(p->ask.host, p->ask.port);
+	while (socket < 0) {
+		/* after ten tries quit */
+		if (port >= p->ask.port + 10)
+			return false;
 
-	if (socket < 0)	
-		return false;
+		socket = u_socket_connect(p->ask.host, port++);
+	}
+
+	/* store the actual port, minus one */
+	p->ask.port = --port;
 
 	p->rbug.socket = socket;
 	p->rbug.con = rbug_from_socket(socket);
