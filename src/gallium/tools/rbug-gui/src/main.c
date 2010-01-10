@@ -285,12 +285,28 @@ static void icon_setup(struct program *p)
 	icon_add("res/z24x8.png", "z24x8", p);
 
 	icon_add("res/rgb.png", "rgb", p);
-	icon_add("res/rgb.png", "bgr", p);
+	icon_add("res/bgr.png", "bgr", p);
 
 	icon_add("res/dxt1_rgb.png", "dxt1_rgb", p);
 	icon_add("res/dxt1_rgba.png", "dxt1_rgba", p);
 	icon_add("res/dxt3_rgba.png", "dxt3_rgba", p);
 	icon_add("res/dxt5_rgba.png", "dxt5_rgba", p);
+
+	icon_add("res/a.png", "a", p);
+	icon_add("res/i.png", "i", p);
+	icon_add("res/z.png", "z", p);
+	icon_add("res/s.png", "s", p);
+
+	icon_add("res/r.png", "r", p);
+	icon_add("res/rg.png", "rg", p);
+
+	icon_add("res/bgra.png", "bgra", p);
+	icon_add("res/bgrx.png", "bgrx", p);
+	icon_add("res/abgr.png", "abgr", p);
+	icon_add("res/xbgr.png", "xbgr", p);
+
+	icon_add("res/ycbcr.png", "ycbcr", p);
+	icon_add("res/ycbcr_rev.png", "ycbcr_rev", p);
 
 	icon_add("res/screen.png", "screen", p);
 

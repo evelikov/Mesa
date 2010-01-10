@@ -27,6 +27,7 @@
 #include "GL/gl.h"
 
 #include "pipe/p_format.h"
+#include "util/u_format.h"
 
 /* needed for u_tile */
 #include "pipe/p_state.h"
@@ -233,7 +234,6 @@ struct texture_action_read
 	unsigned stride;
 	unsigned size;
 	enum pipe_format format;
-	struct pipe_format_block block;
 	void *data;
 };
 
@@ -319,9 +319,9 @@ static void texture_action_read_upload(struct texture_action_read *action,
 
 	src_stride = action->stride;
 
-	if (!pf_is_compressed(action->format)) {
+	if (!util_format_is_compressed(action->format)) {
 		uint32_t dst_stride = 4 * 4 * w;
-		uint32_t step_h = action->block.height;
+		uint32_t step_h = util_format_description(action->format)->block.height;
 		float *rgba = g_malloc(dst_stride * h);
 		GLint format, type;
 		unsigned i;
@@ -342,7 +342,7 @@ static void texture_action_read_upload(struct texture_action_read *action,
 		             format, type, rgba);
 
 		g_free(rgba);
-	} else if (pf_is_compressed(action->format)) {
+	} else if (util_format_is_compressed(action->format)) {
 
 		if (action->format == PIPE_FORMAT_DXT1_RGB)
 			internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
@@ -392,11 +392,11 @@ static gboolean texture_action_read_read(struct rbug_event *e,
 	if (!action->running)
 		goto error;
 
-	if (pf_is_compressed(action->format)) {
+	if (util_format_is_compressed(action->format)) {
 		size = read->data_len;
 	} else {
 		/* calculate needed size */
-		size = pf_get_nblocksy(&action->block, action->height) * read->stride;
+		size = util_format_get_nblocksx(action->format, action->height) * read->stride;
 
 		if (read->data_len < size)
 			goto error;
@@ -437,6 +437,7 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	char info_short_string[64];
 	char info_long_string[128];
 	GdkPixbuf *buf = NULL;
+	const struct util_format_description *format_description;
 
 	info = (struct rbug_proto_texture_info_reply *)header;
 	action = (struct texture_action_read *)e;
@@ -449,42 +450,119 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 		goto error;
 	}
 
-	if (pf_layout(info->format) == PIPE_FORMAT_LAYOUT_RGBAZS) {
-		int swz = (info->format >> 2) &  0xFFF;
+	format_description = util_format_description(info->format);
 
-		if (!swz)
-			;
-		else if (swz == _PIPE_FORMAT_RGBA)
-			buf = icon_get("rgba", p);
-		else if (swz == _PIPE_FORMAT_RGB1)
-			buf = icon_get("rgbx", p);
-		else if (swz == _PIPE_FORMAT_ARGB)
-			buf = icon_get("argb", p);
-		else if (swz == _PIPE_FORMAT_1RGB)
-			buf = icon_get("xrgb", p);
-		else if (swz == _PIPE_FORMAT_000R)
-			buf = icon_get("rgba", p);
-
-		else if (swz == _PIPE_FORMAT_SZ00)
-			buf = icon_get("s8z24", p);
-		else if (swz == _PIPE_FORMAT_0Z00)
-			buf = icon_get("x8z24", p);
-		else if (swz == _PIPE_FORMAT_ZS00)
-			buf = icon_get("z24s8", p);
-		else if (swz == _PIPE_FORMAT_Z000)
-			buf = icon_get("z24x8", p);
-
-	} else if (pf_layout(info->format) == PIPE_FORMAT_LAYOUT_DXT) {
-
-		if (info->format == PIPE_FORMAT_DXT1_RGB)
-			buf = icon_get("dxt1_rgb", p);
-		else if (info->format == PIPE_FORMAT_DXT1_RGBA)
-			buf = icon_get("dxt1_rgba", p);
-		else if (info->format == PIPE_FORMAT_DXT3_RGBA)
-			buf = icon_get("dxt3_rgba", p);
-		else if (info->format == PIPE_FORMAT_DXT5_RGBA)
-			buf = icon_get("dxt5_rgba", p);
-
+	switch (info->format) {
+	      case PIPE_FORMAT_NONE: break;
+	      case PIPE_FORMAT_A8R8G8B8_UNORM:		buf = icon_get("argb", p); break;
+	      case PIPE_FORMAT_X8R8G8B8_UNORM:		buf = icon_get("xrgb", p); break;
+	      case PIPE_FORMAT_B8G8R8A8_UNORM:		buf = icon_get("bgra", p); break;
+	      case PIPE_FORMAT_B8G8R8X8_UNORM:		buf = icon_get("bgrx", p); break;
+	      case PIPE_FORMAT_A1R5G5B5_UNORM:		buf = icon_get("argb", p); break;
+	      case PIPE_FORMAT_A4R4G4B4_UNORM:		buf = icon_get("argb", p); break;
+	      case PIPE_FORMAT_R5G6B5_UNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_A2B10G10R10_UNORM:	buf = icon_get("abgr", p); break;
+	      case PIPE_FORMAT_L8_UNORM:		buf = icon_get("l", p); break;
+	      case PIPE_FORMAT_A8_UNORM:		buf = icon_get("a", p); break;
+	      case PIPE_FORMAT_I8_UNORM:		buf = icon_get("i", p); break;
+	      case PIPE_FORMAT_A8L8_UNORM:		buf = icon_get("al", p); break;
+	      case PIPE_FORMAT_L16_UNORM:		buf = icon_get("l", p); break;
+	      case PIPE_FORMAT_YCBCR:			buf = icon_get("ycbr", p); break;
+	      case PIPE_FORMAT_YCBCR_REV:		buf = icon_get("ycbr_rev", p); break;
+	      case PIPE_FORMAT_Z16_UNORM:		buf = icon_get("z", p); break;
+	      case PIPE_FORMAT_Z32_UNORM:		buf = icon_get("z", p); break;
+	      case PIPE_FORMAT_Z32_FLOAT:		buf = icon_get("z", p); break;
+	      case PIPE_FORMAT_S8Z24_UNORM:		buf = icon_get("s8z24", p); break;
+	      case PIPE_FORMAT_Z24S8_UNORM:		buf = icon_get("z24s8", p); break;
+	      case PIPE_FORMAT_X8Z24_UNORM:		buf = icon_get("x8z24", p); break;
+	      case PIPE_FORMAT_Z24X8_UNORM:		buf = icon_get("z24x8", p); break;
+	      case PIPE_FORMAT_S8_UNORM:		buf = icon_get("s", p); break;
+	      case PIPE_FORMAT_R64_FLOAT:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R64G64_FLOAT:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R64G64B64_FLOAT:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R64G64B64A64_FLOAT:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R32_FLOAT:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R32G32_FLOAT:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R32G32B32_FLOAT:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R32G32B32A32_FLOAT:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R32_UNORM:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R32G32_UNORM:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R32G32B32_UNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R32G32B32A32_UNORM:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R32_USCALED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R32G32_USCALED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R32G32B32_USCALED:	buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R32G32B32A32_USCALED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R32_SNORM:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R32G32_SNORM:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R32G32B32_SNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R32G32B32A32_SNORM:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R32_SSCALED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R32G32_SSCALED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R32G32B32_SSCALED:	buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R32G32B32A32_SSCALED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R16_UNORM:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R16G16_UNORM:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R16G16B16_UNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R16G16B16A16_UNORM:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R16_USCALED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R16G16_USCALED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R16G16B16_USCALED:	buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R16G16B16A16_USCALED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R16_SNORM:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R16G16_SNORM:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R16G16B16_SNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R16G16B16A16_SNORM:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R16_SSCALED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R16G16_SSCALED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R16G16B16_SSCALED:	buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R16G16B16A16_SSCALED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R8_UNORM:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R8G8_UNORM:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R8G8B8_UNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R8G8B8A8_UNORM:		buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R8G8B8X8_UNORM:		buf = icon_get("rgbx", p); break;
+	      case PIPE_FORMAT_R8_USCALED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R8G8_USCALED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R8G8B8_USCALED:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R8G8B8A8_USCALED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R8G8B8X8_USCALED:	buf = icon_get("rgbx", p); break;
+	      case PIPE_FORMAT_R8_SNORM:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R8G8_SNORM:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R8G8B8_SNORM:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R8G8B8A8_SNORM:		buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R8G8B8X8_SNORM:		buf = icon_get("rgbx", p); break;
+	      case PIPE_FORMAT_B6G5R5_SNORM:		buf = icon_get("bgr", p); break;
+	      case PIPE_FORMAT_A8B8G8R8_SNORM:		buf = icon_get("abgr", p); break;
+	      case PIPE_FORMAT_X8B8G8R8_SNORM:		buf = icon_get("xbgr", p); break;
+	      case PIPE_FORMAT_R8_SSCALED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R8G8_SSCALED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R8G8B8_SSCALED:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R8G8B8A8_SSCALED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R8G8B8X8_SSCALED:	buf = icon_get("rgbx", p); break;
+	      case PIPE_FORMAT_R32_FIXED:		buf = icon_get("r", p); break;
+	      case PIPE_FORMAT_R32G32_FIXED:		buf = icon_get("rg", p); break;
+	      case PIPE_FORMAT_R32G32B32_FIXED:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R32G32B32A32_FIXED:	buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_L8_SRGB:			buf = icon_get("l", p); break;
+	      case PIPE_FORMAT_A8L8_SRGB:		buf = icon_get("al", p); break;
+	      case PIPE_FORMAT_R8G8B8_SRGB:		buf = icon_get("rgb", p); break;
+	      case PIPE_FORMAT_R8G8B8A8_SRGB:		buf = icon_get("rgba", p); break;
+	      case PIPE_FORMAT_R8G8B8X8_SRGB:		buf = icon_get("rgbx", p); break;
+	      case PIPE_FORMAT_A8R8G8B8_SRGB:		buf = icon_get("argb", p); break;
+	      case PIPE_FORMAT_X8R8G8B8_SRGB:		buf = icon_get("xrgb", p); break;
+	      case PIPE_FORMAT_B8G8R8A8_SRGB:		buf = icon_get("bgra", p); break;
+	      case PIPE_FORMAT_B8G8R8X8_SRGB:		buf = icon_get("bgrx", p); break;
+	      case PIPE_FORMAT_X8UB8UG8SR8S_NORM:	buf = icon_get("xbgr", p); break;
+	      case PIPE_FORMAT_B6UG5SR5S_NORM:		buf = icon_get("bgr", p); break;
+	      case PIPE_FORMAT_DXT1_RGB:		buf = icon_get("dxt1_rgb", p); break;
+	      case PIPE_FORMAT_DXT1_RGBA:		buf = icon_get("dxt1_rgba", p); break;
+	      case PIPE_FORMAT_DXT3_RGBA:		buf = icon_get("dxt3_rgba", p); break;
+	      case PIPE_FORMAT_DXT5_RGBA:		buf = icon_get("dxt5_rgba", p); break;
+	      case PIPE_FORMAT_DXT1_SRGB:		buf = icon_get("dxt1_rgb", p); break;
+	      case PIPE_FORMAT_DXT1_SRGBA:		buf = icon_get("dxt1_rgba", p); break;
+	      case PIPE_FORMAT_DXT3_SRGBA:		buf = icon_get("dxt3_rgba", p); break;
+	      case PIPE_FORMAT_DXT5_SRGBA:		buf = icon_get("dxt5_rgba", p); break;
 	}
 
 	snprintf(info_short_string, 64, "%ux%ux%u", info->width[0], info->height[0], info->depth[0]);
@@ -501,9 +579,6 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 
 	action->width = info->width[0];
 	action->height = info->height[0];
-	action->block.width = info->blockw;
-	action->block.height = info->blockh;
-	action->block.size = info->blocksize;
 	action->format = info->format;
 
 	rbug_send_texture_read(con, action->id,
