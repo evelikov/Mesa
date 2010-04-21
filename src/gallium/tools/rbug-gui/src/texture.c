@@ -319,7 +319,10 @@ static void texture_action_read_upload(struct texture_action_read *action,
 
 	src_stride = action->stride;
 
-	if (!util_format_is_compressed(action->format)) {
+	if (!data)
+		return;
+
+	if (!util_format_is_s3tc(action->format)) {
 		uint32_t dst_stride = 4 * 4 * w;
 		uint32_t step_h = util_format_description(action->format)->block.height;
 		float *rgba = g_malloc(dst_stride * h);
@@ -342,7 +345,7 @@ static void texture_action_read_upload(struct texture_action_read *action,
 		             format, type, rgba);
 
 		g_free(rgba);
-	} else if (util_format_is_compressed(action->format)) {
+	} else if (util_format_is_s3tc(action->format)) {
 
 		if (action->format == PIPE_FORMAT_DXT1_RGB)
 			internal_format = GL_COMPRESSED_RGB_S3TC_DXT1_EXT;
@@ -392,7 +395,7 @@ static gboolean texture_action_read_read(struct rbug_event *e,
 	if (!action->running)
 		goto error;
 
-	if (util_format_is_compressed(action->format)) {
+	if (util_format_is_s3tc(action->format)) {
 		size = read->data_len;
 	} else {
 		/* calculate needed size */
@@ -450,123 +453,156 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 		goto error;
 	}
 
-	format_description = util_format_description(info->format);
 
+	format_description = util_format_description(info->format);
 	switch (info->format) {
-	      case PIPE_FORMAT_NONE: break;
-	      case PIPE_FORMAT_A8R8G8B8_UNORM:		buf = icon_get("argb", p); break;
-	      case PIPE_FORMAT_X8R8G8B8_UNORM:		buf = icon_get("xrgb", p); break;
-	      case PIPE_FORMAT_B8G8R8A8_UNORM:		buf = icon_get("bgra", p); break;
-	      case PIPE_FORMAT_B8G8R8X8_UNORM:		buf = icon_get("bgrx", p); break;
-	      case PIPE_FORMAT_A1R5G5B5_UNORM:		buf = icon_get("argb", p); break;
-	      case PIPE_FORMAT_A4R4G4B4_UNORM:		buf = icon_get("argb", p); break;
-	      case PIPE_FORMAT_R5G6B5_UNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_A2B10G10R10_UNORM:	buf = icon_get("abgr", p); break;
-	      case PIPE_FORMAT_L8_UNORM:		buf = icon_get("l", p); break;
-	      case PIPE_FORMAT_A8_UNORM:		buf = icon_get("a", p); break;
-	      case PIPE_FORMAT_I8_UNORM:		buf = icon_get("i", p); break;
-	      case PIPE_FORMAT_A8L8_UNORM:		buf = icon_get("al", p); break;
-	      case PIPE_FORMAT_L16_UNORM:		buf = icon_get("l", p); break;
-	      case PIPE_FORMAT_YCBCR:			buf = icon_get("ycbr", p); break;
-	      case PIPE_FORMAT_YCBCR_REV:		buf = icon_get("ycbr_rev", p); break;
-	      case PIPE_FORMAT_Z16_UNORM:		buf = icon_get("z", p); break;
-	      case PIPE_FORMAT_Z32_UNORM:		buf = icon_get("z", p); break;
-	      case PIPE_FORMAT_Z32_FLOAT:		buf = icon_get("z", p); break;
-	      case PIPE_FORMAT_S8Z24_UNORM:		buf = icon_get("s8z24", p); break;
-	      case PIPE_FORMAT_Z24S8_UNORM:		buf = icon_get("z24s8", p); break;
-	      case PIPE_FORMAT_X8Z24_UNORM:		buf = icon_get("x8z24", p); break;
-	      case PIPE_FORMAT_Z24X8_UNORM:		buf = icon_get("z24x8", p); break;
-	      case PIPE_FORMAT_S8_UNORM:		buf = icon_get("s", p); break;
-	      case PIPE_FORMAT_R64_FLOAT:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R64G64_FLOAT:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R64G64B64_FLOAT:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R64G64B64A64_FLOAT:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R32_FLOAT:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R32G32_FLOAT:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R32G32B32_FLOAT:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R32G32B32A32_FLOAT:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R32_UNORM:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R32G32_UNORM:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R32G32B32_UNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R32G32B32A32_UNORM:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R32_USCALED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R32G32_USCALED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R32G32B32_USCALED:	buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R32G32B32A32_USCALED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R32_SNORM:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R32G32_SNORM:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R32G32B32_SNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R32G32B32A32_SNORM:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R32_SSCALED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R32G32_SSCALED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R32G32B32_SSCALED:	buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R32G32B32A32_SSCALED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R16_UNORM:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R16G16_UNORM:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R16G16B16_UNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R16G16B16A16_UNORM:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R16_USCALED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R16G16_USCALED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R16G16B16_USCALED:	buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R16G16B16A16_USCALED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R16_SNORM:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R16G16_SNORM:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R16G16B16_SNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R16G16B16A16_SNORM:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R16_SSCALED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R16G16_SSCALED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R16G16B16_SSCALED:	buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R16G16B16A16_SSCALED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R8_UNORM:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R8G8_UNORM:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R8G8B8_UNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R8G8B8A8_UNORM:		buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R8G8B8X8_UNORM:		buf = icon_get("rgbx", p); break;
-	      case PIPE_FORMAT_R8_USCALED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R8G8_USCALED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R8G8B8_USCALED:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R8G8B8A8_USCALED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R8G8B8X8_USCALED:	buf = icon_get("rgbx", p); break;
-	      case PIPE_FORMAT_R8_SNORM:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R8G8_SNORM:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R8G8B8_SNORM:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R8G8B8A8_SNORM:		buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R8G8B8X8_SNORM:		buf = icon_get("rgbx", p); break;
-	      case PIPE_FORMAT_B6G5R5_SNORM:		buf = icon_get("bgr", p); break;
-	      case PIPE_FORMAT_A8B8G8R8_SNORM:		buf = icon_get("abgr", p); break;
-	      case PIPE_FORMAT_X8B8G8R8_SNORM:		buf = icon_get("xbgr", p); break;
-	      case PIPE_FORMAT_R8_SSCALED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R8G8_SSCALED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R8G8B8_SSCALED:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R8G8B8A8_SSCALED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R8G8B8X8_SSCALED:	buf = icon_get("rgbx", p); break;
-	      case PIPE_FORMAT_R32_FIXED:		buf = icon_get("r", p); break;
-	      case PIPE_FORMAT_R32G32_FIXED:		buf = icon_get("rg", p); break;
-	      case PIPE_FORMAT_R32G32B32_FIXED:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R32G32B32A32_FIXED:	buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_L8_SRGB:			buf = icon_get("l", p); break;
-	      case PIPE_FORMAT_A8L8_SRGB:		buf = icon_get("al", p); break;
-	      case PIPE_FORMAT_R8G8B8_SRGB:		buf = icon_get("rgb", p); break;
-	      case PIPE_FORMAT_R8G8B8A8_SRGB:		buf = icon_get("rgba", p); break;
-	      case PIPE_FORMAT_R8G8B8X8_SRGB:		buf = icon_get("rgbx", p); break;
-	      case PIPE_FORMAT_A8R8G8B8_SRGB:		buf = icon_get("argb", p); break;
-	      case PIPE_FORMAT_X8R8G8B8_SRGB:		buf = icon_get("xrgb", p); break;
-	      case PIPE_FORMAT_B8G8R8A8_SRGB:		buf = icon_get("bgra", p); break;
-	      case PIPE_FORMAT_B8G8R8X8_SRGB:		buf = icon_get("bgrx", p); break;
-	      case PIPE_FORMAT_X8UB8UG8SR8S_NORM:	buf = icon_get("xbgr", p); break;
-	      case PIPE_FORMAT_B6UG5SR5S_NORM:		buf = icon_get("bgr", p); break;
-	      case PIPE_FORMAT_DXT1_RGB:		buf = icon_get("dxt1_rgb", p); break;
-	      case PIPE_FORMAT_DXT1_RGBA:		buf = icon_get("dxt1_rgba", p); break;
-	      case PIPE_FORMAT_DXT3_RGBA:		buf = icon_get("dxt3_rgba", p); break;
-	      case PIPE_FORMAT_DXT5_RGBA:		buf = icon_get("dxt5_rgba", p); break;
-	      case PIPE_FORMAT_DXT1_SRGB:		buf = icon_get("dxt1_rgb", p); break;
-	      case PIPE_FORMAT_DXT1_SRGBA:		buf = icon_get("dxt1_rgba", p); break;
-	      case PIPE_FORMAT_DXT3_SRGBA:		buf = icon_get("dxt3_rgba", p); break;
-	      case PIPE_FORMAT_DXT5_SRGBA:		buf = icon_get("dxt5_rgba", p); break;
+	case PIPE_FORMAT_NONE: break;
+	case PIPE_FORMAT_B8G8R8A8_UNORM:	buf = icon_get("bgra", p); break;
+	case PIPE_FORMAT_B8G8R8X8_UNORM:	buf = icon_get("bgrx", p); break;
+	case PIPE_FORMAT_A8R8G8B8_UNORM:	buf = icon_get("argb", p); break;
+	case PIPE_FORMAT_X8R8G8B8_UNORM:	buf = icon_get("xrgb", p); break;
+	case PIPE_FORMAT_B5G5R5A1_UNORM:	buf = icon_get("bgra", p); break;
+	case PIPE_FORMAT_B4G4R4A4_UNORM:	buf = icon_get("bgra", p); break;
+	case PIPE_FORMAT_B5G6R5_UNORM:		buf = icon_get("bgr", p); break;
+	case PIPE_FORMAT_R10G10B10A2_UNORM:	buf = icon_get("argb", p); break;
+	case PIPE_FORMAT_L8_UNORM:		buf = icon_get("l", p); break;
+	case PIPE_FORMAT_A8_UNORM:		buf = icon_get("a", p); break;
+	case PIPE_FORMAT_I8_UNORM:		buf = icon_get("i", p); break;
+	case PIPE_FORMAT_L8A8_UNORM:		buf = icon_get("al", p); break; /* TODO invert */
+	case PIPE_FORMAT_L16_UNORM:		buf = icon_get("l", p); break;
+	case PIPE_FORMAT_UYVY:			buf = icon_get("ycbr", p); break;
+	case PIPE_FORMAT_YUYV:			buf = icon_get("ycbr_rev", p); break;
+	case PIPE_FORMAT_Z16_UNORM:		buf = icon_get("z", p); break;
+	case PIPE_FORMAT_Z32_UNORM:		buf = icon_get("z", p); break;
+	case PIPE_FORMAT_Z32_FLOAT:		buf = icon_get("z", p); break;
+	case PIPE_FORMAT_Z24_UNORM_S8_USCALED:	buf = icon_get("s8z24", p); break;
+	case PIPE_FORMAT_S8_USCALED_Z24_UNORM:	buf = icon_get("z24s8", p); break;
+	case PIPE_FORMAT_Z24X8_UNORM:		buf = icon_get("x8z24", p); break;
+	case PIPE_FORMAT_X8Z24_UNORM:		buf = icon_get("z24x8", p); break;
+	case PIPE_FORMAT_S8_USCALED:		buf = icon_get("s", p); break;
+	case PIPE_FORMAT_R64_FLOAT:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R64G64_FLOAT:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R64G64B64_FLOAT:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R64G64B64A64_FLOAT:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R32_FLOAT:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R32G32_FLOAT:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R32G32B32_FLOAT:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R32G32B32A32_FLOAT:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R32_UNORM:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R32G32_UNORM:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R32G32B32_UNORM:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R32G32B32A32_UNORM:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R32_USCALED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R32G32_USCALED:	buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R32G32B32_USCALED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R32G32B32A32_USCALED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R32_SNORM:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R32G32_SNORM:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R32G32B32_SNORM:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R32G32B32A32_SNORM:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R32_SSCALED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R32G32_SSCALED:	buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R32G32B32_SSCALED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R32G32B32A32_SSCALED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R16_UNORM:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R16G16_UNORM:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R16G16B16_UNORM:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R16G16B16A16_UNORM:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R16_USCALED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R16G16_USCALED:	buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R16G16B16_USCALED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R16G16B16A16_USCALED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R16_SNORM:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R16G16_SNORM:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R16G16B16_SNORM:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R16G16B16A16_SNORM:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R16_SSCALED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R16G16_SSCALED:	buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R16G16B16_SSCALED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R16G16B16A16_SSCALED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R8_UNORM:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R8G8_UNORM:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R8G8B8_UNORM:		buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R8G8B8A8_UNORM:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_X8B8G8R8_UNORM:	buf = icon_get("xbgr", p); break;
+	case PIPE_FORMAT_R8_USCALED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R8G8_USCALED:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R8G8B8_USCALED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R8G8B8A8_USCALED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R8_SNORM:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R8G8_SNORM:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R8G8B8_SNORM:		buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R8G8B8A8_SNORM:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R8_SSCALED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R8G8_SSCALED:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R8G8B8_SSCALED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R8G8B8A8_SSCALED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R32_FIXED:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R32G32_FIXED:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R32G32B32_FIXED:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R32G32B32A32_FIXED:	buf = icon_get("rgba", p); break;
+	case PIPE_FORMAT_R16_FLOAT:		buf = icon_get("r", p); break;
+	case PIPE_FORMAT_R16G16_FLOAT:		buf = icon_get("rg", p); break;
+	case PIPE_FORMAT_R16G16B16_FLOAT:	buf = icon_get("rgb", p); break;
+	case PIPE_FORMAT_R16G16B16A16_FLOAT:	buf = icon_get("rgba", p); break;
+
+	/* sRGB formats */
+	case PIPE_FORMAT_L8_SRGB:
+	case PIPE_FORMAT_L8A8_SRGB:		buf = icon_get("l", p); break;
+	case PIPE_FORMAT_R8G8B8_SRGB:		buf = icon_get("al", p); break; /* TODO fix */
+	case PIPE_FORMAT_A8B8G8R8_SRGB:		buf = icon_get("abgr", p); break;
+	case PIPE_FORMAT_X8B8G8R8_SRGB:		buf = icon_get("xbgr", p); break;
+	case PIPE_FORMAT_B8G8R8A8_SRGB:		buf = icon_get("bgra", p); break;
+	case PIPE_FORMAT_B8G8R8X8_SRGB:		buf = icon_get("bgrx", p); break;
+	case PIPE_FORMAT_A8R8G8B8_SRGB:		buf = icon_get("argb", p); break;
+	case PIPE_FORMAT_X8R8G8B8_SRGB:		buf = icon_get("xrgb", p); break;
+	case PIPE_FORMAT_R8G8B8A8_SRGB:		buf = icon_get("rgba", p); break;
+
+	/* compressed formats */
+	case PIPE_FORMAT_DXT1_RGB:		buf = icon_get("dxt1_rgb", p); break;
+	case PIPE_FORMAT_DXT1_RGBA:		buf = icon_get("dxt1_rgba", p); break;
+	case PIPE_FORMAT_DXT3_RGBA:		buf = icon_get("dxt3_rgba", p); break;
+	case PIPE_FORMAT_DXT5_RGBA:		buf = icon_get("dxt5_rgba", p); break;
+
+	/* sRGB, compressed */
+	case PIPE_FORMAT_DXT1_SRGB:		buf = icon_get("dxt1_rgb", p); break;
+	case PIPE_FORMAT_DXT1_SRGBA:		buf = icon_get("dxt1_rgba", p); break;
+	case PIPE_FORMAT_DXT3_SRGBA:		buf = icon_get("dxt3_rgba", p); break;
+	case PIPE_FORMAT_DXT5_SRGBA:		buf = icon_get("dxt5_rgba", p); break;
+
+	/* rgtc compressed */
+	case PIPE_FORMAT_RGTC1_UNORM: break;
+	case PIPE_FORMAT_RGTC1_SNORM: break;
+	case PIPE_FORMAT_RGTC2_UNORM: break;
+	case PIPE_FORMAT_RGTC2_SNORM: break;
+
+	case PIPE_FORMAT_R8G8_B8G8_UNORM: break;
+	case PIPE_FORMAT_G8R8_G8B8_UNORM: break;
+
+	/* mixed formats */
+	case PIPE_FORMAT_R8SG8SB8UX8U_NORM: break;
+	case PIPE_FORMAT_R5SG5SB6U_NORM: break;
+
+	/* TODO: re-order these */
+	case PIPE_FORMAT_A8B8G8R8_UNORM: break;
+	case PIPE_FORMAT_B5G5R5X1_UNORM: break;
+	case PIPE_FORMAT_R10G10B10A2_USCALED: break;
+	case PIPE_FORMAT_R11G11B10_FLOAT: break;
+	case PIPE_FORMAT_R9G9B9E5_FLOAT: break;
+	case PIPE_FORMAT_Z32_FLOAT_S8X24_USCALED: break;
+	case PIPE_FORMAT_R1_UNORM: break;
+	case PIPE_FORMAT_R10G10B10X2_USCALED: break;
+	case PIPE_FORMAT_R10G10B10X2_SNORM: break;
+	case PIPE_FORMAT_L4A4_UNORM: break;
+	case PIPE_FORMAT_B10G10R10A2_UNORM: break;
+	case PIPE_FORMAT_R10SG10SB10SA2U_NORM: break;
+	case PIPE_FORMAT_R8G8Bx_SNORM: break;
+	case PIPE_FORMAT_R8G8B8X8_UNORM: break;
+	case PIPE_FORMAT_B4G4R4X4_UNORM: break;
 	}
 
 	snprintf(info_short_string, 64, "%ux%ux%u", info->width[0], info->height[0], info->depth[0]);
-	snprintf(info_long_string, 128, "%s (%ux%ux%u) %u", pf_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
+	snprintf(info_long_string, 128, "%s (%ux%ux%u) %u", util_format_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
 
 	gtk_tree_store_set(p->main.treestore, &action->iter,
 	                   COLUMN_PIXBUF, buf,
