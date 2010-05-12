@@ -396,7 +396,7 @@ void main_set_viewed(GtkTreeIter *iter, gboolean force_update, struct program *p
 			p->viewed.parent = g_value_get_uint64(&id);
 		} else {
 			/* Everything else then the screen must have a parent */
-			g_assert(p->viewed.id != 0);
+			g_assert(p->viewed.id == 0);
 		}
 	} else {
 		memset(&p->viewed, 0, sizeof(p->viewed));
