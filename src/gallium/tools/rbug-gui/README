@@ -7,13 +7,10 @@ It is written in C and uses gtk, gtkglext and Gallium.
 
 
 For information about protocol (de)marshaling see:
-$(MESA)src/gallium/auxiliary/rbug/README
+$(MESA)/src/gallium/auxiliary/rbug/README
 
 for information about driver integration look in:
-$(MESA)src/gallium/drivers/trace/README
-
-for information about applications look in:
-$(MESA)progs/rbug/README
+$(MESA)/src/gallium/drivers/rbug/README
 
 
 = Building =
@@ -23,9 +20,8 @@ directory called mesa, as currently the build looks for mesa in ../mesa/.
 You also need to build a debug build of mesa with with gallium so that the
 needed libraries excist:
 
-	$(MESA)src/gallium/auxiliary/rbug/librbug.a
-	$(MESA)src/gallium/auxiliary/tgsi/libtgsi.a
-	$(MESA)src/gallium/auxiliary/util/libutil.a
+	$(MESA)/src/gallium/auxiliary/rbug/librbug.a
+	$(MESA)/src/gallium/auxiliary/libgallium.a
 
 
 The gtk dependancies should be satisfied on debian based system with:
