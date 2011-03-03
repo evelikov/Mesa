@@ -18,9 +18,8 @@ $(MESA)/src/gallium/drivers/rbug/README
 You need to have checked out a mesa repository in a sibling directory to this
 directory called mesa, as currently the build looks for mesa in ../mesa/.
 You also need to build a debug build of mesa with with gallium so that the
-needed libraries excist:
+needed library exist:
 
-	$(MESA)/src/gallium/auxiliary/rbug/librbug.a
 	$(MESA)/src/gallium/auxiliary/libgallium.a
 
 
