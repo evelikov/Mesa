@@ -120,9 +120,7 @@ static void flush(GtkWidget *widget, struct program *p)
 {
 	(void)widget;
 
-	rbug_send_context_flush(p->rbug.con, p->selected.id,
-	                        PIPE_FLUSH_TEXTURE_CACHE |
-	                        PIPE_FLUSH_RENDER_CACHE, NULL);
+	rbug_send_context_flush(p->rbug.con, p->selected.id, NULL);
 
 	context_start_info_action(p->selected.id, &p->selected.iter, FALSE, p);
 }
@@ -134,9 +132,7 @@ static gboolean blocked(struct rbug_event *e, struct rbug_header *h, struct prog
 	(void)e;
 
 
-	rbug_send_context_flush(p->rbug.con, b->context,
-	                        PIPE_FLUSH_TEXTURE_CACHE |
-	                        PIPE_FLUSH_RENDER_CACHE, NULL);
+	rbug_send_context_flush(p->rbug.con, b->context, NULL);
 
 	if (main_find_id(b->context, &iter, p))
 		context_start_info_action(b->context, &iter, TRUE, p);
