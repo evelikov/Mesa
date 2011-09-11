@@ -440,7 +440,6 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	char info_short_string[64];
 	char info_long_string[128];
 	GdkPixbuf *buf = NULL;
-	const struct util_format_description *format_description;
 
 	info = (struct rbug_proto_texture_info_reply *)header;
 	action = (struct texture_action_read *)e;
@@ -453,8 +452,6 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 		goto error;
 	}
 
-
-	format_description = util_format_description(info->format);
 	switch (info->format) {
 	case PIPE_FORMAT_NONE: break;
 	case PIPE_FORMAT_B8G8R8A8_UNORM:	buf = icon_get("bgra", p); break;
