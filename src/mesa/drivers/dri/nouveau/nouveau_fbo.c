@@ -189,16 +189,19 @@ nouveau_renderbuffer_create(GLenum format, __DRIdrawable *drawable)
 {
 	struct gl_renderbuffer *rb;
 
-	rb = nouveau_renderbuffer_new(NULL, 0);
+	rb = (struct gl_renderbuffer *)
+		CALLOC_STRUCT(nouveau_renderbuffer);
 	if (!rb)
 		return NULL;
 
-	rb->AllocStorage = nouveau_renderbuffer_window_storage;
+	_mesa_init_renderbuffer(rb, 0);
 
-	if (!set_renderbuffer_format(rb, format)) {
-		nouveau_renderbuffer_del(NULL, rb);
+	if (!set_renderbuffer_format(rb, format))
 		return NULL;
-	}
+
+
+	rb->AllocStorage = nouveau_renderbuffer_window_storage;
+	rb->Delete = nouveau_renderbuffer_del;
 
 	return rb;
 }
