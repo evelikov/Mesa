@@ -183,7 +183,7 @@ nouveau_renderbuffer_dri_storage(struct gl_context *ctx, struct gl_renderbuffer 
 }
 
 struct gl_renderbuffer *
-nouveau_renderbuffer_dri_new(GLenum format, __DRIdrawable *drawable)
+nouveau_renderbuffer_create(GLenum format, __DRIdrawable *drawable)
 {
 	struct gl_renderbuffer *rb;
 

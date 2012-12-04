@@ -48,7 +48,7 @@ struct gl_framebuffer *
 nouveau_framebuffer_dri_new(const struct gl_config *visual);
 
 struct gl_renderbuffer *
-nouveau_renderbuffer_dri_new(GLenum format, __DRIdrawable *drawable);
+nouveau_renderbuffer_create(GLenum format, __DRIdrawable *drawable);
 
 void
 nouveau_fbo_functions_init(struct dd_function_table *functions);
