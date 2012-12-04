@@ -169,7 +169,7 @@ nouveau_renderbuffer_unmap(struct gl_context *ctx,
 }
 
 static GLboolean
-nouveau_renderbuffer_dri_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
+nouveau_renderbuffer_window_storage(struct gl_context *ctx, struct gl_renderbuffer *rb,
 				 GLenum internalFormat,
 				 GLuint width, GLuint height)
 {
@@ -191,7 +191,7 @@ nouveau_renderbuffer_create(GLenum format, __DRIdrawable *drawable)
 	if (!rb)
 		return NULL;
 
-	rb->AllocStorage = nouveau_renderbuffer_dri_storage;
+	rb->AllocStorage = nouveau_renderbuffer_window_storage;
 
 	if (!set_renderbuffer_format(rb, format)) {
 		nouveau_renderbuffer_del(NULL, rb);
