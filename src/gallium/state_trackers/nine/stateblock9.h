@@ -25,9 +25,24 @@
 
 #include "iunknown.h"
 
+#include "nine_state.h"
+
+enum nine_stateblock_type
+{
+   NINESBT_ALL,
+   NINESBT_VERTEX,
+   NINESBT_PIXEL,
+   NINESBT_CUSTOM
+};
+
 struct NineStateBlock9
 {
     struct NineUnknown base;
+    struct NineDevice9 *device;
+
+    struct nine_state state;
+
+    enum nine_stateblock_type type;
 };
 static INLINE struct NineStateBlock9 *
 NineStateBlock9( void *data )

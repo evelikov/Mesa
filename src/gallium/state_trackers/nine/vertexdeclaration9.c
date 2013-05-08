@@ -95,7 +95,8 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
     if (FAILED(hr)) { return hr; }
 
     for (This->nelems = 0;
-         pElements[This->nelems].Type != D3DDECLTYPE_UNUSED;
+         pElements[This->nelems].Type != D3DDECLTYPE_UNUSED &&
+         pElements[This->nelems].Stream != 0xFF; /* wine */
          ++This->nelems);
     --This->nelems;
 

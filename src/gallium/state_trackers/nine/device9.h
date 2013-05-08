@@ -26,7 +26,7 @@
 #include "iunknown.h"
 #include "adapter9.h"
 
-#include "pipe/p_state.h"
+#include "nine/nine_state.h"
 
 #include "d3dpresent.h"
 
@@ -54,15 +54,21 @@ struct NineDevice9
     struct NineSwapChain9 **swapchains;
     unsigned nswapchains;
 
-    /* framebuffer state */
-    struct pipe_framebuffer_state fbstate;
-    struct NineSurface9 **rendertargets;
+    NineStateBlock9 *record;
+    struct nine_state *update; /* state to update (&state / &record->state) */
+    struct nine_state state;   /* device state */
+
+    struct pipe_resource *constbuf_vs;
+    struct pipe_resource *constbuf_ps;
 };
 static INLINE struct NineDevice9 *
 NineDevice9( void *data )
 {
     return (struct NineDevice9 *)data;
 }
+
+#define NINESTATEPOINTER_GET(d) struct nine_state *state = &(d)->state
+#define NINESTATEPOINTER_SET(d) struct nine_state *state = (d)->update
 
 HRESULT
 NineDevice9_new( struct pipe_screen *pScreen,
@@ -87,9 +93,6 @@ void
 NineDevice9_dtor( struct NineDevice9 *This );
 
 /*** Nine private ***/
-
-void
-NineDevice9_UpdateRenderTargets( struct NineDevice9 *This );
 
 struct pipe_screen *
 NineDevice9_GetScreen( struct NineDevice9 *This );

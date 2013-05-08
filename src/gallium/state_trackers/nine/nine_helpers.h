@@ -25,6 +25,17 @@
 
 #include "iunknown.h"
 
+static inline void nine_reference(void **ref, void *ptr)
+{
+    if (*ref != ptr) {
+        if (*ref)
+            NineUnknown_Release(NineUnknown(*ref));
+        if (ptr)
+            NineUnknown_AddRef(NineUnknown(ptr));
+        *ref = ptr;
+    }
+}
+
 #define NINE_NEW(nine, out, ...) \
     { \
         struct NineUnknownParams __params; \
