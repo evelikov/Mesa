@@ -334,6 +334,9 @@ d3dblend_alpha_to_pipe_blendfactor(D3DBLEND b)
     case D3DBLEND_INVBLENDFACTOR:  return PIPE_BLENDFACTOR_INV_CONST_COLOR;
     case D3DBLEND_SRCCOLOR2:       return PIPE_BLENDFACTOR_SRC1_COLOR;
     case D3DBLEND_INVSRCCOLOR2:    return PIPE_BLENDFACTOR_INV_SRC1_COLOR;
+    default:
+       assert(0);
+       return PIPE_BLENDFACTOR_ZERO;
     }
 }
 
@@ -358,6 +361,9 @@ d3dblend_color_to_pipe_blendfactor(D3DBLEND b)
     case D3DBLEND_INVBLENDFACTOR:  return PIPE_BLENDFACTOR_INV_CONST_ALPHA;
     case D3DBLEND_SRCCOLOR2:       return PIPE_BLENDFACTOR_ONE; /* XXX */
     case D3DBLEND_INVSRCCOLOR2:    return PIPE_BLENDFACTOR_ZERO; /* XXX */
+    default:
+       assert(0);
+       return PIPE_BLENDFACTOR_ZERO;
     }
 }
 
