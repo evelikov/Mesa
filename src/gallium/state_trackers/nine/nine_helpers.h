@@ -25,7 +25,10 @@
 
 #include "iunknown.h"
 
-static inline void nine_reference(void **ref, void *ptr)
+/* Sshhh ... */
+#define nine_reference(a, b) _nine_reference((void **)a, b)
+
+static inline void _nine_reference(void **ref, void *ptr)
 {
     if (*ref != ptr) {
         if (*ref)

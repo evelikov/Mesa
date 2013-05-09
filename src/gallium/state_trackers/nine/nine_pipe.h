@@ -26,7 +26,10 @@
 #include "d3d9.h"
 #include "pipe/p_format.h"
 
-static inline float asfloat(DWORD value)
+const enum pipe_format nine_d3d9_to_pipe_format_map[120];
+const D3DFORMAT nine_pipe_to_d3d9_format_map[PIPE_FORMAT_COUNT];
+
+static INLINE float asfloat(DWORD value)
 {
     union {
         float f;
@@ -36,169 +39,33 @@ static inline float asfloat(DWORD value)
     return u.f;
 }
 
-D3DFORMAT pipe_to_d3d9_format(enum pipe_format format)
+static INLINE D3DFORMAT
+pipe_to_d3d9_format(enum pipe_format format)
 {
-    static const D3DFORMAT map[PIPE_FORMAT_COUNT] =
-    {
-        [PIPE_FORMAT_NONE]               = D3DFMT_UNKNOWN,
-
-     /* [PIPE_FORMAT_B8G8R8_UNORM]       = D3DFMT_R8G8B8, */
-        [PIPE_FORMAT_B8G8R8A8_UNORM]     = D3DFMT_A8R8G8B8,
-        [PIPE_FORMAT_B8G8R8X8_UNORM]     = D3DFMT_X8R8G8B8,
-        [PIPE_FORMAT_B5G6R5_UNORM]       = D3DFMT_R5G6B5,
-        [PIPE_FORMAT_B5G5R5X1_UNORM]     = D3DFMT_X1R5G5B5,
-        [PIPE_FORMAT_B5G5R5A1_UNORM]     = D3DFMT_A1R5G5B5,
-        [PIPE_FORMAT_B4G4R4A4_UNORM]     = D3DFMT_A4R4G4B4,
-        [PIPE_FORMAT_B2G3R3_UNORM]       = D3DFMT_R3G3B2,
-        [PIPE_FORMAT_A8_UNORM]           = D3DFMT_A8,
-     /* [PIPE_FORMAT_B2G3R3A8_UNORM]     = D3DFMT_A8R3G3B2, */
-        [PIPE_FORMAT_B4G4R4X4_UNORM]     = D3DFMT_X4R4G4B4,
-        [PIPE_FORMAT_R10G10B10A2_UNORM]  = D3DFMT_A2B10G10R10,
-        [PIPE_FORMAT_R8G8B8A8_UNORM]     = D3DFMT_A8B8G8R8,
-        [PIPE_FORMAT_R8G8B8X8_UNORM]     = D3DFMT_X8B8G8R8,
-        [PIPE_FORMAT_R16G16_UNORM]       = D3DFMT_G16R16,
-        [PIPE_FORMAT_B10G10R10A2_UNORM]  = D3DFMT_A2R10G10B10,
-        [PIPE_FORMAT_R16G16B16A16_UNORM] = D3DFMT_A16B16G16R16,
-
-        [PIPE_FORMAT_R8_UINT]            = D3DFMT_P8,
-        [PIPE_FORMAT_R8A8_UINT]          = D3DFMT_A8P8,
-
-        [PIPE_FORMAT_L8_UNORM]           = D3DFMT_L8,
-        [PIPE_FORMAT_L8A8_UNORM]         = D3DFMT_A8L8,
-        [PIPE_FORMAT_L4A4_UNORM]         = D3DFMT_A4L4,
-
-        [PIPE_FORMAT_R8G8_SNORM]           = D3DFMT_V8U8,
-     /* [PIPE_FORMAT_?]                    = D3DFMT_L6V5U5, */
-     /* [PIPE_FORMAT_?]                    = D3DFMT_X8L8V8U8, */
-        [PIPE_FORMAT_R8G8B8A8_SNORM]       = D3DFMT_Q8W8V8U8,
-        [PIPE_FORMAT_R16G16_SNORM]         = D3DFMT_V16U16,
-        [PIPE_FORMAT_R10SG10SB10SA2U_NORM] = D3DFMT_A2W10V10U10,
-
-        [PIPE_FORMAT_YUYV]               = D3DFMT_UYVY,
-     /* [PIPE_FORMAT_YUY2]               = D3DFMT_YUY2, */
-        [PIPE_FORMAT_DXT1_RGBA]          = D3DFMT_DXT1,
-     /* [PIPE_FORMAT_DXT2_RGBA]          = D3DFMT_DXT2, */
-        [PIPE_FORMAT_DXT3_RGBA]          = D3DFMT_DXT3,
-     /* [PIPE_FORMAT_DXT4_RGBA]          = D3DFMT_DXT4, */
-        [PIPE_FORMAT_DXT5_RGBA]          = D3DFMT_DXT5,
-     /* [PIPE_FORMAT_?]                  = D3DFMT_MULTI2_ARGB8, (MET) */
-        [PIPE_FORMAT_R8G8_B8G8_UNORM]    = D3DFMT_R8G8_B8G8, /* XXX: order */
-        [PIPE_FORMAT_G8R8_G8B8_UNORM]    = D3DFMT_G8R8_G8B8,
-
-        [PIPE_FORMAT_Z16_UNORM]          = D3DFMT_D16_LOCKABLE,
-        [PIPE_FORMAT_Z32_UNORM]          = D3DFMT_D32,
-     /* [PIPE_FORMAT_Z15_UNORM_S1_UINT]  = D3DFMT_D15S1, */
-        [PIPE_FORMAT_Z24_UNORM_S8_UINT]  = D3DFMT_D24S8,
-        [PIPE_FORMAT_Z24X8_UNORM]        = D3DFMT_D24X8,
-        [PIPE_FORMAT_L16_UNORM]          = D3DFMT_L16,
-        [PIPE_FORMAT_Z32_FLOAT]          = D3DFMT_D32F_LOCKABLE,
-     /* [PIPE_FORMAT_Z24_FLOAT_S8_UINT]  = D3DFMT_D24FS8, */
-
-        [PIPE_FORMAT_R16_UINT]           = D3DFMT_INDEX16,
-        [PIPE_FORMAT_R32_UINT]           = D3DFMT_INDEX32,
-        [PIPE_FORMAT_R16G16B16A16_SNORM] = D3DFMT_Q16W16V16U16,
-
-        [PIPE_FORMAT_R16_FLOAT]          = D3DFMT_R16F,
-        [PIPE_FORMAT_R32_FLOAT]          = D3DFMT_R32F,
-        [PIPE_FORMAT_R16G16_FLOAT]       = D3DFMT_G16R16F,
-        [PIPE_FORMAT_R32G32_FLOAT]       = D3DFMT_G32R32F,
-        [PIPE_FORMAT_R16G16B16A16_FLOAT] = D3DFMT_A16B16G16R16F,
-        [PIPE_FORMAT_R32G32B32A32_FLOAT] = D3DFMT_A32B32G32R32F,
-
-     /* [PIPE_FORMAT_?]                  = D3DFMT_CxV8U8, */
-	};
-	return map[format];
+    return nine_pipe_to_d3d9_format_map[format];
 }
 
-enum pipe_format d3d9_to_pipe_format(D3DFORMAT format)
+static INLINE enum pipe_format
+d3d9_to_pipe_format(D3DFORMAT format)
 {
-    static const enum pipe_format map[] =
-    {
-        [D3DFMT_UNKNOWN] = PIPE_FORMAT_NONE,
-
-        [D3DFMT_A8R8G8B8]     = PIPE_FORMAT_B8G8R8A8_UNORM,
-        [D3DFMT_X8R8G8B8]     = PIPE_FORMAT_B8G8R8X8_UNORM,
-        [D3DFMT_R5G6B5]       = PIPE_FORMAT_B5G6R5_UNORM,
-        [D3DFMT_X1R5G5B5]     = PIPE_FORMAT_B5G5R5X1_UNORM,
-        [D3DFMT_A1R5G5B5]     = PIPE_FORMAT_B5G5R5A1_UNORM,
-        [D3DFMT_A4R4G4B4]     = PIPE_FORMAT_B4G4R4A4_UNORM,
-        [D3DFMT_A8]           = PIPE_FORMAT_A8_UNORM,
-        [D3DFMT_X4R4G4B4]     = PIPE_FORMAT_B4G4R4X4_UNORM,
-        [D3DFMT_R3G3B2]       = PIPE_FORMAT_B2G3R3_UNORM,
-        [D3DFMT_A2B10G10R10]  = PIPE_FORMAT_R10G10B10A2_UNORM,
-        [D3DFMT_A8B8G8R8]     = PIPE_FORMAT_R8G8B8A8_UNORM,
-        [D3DFMT_X8B8G8R8]     = PIPE_FORMAT_R8G8B8X8_UNORM,
-        [D3DFMT_G16R16]       = PIPE_FORMAT_R16G16_UNORM,
-        [D3DFMT_A2R10G10B10]  = PIPE_FORMAT_B10G10R10A2_UNORM,
-        [D3DFMT_A16B16G16R16] = PIPE_FORMAT_R16G16B16A16_UNORM,
-
-        [D3DFMT_P8] = PIPE_FORMAT_R8_UINT,
-
-        [D3DFMT_L8]   = PIPE_FORMAT_L8_UNORM,
-        [D3DFMT_A8L8] = PIPE_FORMAT_L8A8_UNORM,
-        [D3DFMT_A4L4] = PIPE_FORMAT_L4A4_UNORM,
-
-        [D3DFMT_V8U8]        = PIPE_FORMAT_R8G8_SNORM,
-        [D3DFMT_Q8W8V8U8]    = PIPE_FORMAT_R8G8B8A8_SNORM,
-        [D3DFMT_V16U16]      = PIPE_FORMAT_R16G16_SNORM,
-        [D3DFMT_A2W10V10U10] = PIPE_FORMAT_R10SG10SB10SA2U_NORM,
-
-        [D3DFMT_UYVY] = PIPE_FORMAT_YUYV,
-
-        [D3DFMT_DXT1] = PIPE_FORMAT_DXT1_RGBA,
-        [D3DFMT_DXT2] = PIPE_FORMAT_DXT3_RGBA, /* XXX */
-        [D3DFMT_DXT3] = PIPE_FORMAT_DXT3_RGBA,
-        [D3DFMT_DXT4] = PIPE_FORMAT_DXT5_RGBA, /* XXX */
-        [D3DFMT_DXT5] = PIPE_FORMAT_DXT5_RGBA,
-
-        [D3DFMT_G8R8_G8B8] = PIPE_FORMAT_G8R8_G8B8_UNORM, /* XXX: order ? */
-        [D3DFMT_R8G8_B8G8] = PIPE_FORMAT_R8G8_B8G8_UNORM,
-
-        [D3DFMT_D16_LOCKABLE]  = PIPE_FORMAT_Z16_UNORM,
-        [D3DFMT_D32]           = PIPE_FORMAT_Z32_UNORM,
-        [D3DFMT_D24S8]         = PIPE_FORMAT_Z24_UNORM_S8_UINT,
-        [D3DFMT_D24X8]         = PIPE_FORMAT_Z24X8_UNORM,
-        [D3DFMT_D16]           = PIPE_FORMAT_Z16_UNORM,
-        [D3DFMT_L16]           = PIPE_FORMAT_L16_UNORM,
-        [D3DFMT_D32F_LOCKABLE] = PIPE_FORMAT_Z32_FLOAT,
-
-        [D3DFMT_INDEX16]      = PIPE_FORMAT_R16_UINT,
-        [D3DFMT_INDEX32]      = PIPE_FORMAT_R32_UINT,
-        [D3DFMT_Q16W16V16U16] = PIPE_FORMAT_R16G16B16A16_SNORM,
-
-        [D3DFMT_R16F]          = PIPE_FORMAT_R16_FLOAT,
-        [D3DFMT_R32F]          = PIPE_FORMAT_R32_FLOAT,
-        [D3DFMT_G16R16F]       = PIPE_FORMAT_R16G16_FLOAT,
-        [D3DFMT_G32R32F]       = PIPE_FORMAT_R32G32_FLOAT,
-        [D3DFMT_A16B16G16R16F] = PIPE_FORMAT_R16G16B16A16_FLOAT,
-        [D3DFMT_A32B32G32R32F] = PIPE_FORMAT_R32G32B32A32_FLOAT,
-
-        /* non-1:1 formats */
-        [D3DFMT_R8G8B8]   = PIPE_FORMAT_B8G8R8X8_UNORM,
-        [D3DFMT_A8R3G3B2] = PIPE_FORMAT_B8G8R8A8_UNORM,
-
-        [D3DFMT_A8P8]     = PIPE_FORMAT_R8A8_UINT,
-
-        [D3DFMT_D15S1]    = PIPE_FORMAT_Z24_UNORM_S8_UINT,
-        [D3DFMT_D24X4S4]  = PIPE_FORMAT_Z24_UNORM_S8_UINT,
-        [D3DFMT_D24FS8]   = PIPE_FORMAT_Z32_FLOAT_S8X24_UINT,
-
-        /* not really formats */
-        [D3DFMT_VERTEXDATA]   = PIPE_FORMAT_NONE,
-        [D3DFMT_BINARYBUFFER] = PIPE_FORMAT_NONE,
-
-        /* unsupported formats */
-        [D3DFMT_L6V5U5]      = PIPE_FORMAT_NONE,
-        [D3DFMT_X8L8V8U8]    = PIPE_FORMAT_NONE,
-
-        [D3DFMT_YUY2]        = PIPE_FORMAT_NONE, /* XXX: YUYV ? */
-        [D3DFMT_MULTI_ARGB8] = PIPE_FORMAT_NONE, /* MET */
-
-        [D3DFMT_CxV8U8]      = PIPE_FORMAT_NONE,
-
-        [D3DFMT_A1]          = PIPE_FORMAT_NONE, /* add this ? */
-    };
-    return map[format];
+    if (format < D3DFMT_A2B10G10R10_XR_BIAS)
+        return nine_d3d9_to_pipe_format_map[format];
+    switch (format) {
+    case D3DFMT_DXT1: return PIPE_FORMAT_DXT1_RGBA;
+    case D3DFMT_DXT2: return PIPE_FORMAT_DXT3_RGBA; /* XXX */
+    case D3DFMT_DXT3: return PIPE_FORMAT_DXT3_RGBA;
+    case D3DFMT_DXT4: return PIPE_FORMAT_DXT5_RGBA; /* XXX */
+    case D3DFMT_DXT5: return PIPE_FORMAT_DXT5_RGBA;
+    case D3DFMT_UYVY: return PIPE_FORMAT_UYVY;
+    case D3DFMT_YUY2: return PIPE_FORMAT_YUYV; /* XXX check */
+    case D3DFMT_G8R8_G8B8: return PIPE_FORMAT_G8R8_G8B8_UNORM; /* XXX order ? */
+    case D3DFMT_R8G8_B8G8: return PIPE_FORMAT_R8G8_B8G8_UNORM; /* XXX order ? */
+    case D3DFMT_BINARYBUFFER: return PIPE_FORMAT_NONE; /* not a format */
+    case D3DFMT_MULTI2_ARGB8: return PIPE_FORMAT_NONE; /* not supported */
+    default:
+       assert(0);
+       return PIPE_FORMAT_NONE;
+    }
 }
 
 static INLINE const char *
@@ -338,7 +205,7 @@ d3dcolor_to_pipe_color_union(union pipe_color_union *rgba, D3DCOLOR color)
     d3dcolor_to_rgba(&rgba->f[0], color);
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dprimitivetype_to_pipe_prim(D3DPRIMITIVETYPE prim)
 {
     switch (prim) {
@@ -354,7 +221,7 @@ d3dprimitivetype_to_pipe_prim(D3DPRIMITIVETYPE prim)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 prim_count_to_vertex_count(D3DPRIMITIVETYPE prim, UINT count)
 {
     switch (prim) {
@@ -370,7 +237,7 @@ prim_count_to_vertex_count(D3DPRIMITIVETYPE prim, UINT count)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dcmpfunc_to_pipe_func(D3DCMPFUNC func)
 {
     switch (func) {
@@ -388,7 +255,7 @@ d3dcmpfunc_to_pipe_func(D3DCMPFUNC func)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dstencilop_to_pipe_stencil_op(D3DSTENCILOP op)
 {
     switch (op) {
@@ -405,7 +272,7 @@ d3dstencilop_to_pipe_stencil_op(D3DSTENCILOP op)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dcull_to_pipe_face(D3DCULL cull)
 {
     switch (cull) {
@@ -418,20 +285,20 @@ d3dcull_to_pipe_face(D3DCULL cull)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dfillmode_to_pipe_polygon_mode(D3DFILLMODE mode)
 {
     switch (mode) {
-    case D3DFILLMODE_POINT:     return PIPE_POLYGON_MODE_POINT;
-    case D3DFILLMODE_WIREFRAME: return PIPE_POLYGON_MODE_LINE;
-    case D3DFILLMODE_SOLID:     return PIPE_POLYGON_MODE_FILL;
+    case D3DFILL_POINT:     return PIPE_POLYGON_MODE_POINT;
+    case D3DFILL_WIREFRAME: return PIPE_POLYGON_MODE_LINE;
+    case D3DFILL_SOLID:     return PIPE_POLYGON_MODE_FILL;
     default:
         assert(0);
         return PIPE_POLYGON_MODE_FILL;
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dblendop_to_pipe_blend(D3DBLENDOP op)
 {
     switch (op) {
@@ -446,7 +313,7 @@ d3dblendop_to_pipe_blend(D3DBLENDOP op)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dblend_alpha_to_pipe_blendfactor(D3DBLEND b)
 {
     switch (b) {
@@ -470,7 +337,7 @@ d3dblend_alpha_to_pipe_blendfactor(D3DBLEND b)
     }
 }
 
-static inline unsigned
+static INLINE unsigned
 d3dblend_color_to_pipe_blendfactor(D3DBLEND b)
 {
     switch (b) {
@@ -494,22 +361,22 @@ d3dblend_color_to_pipe_blendfactor(D3DBLEND b)
     }
 }
 
-static unsigned
-d3dtaddress_to_pipe_tex_wrap(D3DTADDRESS addr)
+static INLINE unsigned
+d3dtextureaddress_to_pipe_tex_wrap(D3DTEXTUREADDRESS addr)
 {
     switch (addr) {
-    case D3DTADDRESS_WRAP:
-    case D3DTADDRESS_MIRROR:
-    case D3DTADDRESS_CLAMP:
-    case D3DTADDRESS_BORDER:
-    case D3DTADDRESS_MIRRORONCE:
+    case D3DTADDRESS_WRAP:       return PIPE_TEX_WRAP_REPEAT;
+    case D3DTADDRESS_MIRROR:     return PIPE_TEX_WRAP_MIRROR_REPEAT;
+    case D3DTADDRESS_CLAMP:      return PIPE_TEX_WRAP_CLAMP_TO_EDGE;
+    case D3DTADDRESS_BORDER:     return PIPE_TEX_WRAP_CLAMP_TO_BORDER;
+    case D3DTADDRESS_MIRRORONCE: return PIPE_TEX_WRAP_MIRROR_CLAMP_TO_EDGE;
     default:
         assert(0);
-        return PIPE_TEX_WRAP;
+        return PIPE_TEX_WRAP_CLAMP_TO_EDGE;
     }
 }
 
-static unsigned
+static INLINE unsigned
 d3dtexturefiltertype_to_pipe_tex_filter(D3DTEXTUREFILTERTYPE filter)
 {
     switch (filter) {
@@ -527,7 +394,7 @@ d3dtexturefiltertype_to_pipe_tex_filter(D3DTEXTUREFILTERTYPE filter)
     }
 }
 
-static unsigned
+static INLINE unsigned
 d3dtexturefiltertype_to_pipe_tex_mipfilter(D3DTEXTUREFILTERTYPE filter)
 {
     switch (filter) {

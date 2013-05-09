@@ -30,8 +30,8 @@
 enum nine_stateblock_type
 {
    NINESBT_ALL,
-   NINESBT_VERTEX,
-   NINESBT_PIXEL,
+   NINESBT_VERTEXSTATE,
+   NINESBT_PIXELSTATE,
    NINESBT_CUSTOM
 };
 
@@ -49,6 +49,20 @@ NineStateBlock9( void *data )
 {
     return (struct NineStateBlock9 *)data;
 }
+
+HRESULT
+NineStateBlock9_new( struct NineDevice9 *,
+                     struct NineStateBlock9 **ppOut,
+                     enum nine_stateblock_type);
+
+HRESULT
+NineStateBlock9_ctor( struct NineStateBlock9 *,
+                      struct NineUnknownParams *pParams,
+                      struct NineDevice9 *pDevice,
+                      enum nine_stateblock_type type );
+
+void
+NineStateBlock9_dtor( struct NineStateBlock9 * );
 
 HRESULT WINAPI
 NineStateBlock9_GetDevice( struct NineStateBlock9 *This,

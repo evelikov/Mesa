@@ -27,34 +27,34 @@ update_framebuffer(NineDevice *This)
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
     struct pipe_surface *surf;
-    struct pipe_framebuffer_state fb;
+    struct pipe_framebuffer_state *fb = &This->state.fb;
     unsigned i;
 
-    fb.nr_cbufs = 0;
+    fb->nr_cbufs = 0;
 
     for (i = 0; i < This->caps.NumSimultaneousRTs; ++i) {
         if (state->rt[i]) {
-            fb.cbufs[i] = state->rt[i]->surface;
-            fb.nr_cbufs = i + 1;
+            fb->cbufs[i] = state->rt[i]->surface;
+            fb->nr_cbufs = i + 1;
         } else {
             /* Color outputs must match RT slot,
              * drivers will have to handle NULL entries for GL, too.
              */
-            fb.cbufs[i] = NULL;
+            fb->cbufs[i] = NULL;
         }
     }
-    fb.zsbuf = state->ds ? state->ds->surface : NULL;
+    fb->zsbuf = state->ds ? state->ds->surface : NULL;
 
-    surf = i ? fb.cbufs[i] : fb.zsbuf;
+    surf = i ? fb->cbufs[i] : fb->zsbuf;
 
     if (surf) {
-        fb.width = surf->width;
-        fb.height = surf->height;
+        fb->width = surf->width;
+        fb->height = surf->height;
     } else {
-        fb.width = fb.height = 0;
+        fb->width = fb->height = 0;
     }
 
-    pipe->set_framebuffer_state(pipe, &fb); /* XXX: cso ? */
+    pipe->set_framebuffer_state(pipe, fb); /* XXX: cso ? */
 }
 
 static void

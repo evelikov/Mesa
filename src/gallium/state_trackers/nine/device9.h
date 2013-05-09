@@ -26,7 +26,7 @@
 #include "iunknown.h"
 #include "adapter9.h"
 
-#include "nine/nine_state.h"
+#include "nine_state.h"
 
 #include "d3dpresent.h"
 
@@ -34,6 +34,7 @@ struct pipe_screen;
 struct pipe_context;
 struct cso_context;
 struct NineSwapChain9;
+struct NineStateBlock9;
 
 struct NineDevice9
 {
@@ -54,7 +55,7 @@ struct NineDevice9
     struct NineSwapChain9 **swapchains;
     unsigned nswapchains;
 
-    NineStateBlock9 *record;
+    struct NineStateBlock9 *record;
     struct nine_state *update; /* state to update (&state / &record->state) */
     struct nine_state state;   /* device state */
 
@@ -663,8 +664,8 @@ NineDevice9_SetIndices( struct NineDevice9 *This,
 
 HRESULT WINAPI
 NineDevice9_GetIndices( struct NineDevice9 *This,
-                        IDirect3DIndexBuffer9 **ppIndexData,
-                        UINT *pBaseVertexIndex );
+                        IDirect3DIndexBuffer9 **ppIndexData /*,
+                        UINT *pBaseVertexIndex */ );
 
 HRESULT WINAPI
 NineDevice9_CreatePixelShader( struct NineDevice9 *This,

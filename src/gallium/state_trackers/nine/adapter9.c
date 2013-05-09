@@ -151,8 +151,8 @@ NineAdapter9_CheckDeviceType( struct NineAdapter9 *This,
     hr = NineAdapter9_GetScreen(This, DevType, &screen);
     if (FAILED(hr)) { return hr; }
 
-    dfmt = nine_pipe_format(AdapterFormat);
-    bfmt = nine_pipe_format(BackBufferFormat);
+    dfmt = d3d9_to_pipe_format(AdapterFormat);
+    bfmt = d3d9_to_pipe_format(BackBufferFormat);
     if (dfmt == PIPE_FORMAT_NONE || bfmt == PIPE_FORMAT_NONE) {
         return D3DERR_NOTAVAILABLE;
     }
@@ -211,7 +211,7 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr)) { return hr; }
 
-    fmt = nine_pipe_format(AdapterFormat);
+    fmt = d3d9_to_pipe_format(AdapterFormat);
     if (fmt == PIPE_FORMAT_NONE) { return D3DERR_NOTAVAILABLE; }
     if (!screen->is_format_supported(screen, fmt, PIPE_TEXTURE_2D, 1,
                                      PIPE_BIND_DISPLAY_TARGET |
@@ -265,7 +265,7 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
         return D3DERR_NOTAVAILABLE;
     }
 
-    fmt = nine_pipe_format(CheckFormat);
+    fmt = d3d9_to_pipe_format(CheckFormat);
     if (!screen->is_format_supported(screen, fmt, target, 1, bind)) {
         return D3DERR_NOTAVAILABLE;
     }
@@ -295,7 +295,7 @@ NineAdapter9_CheckDeviceMultiSampleType( struct NineAdapter9 *This,
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr)) { return hr; }
 
-    fmt = nine_pipe_format(SurfaceFormat);
+    fmt = d3d9_to_pipe_format(SurfaceFormat);
     if (fmt == PIPE_FORMAT_NONE) { return D3DERR_NOTAVAILABLE; }
     if (!screen->is_format_supported(screen, fmt, PIPE_TEXTURE_2D, 1, 0)) {
         return D3DERR_NOTAVAILABLE;
@@ -347,9 +347,9 @@ NineAdapter9_CheckDepthStencilMatch( struct NineAdapter9 *This,
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr)) { return hr; }
 
-    dfmt = nine_pipe_format(AdapterFormat);
-    bfmt = nine_pipe_format(RenderTargetFormat);
-    zsfmt = nine_pipe_format(DepthStencilFormat);
+    dfmt = d3d9_to_pipe_format(AdapterFormat);
+    bfmt = d3d9_to_pipe_format(RenderTargetFormat);
+    zsfmt = d3d9_to_pipe_format(DepthStencilFormat);
     if (dfmt == PIPE_FORMAT_NONE ||
         bfmt == PIPE_FORMAT_NONE ||
         zsfmt == PIPE_FORMAT_NONE) {
@@ -388,8 +388,8 @@ NineAdapter9_CheckDeviceFormatConversion( struct NineAdapter9 *This,
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr)) { return hr; }
 
-    dfmt = nine_pipe_format(TargetFormat);
-    bfmt = nine_pipe_format(SourceFormat);
+    dfmt = d3d9_to_pipe_format(TargetFormat);
+    bfmt = d3d9_to_pipe_format(SourceFormat);
     if (dfmt == PIPE_FORMAT_NONE || bfmt == PIPE_FORMAT_NONE) {
         return D3DERR_NOTAVAILABLE;
     }

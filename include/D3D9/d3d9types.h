@@ -315,6 +315,9 @@ typedef struct _RGNDATA {
 #define D3DCREATE_DISABLE_DRIVER_MANAGEMENT 0x00000100
 #define D3DCREATE_ADAPTERGROUP_DEVICE       0x00000200
 
+#define D3DSTREAMSOURCE_INDEXEDDATA  (1 << 30)
+#define D3DSTREAMSOURCE_INSTANCEDATA (2 << 30)
+
 /********************************************************
  * Function macros                                      *
  *******************************************************/

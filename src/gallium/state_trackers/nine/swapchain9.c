@@ -74,7 +74,7 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
 
     tmplt.screen = This->screen;
     tmplt.target = PIPE_TEXTURE_2D;
-    tmplt.format = nine_pipe_format(desc.Format);
+    tmplt.format = d3d9_to_pipe_format(desc.Format);
     tmplt.width0 = desc.Width;
     tmplt.height0 = desc.Height;
     tmplt.depth0 = 1;
@@ -231,7 +231,8 @@ NineSwapChain9_Present( struct NineSwapChain9 *This,
             /* XXX not implemented */
             break;
     }
-    NineDevice9_UpdateRenderTargets(This->device);
+    This->device->state.changed.group |= NINE_STATE_FB;
+    nine_update_state(This->device); /* XXX: expose fb update separately ? */
 
     return hr;
 }

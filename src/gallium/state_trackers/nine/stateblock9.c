@@ -21,6 +21,8 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "stateblock9.h"
+#include "device9.h"
+#include "nine_helpers.h"
 
 #define DBG_CHANNEL DBG_STATEBLOCK
 
@@ -44,20 +46,20 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
 
     nine_reference(&state->idxbuf, NULL);
 
-    if (state->changed.vbuf) {
+    if (state->changed.vtxbuf) {
         for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
             nine_reference(&state->stream[i], NULL);
     }
 
     nine_reference(&state->vs, NULL);
-    nine_reference(&state->fs, NULL);
+    nine_reference(&state->ps, NULL);
 
     nine_reference(&state->vdecl, NULL);
 
-    if (nine->vs_const_f)
-        FREE(nine->vs_const_f);
-    if (nine->ps_const_f)
-        FREE(nine->ps_const_f);
+    if (state->vs_const_f)
+        FREE(state->vs_const_f);
+    if (state->ps_const_f)
+        FREE(state->ps_const_f);
 }
 
 HRESULT WINAPI
@@ -114,6 +116,7 @@ nine_state_transfer(struct nine_state *dst,
      */
     if (mask->changed.group & NINE_STATE_VS_CONST) {
        for (i = 0; i < Elements(mask->changed.vs_const_f); ++i) {
+          uint32_t m;
           if (!mask->changed.vs_const_f[i])
              continue;
           if (apply)
@@ -121,21 +124,21 @@ nine_state_transfer(struct nine_state *dst,
           m = mask->changed.vs_const_f[i];
 
           if (m == 0xFFFFFFFF) {
-             memcpy(dst->vs_const_f[i * 32 * 4],
-                    src->vs_const_f[i * 32 * 4], 32 * 4 * sizeof(float));
+             memcpy(&dst->vs_const_f[i * 32 * 4],
+                    &src->vs_const_f[i * 32 * 4], 32 * 4 * sizeof(float));
              continue;
           }
           for (j = ffs(m) - 1, m >>= j; m; ++j, m >>= 1)
              if (m & 1)
-                memcpy(dst->vs_const_f[(i * 32 + j) * 4],
-                       src->vs_const_f[(i * 32 + j) * 4], 4 * sizeof(float));
+                memcpy(&dst->vs_const_f[(i * 32 + j) * 4],
+                       &src->vs_const_f[(i * 32 + j) * 4], 4 * sizeof(float));
        }
     }
     if (mask->changed.vs_const_i) {
        uint16_t m = mask->changed.vs_const_i;
        for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
           if (m & 1)
-             dst->vs_const_i[i] = src->vs_const_i[i];
+             memcpy(dst->vs_const_i[i], src->vs_const_i[i], 4 * sizeof(int));
        if (apply)
           dst->changed.vs_const_i |= mask->changed.vs_const_i;
     }
@@ -151,22 +154,29 @@ nine_state_transfer(struct nine_state *dst,
     /* Pixel constants. */
     if (mask->changed.group & NINE_STATE_PS_CONST) {
        for (i = 0; i < Elements(mask->changed.ps_const_f); ++i) {
+          uint32_t m;
           if (!mask->changed.ps_const_f[i])
              continue;
           if (apply)
              dst->changed.ps_const_f[i] |= mask->changed.ps_const_f[i];
           m = mask->changed.ps_const_f[i];
+
+          if (m == 0xFFFFFFFF) {
+             memcpy(&dst->ps_const_f[i * 32 * 4],
+                    &src->ps_const_f[i * 32 * 4], 32 * 4 * sizeof(float));
+             continue;
+          }
           for (j = ffs(m) - 1, m >>= j; m; ++j, m >>= 1)
              if (m & 1)
-                memcpy(dst->ps_const_f[(i * 32 + j) * 4],
-                       src->ps_const_f[(i * 32 + j) * 4], 4 * sizeof(float));
+                memcpy(&dst->ps_const_f[(i * 32 + j) * 4],
+                       &src->ps_const_f[(i * 32 + j) * 4], 4 * sizeof(float));
        }
     }
     if (mask->changed.ps_const_i) {
        uint16_t m = mask->changed.ps_const_i;
        for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
           if (m & 1)
-             dst->ps_const_i[i] = src->ps_const_i[i];
+             memcpy(dst->ps_const_i[i], src->ps_const_i[i], 4 * sizeof(int));
        if (apply)
           dst->changed.ps_const_i |= mask->changed.ps_const_i;
     }
@@ -187,7 +197,7 @@ nine_state_transfer(struct nine_state *dst,
             continue;
         }
         if (i % 32 == 0)
-           i += ffs(mask->changed.mask[i / 32]) - 1;
+           i += ffs(mask->changed.rs[i / 32]) - 1;
         if (mask->changed.rs[i / 32] & (1 << (i % 32)))
             dst->rs[i] = src->rs[i];
     }
@@ -197,8 +207,8 @@ nine_state_transfer(struct nine_state *dst,
     }
 
     /* Vertex streams. */
-    if (mask->changed.vbuf | mask->changed.stream_freq) {
-        for (i = 0; i < PIPE_MAX_ATTRIBS) {
+    if (mask->changed.vtxbuf | mask->changed.stream_freq) {
+        for (i = 0; i < PIPE_MAX_ATTRIBS; ++i) {
             if (mask->changed.vtxbuf & (1 << i))
                 nine_reference(&dst->stream[i], src->stream[i]);
             if (mask->changed.stream_freq & (1 << i))
@@ -214,7 +224,8 @@ nine_state_transfer(struct nine_state *dst,
     if (mask->changed.ucp) {
         for (i = 0; i < PIPE_MAX_CLIP_PLANES; ++i)
             if (mask->changed.ucp & (1 << i))
-                dst->clip.ucp[i] = src->clip.ucp[i];
+                memcpy(dst->clip.ucp[i],
+                       src->clip.ucp[i], sizeof(src->clip.ucp[0]));
         if (apply)
            dst->changed.ucp |= mask->changed.ucp;
     }
@@ -224,8 +235,6 @@ nine_state_transfer(struct nine_state *dst,
 
     /* Fixed function state. */
     /* TODO */
-
-    return D3D_OK;
 }
 
 /* Capture those bits of current device state that have been changed between
@@ -243,7 +252,7 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
 HRESULT WINAPI
 NineStateBlock9_Apply( struct NineStateBlock9 *This )
 {
-    if (This->type = NINESBT_ALL && 0) /* TODO */
+    if (This->type == NINESBT_ALL && 0) /* TODO */
        nine_state_transfer_all(&This->device->state, &This->state);
     nine_state_transfer(&This->device->state, &This->state, &This->state, TRUE);
     return D3D_OK;

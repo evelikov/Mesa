@@ -28,6 +28,8 @@
 
 #define NINED3DRS_LAST D3DRS_BLENDOPALPHA
 
+#define NINED3DSAMP_LAST D3DSAMP_DMAPOFFSET
+
 #define NINE_STATE_FB          (1 <<  0)
 #define NINE_STATE_VIEWPORT    (1 <<  1)
 #define NINE_STATE_SCISSOR     (1 <<  2)
@@ -74,8 +76,8 @@ struct nine_state
         uint8_t ucp;
     } changed;
 
-    struct NineSurface *rt[NINE_MAX_SIMULTANEOUS_RENDER_TARGETS];
-    struct NineSurface *ds;
+    struct NineSurface9 *rt[NINE_MAX_SIMULTANEOUS_RENDER_TARGETS];
+    struct NineSurface9 *ds;
 
     D3DVIEWPORT9 viewport;
 
@@ -107,10 +109,11 @@ struct nine_state
     struct pipe_vertex_buffer  vtxbuf[PIPE_MAX_ATTRIBS];
 
     struct pipe_clip_state clip;
+    struct pipe_framebuffer_state fb;
 
     DWORD rs[NINED3DRS_LAST + 1];
 
-    DWORD samp[NINED3DSAMPLERSTATETYPE_LAST + 1];
+    DWORD samp[NINED3DSAMP_LAST + 1];
 };
 
 /* map D3DRS -> log2(NINE_STATE_x) (do we need this ?)
@@ -121,5 +124,10 @@ const uint32_t nine_render_state_group[NINED3DRS_LAST + 1];
  */
 const uint32_t nine_render_states_pixel[(NINED3DRS_LAST + 31) / 32];
 const uint32_t nine_render_states_vertex[(NINED3DRS_LAST + 31) / 32];
+
+struct NineDevice9;
+
+boolean nine_update_state(struct NineDevice9 *device);
+
 
 #endif /* _NINE_STATE_H_ */
