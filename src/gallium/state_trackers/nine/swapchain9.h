@@ -41,7 +41,6 @@ struct NineSwapChain9
     struct pipe_screen *screen;
     struct pipe_context *pipe;
     struct cso_context *cso;
-    struct blit_state *blitter;
 
     /* presentation backend */
     ID3DPresent *present;

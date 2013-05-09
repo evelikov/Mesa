@@ -28,7 +28,6 @@
 #include "nine_pipe.h"
 
 #include "util/u_inlines.h"
-#include "util/u_blit.h"
 #include "util/u_surface.h"
 
 #define DBG_CHANNEL DBG_SWAPCHAIN
@@ -56,9 +55,6 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     This->present = pPresent;
     hr = ID3DPresent_GetPresentParameters(This->present, &This->params);
     if (FAILED(hr)) { return hr; }
-
-    This->blitter = util_create_blit(This->pipe, This->cso);
-    if (!This->blitter) { return E_OUTOFMEMORY; } /* guesswork */
 
     This->buffers = CALLOC(This->params.BackBufferCount+1,
                            sizeof(struct NineSurface9 *));
@@ -125,9 +121,6 @@ NineSwapChain9_dtor( struct NineSwapChain9 *This )
     if (This->present) {
         ID3DPresent_Release(This->present);
     }
-    if (This->blitter) {
-        util_destroy_blit(This->blitter);
-    }
 
     NineUnknown_dtor(&This->base);
 }
@@ -141,7 +134,6 @@ present( struct NineSwapChain9 *This,
          DWORD dwFlags )
 {
     struct pipe_resource *resource;
-    struct pipe_surface templ, *emusurf;
     HRESULT hr;
     RGNDATA *rgndata;
     RECT rect;
@@ -156,37 +148,48 @@ present( struct NineSwapChain9 *This,
         return D3D_OK;
     }
 
-    memset(&templ, 0, sizeof(struct pipe_surface));
-    u_surface_default_template(&templ, resource);
-
-    emusurf = This->pipe->create_surface(This->pipe, resource, &templ);
-    pipe_resource_reference(&resource, NULL);
-    if (!emusurf) {
-        DBG("Obtaining pipe_surface from ID3DPresent backend failed.\n");
-        return D3DERR_DRIVERINTERNALERROR;
-    }
-
     if (rgndata) {
         /* TODO */
     } else {
+        struct pipe_blit_info blit;
+
         /* blit (and possibly stretch/convert) pixels from This->buffers[0] to
          * emusurf using u_blit. Windows appears to use NEAREST */
         DBG("Blitting %ux%u surface to (%u, %u)-(%u, %u).\n",
             This->buffers[0]->surface->width, This->buffers[0]->surface->height,
             rect.left, rect.top, rect.right, rect.bottom);
 
-        util_blit_pixels(This->blitter, This->buffers[0]->surface->texture,
-                         This->buffers[0]->level, 0, 0,
-                         This->buffers[0]->surface->width,
-                         This->buffers[0]->surface->height, 0,
-                         emusurf, rect.left, rect.top, rect.right, rect.bottom,
-                         0.0f, PIPE_TEX_MIPFILTER_NEAREST, PIPE_MASK_RGBA, 0);
+        blit.dst.resource = resource;
+        blit.dst.level = 0;
+        blit.dst.box.x = rect.left;
+        blit.dst.box.y = rect.top;
+        blit.dst.box.z = 0;
+        blit.dst.box.width = rect.right - rect.left;
+        blit.dst.box.height = rect.bottom - rect.top;
+        blit.dst.box.depth = 1;
+        blit.dst.format = resource->format;
+
+        blit.src.resource = This->buffers[0]->surface->texture;
+        blit.src.level = This->buffers[0]->level;
+        blit.src.box.x = 0;
+        blit.src.box.y = 0;
+        blit.src.box.z = 0;
+        blit.src.box.width = This->buffers[0]->surface->width;;
+        blit.src.box.height = This->buffers[0]->surface->height;
+        blit.src.box.depth = 1;
+        blit.src.format = blit.src.resource->format;
+
+        blit.mask = PIPE_MASK_RGBA;
+        blit.filter = PIPE_TEX_FILTER_NEAREST;
+        blit.scissor_enable = FALSE;
+
+        This->pipe->blit(This->pipe, &blit);
     }
     This->pipe->flush(This->pipe, NULL, 0);
 
     /* really present the frame */
     hr = ID3DPresent_Present(This->present, dwFlags);
-    pipe_surface_reference(&emusurf, NULL);
+    pipe_resource_reference(&resource, NULL);
     if (FAILED(hr)) { return hr; }
 
     return D3D_OK;
