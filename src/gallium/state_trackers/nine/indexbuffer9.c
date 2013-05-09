@@ -112,7 +112,6 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
 void
 NineIndexBuffer9_dtor( struct NineIndexBuffer9 *This )
 {
-    if (This->buffer) { FREE(This->buffer); }
     if (This->transfer) { NineIndexBuffer9_Unlock(This); }
 
     NineResource9_dtor(&This->base);
@@ -121,7 +120,7 @@ NineIndexBuffer9_dtor( struct NineIndexBuffer9 *This )
 const struct pipe_index_buffer *
 NineIndexBuffer9_GetBuffer( struct NineIndexBuffer9 *This )
 {
-    return This->buffer;
+    return &This->buffer;
 }
 
 HRESULT WINAPI

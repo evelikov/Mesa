@@ -25,6 +25,8 @@
 
 #include "resource9.h"
 
+#include "pipe/p_state.h"
+
 struct pipe_screen;
 struct pipe_context;
 struct pipe_index_buffer;
