@@ -124,6 +124,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
         if (!This->constbuf_vs || !This->constbuf_ps)
             return E_OUTOFMEMORY;
 
+        cb.user_buffer = NULL; /* XXX: fix your drivers !!! */
         cb.buffer_offset = 0;
         cb.buffer = This->constbuf_vs;
         cb.buffer_size = This->constbuf_vs->width0;
@@ -644,6 +645,8 @@ NineDevice9_Clear( struct NineDevice9 *This,
         This->state.fb.cbufs[0]->width-1,
         This->state.fb.cbufs[0]->height-1
     };
+
+    DBG("\n");
 
     user_assert((pRects && Count != 0) || (!pRects && Count == 0),
                 D3DERR_INVALIDCALL);

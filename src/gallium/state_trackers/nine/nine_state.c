@@ -28,6 +28,8 @@
 #include "pipe/p_state.h"
 #include "cso_cache/cso_context.h"
 
+#define DBG_CHANNEL DBG_DEVICE
+
 static void
 update_framebuffer(struct NineDevice9 *device)
 {
@@ -36,6 +38,8 @@ update_framebuffer(struct NineDevice9 *device)
     struct pipe_surface *surf;
     struct pipe_framebuffer_state *fb = &device->state.fb;
     unsigned i;
+
+    DBG("\n");
 
     fb->nr_cbufs = 0;
 
