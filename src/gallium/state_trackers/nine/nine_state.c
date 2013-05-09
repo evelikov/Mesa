@@ -56,7 +56,7 @@ update_framebuffer(struct NineDevice9 *device)
     }
     fb->zsbuf = state->ds ? state->ds->surface : NULL;
 
-    surf = i ? fb->cbufs[i] : fb->zsbuf;
+    surf = fb->nr_cbufs ? fb->cbufs[fb->nr_cbufs - 1] : fb->zsbuf;
 
     if (surf) {
         fb->width = surf->width;
