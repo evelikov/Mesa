@@ -42,6 +42,8 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
     struct pipe_resource *resource;
     HRESULT hr, reshr;
 
+    This->desc = *pDesc;
+
     {
         /* create an index buffer */
         struct pipe_resource tmplt;
@@ -90,21 +92,19 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
     }
     hr = NineResource9_ctor(&This->base, pParams, pDevice, resource,
                             D3DRTYPE_INDEXBUFFER, pDesc->Pool);
-    if (FAILED(hr)) { return FAILED(reshr) ? reshr : hr; }
+    if (FAILED(hr))
+        return FAILED(reshr) ? reshr : hr;
 
-    This->desc = *pDesc;
-
-    This->buffer = MALLOC_STRUCT(pipe_index_buffer);
-    if (!This->buffer) { return E_OUTOFMEMORY; }
-
-    This->buffer->buffer = resource;
+    This->buffer.buffer = resource;
+    This->buffer.offset = 0;
     switch (pDesc->Format) {
-        case D3DFMT_INDEX16: This->buffer->index_size = 2; break;
-        case D3DFMT_INDEX32: This->buffer->index_size = 4; break;
-        default:
-            user_assert(!"Invalid index format.", D3DERR_INVALIDCALL);
+    case D3DFMT_INDEX16: This->buffer.index_size = 2; break;
+    case D3DFMT_INDEX32: This->buffer.index_size = 4; break;
+    default:
+        user_assert(!"Invalid index format.", D3DERR_INVALIDCALL);
+        break;
     }
-    This->buffer->offset = 0;
+    This->buffer.user_buffer = NULL;
 
     return D3D_OK;
 }
