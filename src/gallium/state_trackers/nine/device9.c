@@ -630,7 +630,31 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
                        const RECT *pRect,
                        D3DCOLOR color )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_context *pipe = This->pipe;
+    struct NineSurface9 *surf = NineSurface9(pSurface);
+    unsigned x, y, w, h;
+    union pipe_color_union rgba;
+
+    user_assert(surf->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+
+    /* XXX: resource usage == rt, rt texture, or off-screen plain */
+
+    if (pRect) {
+        x = pRect->left;
+        y = pRect->top;
+        w = pRect->right - pRect->left;
+        h = pRect->bottom - pRect->top;
+    } else{
+        x = 0;
+        y = 0;
+        w = surf->surface->width;
+        h = surf->surface->height;
+    }
+    d3dcolor_to_pipe_color_union(&rgba, color);
+
+    pipe->clear_render_target(pipe, surf->surface, &rgba, x, y, w, h);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
