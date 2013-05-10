@@ -127,6 +127,7 @@ update_vertex_elements(struct NineDevice9 *device)
 {
 }
 
+/* OK, this is a bit ugly ... */
 static void
 update_constants(struct NineDevice9 *device, unsigned shader_type)
 {
@@ -143,7 +144,6 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     uint16_t dirty_b;
     uint32_t *dirty_f;
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
-    uint32_t m;
     unsigned i, j, c, n;
     unsigned x;
 
@@ -187,12 +187,52 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     }
 
     /* int4 */
-    if (dirty_i) {
+    for (c = 0, i = 0; dirty_i; i++, dirty_i >>= 1) {
+        if (dirty_i & 1) {
+            if (!c)
+                x = i;
+            ++c;
+        } else
+        if (c) {
+            data = &const_i[x * 4];
+            box.x = x * 4 * sizeof(int);
+            box.width = c * 4 * sizeof(int);
+            c = 0;
+            pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
+        }
+    }
+    if (c) {
+        data = &const_i[x * 4];
+        box.x = x * 4 * sizeof(int);
+        box.width = c * 4 * sizeof(int);
+        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
 
     /* float4 */
-    for (i = 0; i < 0; ++i) {
-        
+    for (c = 0, i = 0; i < (NINE_MAX_CONST_F + 31) / 32; ++i) {
+        uint32_t m = dirty_f[i];
+
+        for (j = 0; m; j++, m >>= 1) {
+            if (m & 1) {
+               if (!c)
+                   x = i * 32 + j;
+               ++c;
+            } else
+            if (c) {
+                data = &const_f[x * 4];
+                box.x = x * 4 * sizeof(float);
+                box.width = c * 4 * sizeof(float);
+                c = 0;
+                pipe->transfer_inline_write(pipe,
+                                            buf, 0, usage, &box, data, 0, 0);
+            }
+        }
+    }
+    if (c) {
+        data = &const_f[x * 4];
+        box.x = x * 4 * sizeof(float);
+        box.width = c * 4 * sizeof(float);
+        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
 }
 
