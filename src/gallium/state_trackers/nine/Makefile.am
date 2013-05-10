@@ -24,6 +24,7 @@ libninetracker_la_SOURCES = \
     iunknown.c \
     nine_debug.c \
     nine_pipe.c \
+    nine_shader.c \
     nine_state.c \
     nineexoverlayextension.c \
     nine_quirk.c \

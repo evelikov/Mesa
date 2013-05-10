@@ -20,15 +20,58 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include "nine_helpers.h"
+#include "nine_shader.h"
+
 #include "vertexshader9.h"
 
+#include "device9.h"
+#include "pipe/p_context.h"
+
 #define DBG_CHANNEL DBG_VERTEXSHADER
+
+HRESULT
+NineVertexShader9_ctor( struct NineVertexShader9 *This,
+                        struct NineUnknownParams *pParams,
+                        struct NineDevice9 *pDevice,
+                        const DWORD *pFunction )
+{
+    struct nine_shader_info info;
+    HRESULT hr;
+
+    This->device = pDevice;
+
+    info.type = PIPE_SHADER_VERTEX;
+    info.byte_code = pFunction;
+
+    hr = nine_translate_shader(pDevice, &info);
+    if (FAILED(hr))
+        return hr;
+
+    This->byte_code.size = info.byte_size;
+    This->cso = info.cso;
+
+    return D3D_OK;
+}
+
+void
+NineVertexShader9_dtor( struct NineVertexShader9 *This )
+{
+    struct pipe_context *pipe = This->device->pipe;
+    if (This->cso)
+        pipe->delete_vs_state(pipe, This->cso);
+
+    NineUnknown_dtor(&This->base);
+}
 
 HRESULT WINAPI
 NineVertexShader9_GetDevice( struct NineVertexShader9 *This,
                              IDirect3DDevice9 **ppDevice )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(ppDevice, E_POINTER);
+    NineUnknown_AddRef(NineUnknown(This->device));
+    *ppDevice = (IDirect3DDevice9 *)This->device;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -36,7 +79,17 @@ NineVertexShader9_GetFunction( struct NineVertexShader9 *This,
                                void *pData,
                                UINT *pSizeOfData )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(pSizeOfData, D3DERR_INVALIDCALL);
+
+    if (!pData) {
+        *pSizeOfData = This->byte_code.size;
+        return D3D_OK;
+    }
+    user_assert(*pSizeOfData >= This->byte_code.size, D3DERR_INVALIDCALL);
+
+    memcpy(pData, This->byte_code.tokens, This->byte_code.size);
+
+    return D3D_OK;
 }
 
 IDirect3DVertexShader9Vtbl NineVertexShader9_vtable = {
@@ -46,3 +99,17 @@ IDirect3DVertexShader9Vtbl NineVertexShader9_vtable = {
     (void *)NineVertexShader9_GetDevice,
     (void *)NineVertexShader9_GetFunction
 };
+
+static const GUID *NineVertexShader9_IIDs[] = {
+    &IID_IDirect3DVertexShader9,
+    &IID_IUnknown,
+    NULL
+};
+
+HRESULT
+NineVertexShader9_new( struct NineDevice9 *pDevice,
+                       struct NineVertexShader9 **ppOut,
+                       const DWORD *pFunction )
+{
+    NINE_NEW(NineVertexShader9, ppOut, pDevice, pFunction);
+}

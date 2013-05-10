@@ -1,51 +1,39 @@
 #ifndef _NINE_SHADER_H_
 #define _NINE_SHADER_H_
 
-#include "tgsi/tgsi_ureg.h"
-
 #include "d3d9types.h"
+#include "d3d9caps.h"
+#include "pipe/p_state.h" /* PIPE_MAX_ATTRIBS */
 
-union d3d_token;
+#define NINE_DECLUSAGE_POSITION       0
+#define NINE_DECLUSAGE_BLENDWEIGHT    1
+#define NINE_DECLUSAGE_BLENDINDICES   2
+#define NINE_DECLUSAGE_NORMAL(i)    ( 3 + (i))
+#define NINE_DECLUSAGE_PSIZE          5
+#define NINE_DECLUSAGE_TEXCOORD(i)  ( 6 + (i))
+#define NINE_DECLUSAGE_TANGENT       15
+#define NINE_DECLUSAGE_BINORMAL      16
+#define NINE_DECLUSAGE_TESSFACTOR    17
+#define NINE_DECLUSAGE_POSITIONT     18
+#define NINE_DECLUSAGE_COLOR(i)     (19 + (i))
+#define NINE_DECLUSAGE_DEPTH         22
+#define NINE_DECLUSAGE_SAMPLE        23
 
-struct util_hash_table;
+struct NineDevice9;
 
-struct nine_shader
+struct nine_shader_info
 {
-    struct {
-        struct ureg_program *program;
-        unsigned processor;
-    } tgsi;
+    unsigned type; /* in, PIPE_SHADER_x */
 
-    struct {
-        DWORD *original;
-        unsigned noriginal;
+    const DWORD *byte_code; /* in, pointer to shader tokens */
+    DWORD        byte_size; /* out, size of data at byte_code */
 
-        union d3d_token *ir;
-        unsigned nir;
-    } tokens;
+    void *cso; /* out, pipe cso for bind_vs,fs_state */
 
-    /* when using relative addressing, everything (might be) a gamble */
-    boolean reladdr;
-    /* what ints, bools and floats are used */
-    uint_least16_t const_int_mask;
-    uint_least16_t const_bool_mask;
-    uint_least32_t const_float_mask[8];
-
-    struct {
-        int val;
-        unsigned location;
-    } const_ints[16];
-    struct {
-        boolean val;
-        unsigned location;
-    } const_bools[16];
-
-    float *const_floats; /* dynamically allocated */
+    unsigned input_map[32]; /* VS input -> NINE_DECLUSAGE_x */
 };
 
 HRESULT
-nine_translate_shader( DWORD *tokens,
-                       unsigned processor,
-                       struct ureg_program **program );
+nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *);
 
 #endif /* _NINE_SHADER_H_ */

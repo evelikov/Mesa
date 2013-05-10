@@ -29,12 +29,31 @@ struct NinePixelShader9
 {
     struct NineUnknown base;
     void *cso;
+    struct {
+        const DWORD *tokens;
+        DWORD size;
+    } byte_code;
+    struct NineDevice9 *device;
 };
 static INLINE struct NinePixelShader9 *
 NinePixelShader9( void *data )
 {
     return (struct NinePixelShader9 *)data;
 }
+
+HRESULT
+NinePixelShader9_new( struct NineDevice9 *pDevice,
+                      struct NinePixelShader9 **ppOut,
+                      const DWORD *pFunction );
+
+HRESULT
+NinePixelShader9_ctor( struct NinePixelShader9 *,
+                       struct NineUnknownParams *pParams,
+                       struct NineDevice9 *pDevice,
+                       const DWORD *pFunction );
+
+void
+NinePixelShader9_dtor( struct NinePixelShader9 * );
 
 HRESULT WINAPI
 NinePixelShader9_GetDevice( struct NinePixelShader9 *This,

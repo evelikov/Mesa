@@ -66,7 +66,7 @@ _nine_debug_printf( unsigned long flag,
         dbg_flags = debug_get_flags_option("NINE_DEBUG", nine_debug_flags, 0);
     }
     if (dbg_flags & flag) {
-        const char *f = strrchr(func, '_');
+        const char *f = func ? strrchr(func, '_') : NULL;
         va_list ap;
 
         /* inside a class this will print nine:classinlowercase:func: while
@@ -80,7 +80,7 @@ _nine_debug_printf( unsigned long flag,
             *ptr = '\0';
 
             debug_printf("nine:%s:%s: ", klass, ++f);
-        } else {
+        } else if (func) {
             debug_printf("nine:%s: ", func);
         }
 

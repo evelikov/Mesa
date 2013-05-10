@@ -25,6 +25,8 @@
 #include "surface9.h"
 #include "swapchain9.h"
 #include "vertexbuffer9.h"
+#include "vertexshader9.h"
+#include "pixelshader9.h"
 #include "query9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
@@ -1436,7 +1438,14 @@ NineDevice9_CreateVertexShader( struct NineDevice9 *This,
                                 const DWORD *pFunction,
                                 IDirect3DVertexShader9 **ppShader )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineVertexShader9 *vs;
+    HRESULT hr;
+
+    hr = NineVertexShader9_new(This, &vs, pFunction);
+    if (FAILED(hr))
+        return hr;
+    *ppShader = (IDirect3DVertexShader9 *)vs;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1707,7 +1716,14 @@ NineDevice9_CreatePixelShader( struct NineDevice9 *This,
                                const DWORD *pFunction,
                                IDirect3DPixelShader9 **ppShader )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NinePixelShader9 *ps;
+    HRESULT hr;
+
+    hr = NinePixelShader9_new(This, &ps, pFunction);
+    if (FAILED(hr))
+        return hr;
+    *ppShader = (IDirect3DPixelShader9 *)ps;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
