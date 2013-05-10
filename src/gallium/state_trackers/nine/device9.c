@@ -25,6 +25,7 @@
 #include "surface9.h"
 #include "swapchain9.h"
 #include "vertexbuffer9.h"
+#include "query9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
 
@@ -1893,7 +1894,14 @@ NineDevice9_CreateQuery( struct NineDevice9 *This,
                          D3DQUERYTYPE Type,
                          IDirect3DQuery9 **ppQuery )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineQuery9 *query;
+    HRESULT hr;
+
+    hr = NineQuery9_new(This, &query, Type);
+    if (FAILED(hr))
+        return hr;
+    *ppQuery = (IDirect3DQuery9 *)query;
+    return D3D_OK;
 }
 
 IDirect3DDevice9Vtbl NineDevice9_vtable = {

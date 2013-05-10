@@ -52,6 +52,7 @@
 #define E_POINTER     MAKE_HRESULT(1, 0x000, 0x4003)
 
 #define S_OK          ((HRESULT)0)
+#define S_FALSE       ((HRESULT)1)
 
 /* WORD types */
 typedef uint8_t BYTE;
@@ -686,6 +687,11 @@ typedef enum _D3DQUERYTYPE {
     D3DQUERYTYPE_MEMORYPRESSURE = 19
 } D3DQUERYTYPE;
 
+#define D3DISSUE_BEGIN   (1 << 1)
+#define D3DISSUE_END     (1 << 0)
+#define D3DGETDATA_FLUSH (1 << 0)
+
+
 typedef enum _D3DRENDERSTATETYPE {
     D3DRS_ZENABLE = 7,
     D3DRS_FILLMODE = 8,
@@ -801,6 +807,7 @@ typedef enum _D3DRESOURCETYPE {
     D3DRTYPE_VERTEXBUFFER = 6,
     D3DRTYPE_INDEXBUFFER = 7
 } D3DRESOURCETYPE;
+#define D3DRTYPECOUNT (D3DRTYPE_INDEXBUFFER+1)
 
 typedef enum _D3DSAMPLERSTATETYPE {
     D3DSAMP_ADDRESSU = 1,

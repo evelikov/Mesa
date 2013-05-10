@@ -25,15 +25,42 @@
 
 #include "iunknown.h"
 
+enum nine_query_state
+{
+    NINE_QUERY_STATE_IDLE,
+    NINE_QUERY_STATE_RUNNING,
+    NINE_QUERY_STATE_FLUSHED
+};
+
 struct NineQuery9
 {
     struct NineUnknown base;
+    struct NineDevice9 *device;
+    struct pipe_query *pq;
+    DWORD result_size;
+    D3DQUERYTYPE type;
+    enum nine_query_state state;
+    boolean instant; /* true if D3DISSUE_BEGIN is not needed / invalid */
 };
 static INLINE struct NineQuery9 *
 NineQuery9( void *data )
 {
     return (struct NineQuery9 *)data;
 }
+
+HRESULT
+NineQuery9_new( struct NineDevice9 *Device,
+                struct NineQuery9 **ppOut,
+                D3DQUERYTYPE);
+
+HRESULT
+NineQuery9_ctor( struct NineQuery9 *,
+                 struct NineUnknownParams *pParams,
+                 struct NineDevice9 *Device,
+                 D3DQUERYTYPE Type );
+
+void
+NineQuery9_dtor( struct NineQuery9 * );
 
 HRESULT WINAPI
 NineQuery9_GetDevice( struct NineQuery9 *This,
