@@ -214,6 +214,9 @@ nine_state_transfer(struct nine_state *dst,
             if (mask->changed.stream_freq & (1 << i))
                 dst->stream_freq[i] = src->stream_freq[i];
         }
+        dst->stream_instancedata_mask &= ~mask->changed.stream_freq;
+        dst->stream_instancedata_mask |=
+            src->stream_instancedata_mask & mask->changed.stream_freq;
         if (apply) {
            dst->changed.vtxbuf      |= mask->changed.vtxbuf;
            dst->changed.stream_freq |= mask->changed.stream_freq;

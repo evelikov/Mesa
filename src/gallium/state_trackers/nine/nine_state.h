@@ -104,9 +104,10 @@ struct nine_state
 
     struct NineIndexBuffer9   *idxbuf;
     struct NineVertexBuffer9  *stream[PIPE_MAX_ATTRIBS];
-    UINT stream_freq[PIPE_MAX_ATTRIBS];
-    unsigned instance_count;
     struct pipe_vertex_buffer  vtxbuf[PIPE_MAX_ATTRIBS];
+    UINT stream_freq[PIPE_MAX_ATTRIBS];
+    uint32_t stream_instancedata_mask; /* derived from stream_freq */
+    uint32_t stream_usage_mask; /* derived from VS and vdecl */
 
     struct pipe_clip_state clip;
     struct pipe_framebuffer_state fb;

@@ -1186,13 +1186,44 @@ NineDevice9_GetNPatchMode( struct NineDevice9 *This )
     STUB(0);
 }
 
+static INLINE void
+init_draw_info(struct pipe_draw_info *info,
+               struct NineDevice9 *dev, D3DPRIMITIVETYPE type, UINT count)
+{
+    info->mode = d3dprimitivetype_to_pipe_prim(type);
+    info->count = prim_count_to_vertex_count(type, count);
+    info->start_instance = 0;
+    info->instance_count = 1;
+    if (dev->state.stream_instancedata_mask & dev->state.stream_usage_mask)
+        info->instance_count = MAX2(dev->state.stream_freq[0] & 0x7FFFFF, 1);
+    info->primitive_restart = FALSE;
+    info->count_from_stream_output = NULL;
+    /* info->indirect = NULL; */
+}
+
 HRESULT WINAPI
 NineDevice9_DrawPrimitive( struct NineDevice9 *This,
                            D3DPRIMITIVETYPE PrimitiveType,
                            UINT StartVertex,
                            UINT PrimitiveCount )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_draw_info info;
+
+    DBG("iface %p, PrimitiveType %u, StartVertex %u, PrimitiveCount %u\n",
+        This, PrimitiveType, StartVertex, PrimitiveCount);
+
+    nine_update_state(This);
+
+    init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
+    info.indexed = FALSE;
+    info.start = StartVertex;
+    info.index_bias = 0;
+    info.min_index = info.start;
+    info.max_index = info.count - 1;
+
+    This->pipe->draw_vbo(This->pipe, &info);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1201,10 +1232,28 @@ NineDevice9_DrawIndexedPrimitive( struct NineDevice9 *This,
                                   INT BaseVertexIndex,
                                   UINT MinVertexIndex,
                                   UINT NumVertices,
-                                  UINT startIndex,
-                                  UINT primCount )
+                                  UINT StartIndex,
+                                  UINT PrimitiveCount )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_draw_info info;
+
+    DBG("iface %p, PrimitiveType %u, BaseVertexIndex %u, MinVertexIndex %u "
+        "NumVertices %u, StartIndex %u, PrimitiveCount %u\n",
+        This, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices,
+        StartIndex, PrimitiveCount);
+
+    nine_update_state(This);
+
+    init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
+    info.indexed = TRUE;
+    info.start = StartIndex;
+    info.index_bias = BaseVertexIndex;
+    info.min_index = BaseVertexIndex + MinVertexIndex;
+    info.max_index = BaseVertexIndex + NumVertices;
+
+    This->pipe->draw_vbo(This->pipe, &info);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1214,7 +1263,34 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
                              const void *pVertexStreamZeroData,
                              UINT VertexStreamZeroStride )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_vertex_buffer vtxbuf;
+    struct pipe_draw_info info;
+
+    DBG("iface %p, PrimitiveType %u, PrimitiveCount %u, data %p, stride %u\n",
+        This, PrimitiveType, PrimitiveCount,
+        pVertexStreamZeroData, VertexStreamZeroStride);
+
+    nine_update_state(This);
+
+    init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
+    info.indexed = FALSE;
+    info.start = 0;
+    info.index_bias = 0;
+    info.min_index = 0;
+    info.max_index = info.count - 1;
+
+    /* TODO: stop hating drivers that don't support user buffers */
+    vtxbuf.stride = VertexStreamZeroStride;
+    vtxbuf.buffer_offset = 0;
+    vtxbuf.buffer = NULL;
+    vtxbuf.user_buffer = pVertexStreamZeroData;
+
+    This->pipe->set_vertex_buffers(This->pipe, 0, 1, &vtxbuf);
+    This->state.changed.vtxbuf |= 1;
+
+    This->pipe->draw_vbo(This->pipe, &info);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1228,7 +1304,44 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
                                     const void *pVertexStreamZeroData,
                                     UINT VertexStreamZeroStride )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_draw_info info;
+    struct pipe_vertex_buffer vbuf;
+    struct pipe_index_buffer ibuf;
+
+    DBG("iface %p, PrimitiveType %u, MinVertexIndex %u, NumVertices %u "
+        "PrimitiveCount %u, pIndexData %p, IndexDataFormat %u "
+        "pVertexStreamZeroData %p, VertexStreamZeroStride %u\n",
+        This, PrimitiveType, MinVertexIndex, NumVertices, PrimitiveCount,
+        pIndexData, IndexDataFormat,
+        pVertexStreamZeroData, VertexStreamZeroStride);
+
+    nine_update_state(This);
+
+    init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
+    info.indexed = TRUE;
+    info.start = 0;
+    info.index_bias = 0;
+    info.min_index = MinVertexIndex;
+    info.max_index = MinVertexIndex + NumVertices - 1;
+
+    vbuf.stride = VertexStreamZeroStride;
+    vbuf.buffer_offset = 0;
+    vbuf.buffer = NULL;
+    vbuf.user_buffer = pVertexStreamZeroData;
+
+    ibuf.index_size = (IndexDataFormat == D3DFMT_INDEX16) ? 2 : 4;
+    ibuf.offset = 0;
+    ibuf.buffer = NULL;
+    ibuf.user_buffer = pIndexData;
+
+    This->pipe->set_vertex_buffers(This->pipe, 0, 1, &vbuf);
+    This->pipe->set_index_buffer(This->pipe, &ibuf);
+    This->state.changed.vtxbuf |= 1;
+    This->state.changed.group |= NINE_STATE_IDXBUF;
+
+    This->pipe->draw_vbo(This->pipe, &info);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1505,6 +1618,11 @@ NineDevice9_SetStreamSourceFreq( struct NineDevice9 *This,
                 !(Setting & D3DSTREAMSOURCE_INDEXEDDATA), D3DERR_INVALIDCALL);
 
     state->stream_freq[StreamNumber] = Setting;
+
+    if (Setting & D3DSTREAMSOURCE_INSTANCEDATA)
+        state->stream_instancedata_mask |= 1 << StreamNumber;
+    else
+        state->stream_instancedata_mask &= ~(1 << StreamNumber);
 
     state->changed.stream_freq |= 1 << StreamNumber;
     return D3D_OK;
