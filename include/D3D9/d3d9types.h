@@ -982,6 +982,11 @@ typedef enum _D3DSHADER_PARAM_SRCMOD_TYPE {
     D3DSPSM_NOT = 13<<24
 } D3DSHADER_PARAM_SRCMOD_TYPE;
 
+#define D3DPS_VERSION(major, minor) (0xFFFF0000 | ((major) << 8) | (minor))
+#define D3DVS_VERSION(major, minor) (0xFFFE0000 | ((major) << 8) | (minor))
+#define D3DSHADER_VERSION_MAJOR(version) (((version) >> 8) & 0xFF)
+#define D3DSHADER_VERSION_MINOR(version) (((version) >> 0) & 0xFF)
+
 typedef enum _D3DSTATEBLOCKTYPE {
     D3DSBT_ALL = 1,
     D3DSBT_PIXELSTATE = 2,

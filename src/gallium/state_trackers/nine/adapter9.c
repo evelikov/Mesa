@@ -24,6 +24,7 @@
 #include "device9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "util/u_math.h"
 
 #include "pipe/p_screen.h"
 
@@ -430,13 +431,27 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                                      PIPE_SHADER_CAP_MAX_INSTRUCTIONS));
 
     pCaps->AdapterOrdinal = 0;
+
     pCaps->Caps = 0;
+
     pCaps->Caps2 = D3DCAPS2_CANMANAGERESOURCE |
+                   /*D3DCAPS2_CANSHARERESOURCE |*/
                    D3DCAPS2_DYNAMICTEXTURES |
                    D3DCAPS2_CANAUTOGENMIPMAP;
-    pCaps->Caps3 = D3DCAPS3_COPY_TO_VIDMEM | D3DCAPS3_COPY_TO_SYSTEMMEM;
-    pCaps->PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT;
+
+    pCaps->Caps3 = /*D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD |*/
+                   /*D3DCAPS2_FULLSCREENGAMMA |*/
+                   D3DCAPS3_COPY_TO_VIDMEM |
+                   D3DCAPS3_COPY_TO_SYSTEMMEM;
+
+    pCaps->PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT |
+                                   /*D3DPRESENT_INTERVAL_ONE |*/
+                                   /*D3DPRESENT_INTERVAL_TWO |*/
+                                   /*D3DPRESENT_INTERVAL_THREE |*/
+                                   /*D3DPRESENT_INTERVAL_FOUR |*/
+                                   /*D3DPRESENT_INTERVAL_IMMEDIATE*/0;
     pCaps->CursorCaps = D3DCURSORCAPS_COLOR | D3DCURSORCAPS_LOWRES;
+
     pCaps->DevCaps = D3DDEVCAPS_CANBLTSYSTONONLOCAL |
                      D3DDEVCAPS_CANRENDERAFTERFLIP |
                      D3DDEVCAPS_DRAWPRIMITIVES2 |
@@ -459,6 +474,7 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                      D3DDEVCAPS_TLVERTEXVIDEOMEMORY;
 
     pCaps->PrimitiveMiscCaps = D3DPMISCCAPS_MASKZ |
+                               D3DPMISCCAPS_CULLNONE | /* XXX */
                                D3DPMISCCAPS_CULLCW |
                                D3DPMISCCAPS_CULLCCW |
                                D3DPMISCCAPS_COLORWRITEENABLE |
@@ -466,26 +482,27 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                                D3DPMISCCAPS_CLIPTLVERTS |
                                /*D3DPMISCCAPS_TSSARGTEMP |*/
                                D3DPMISCCAPS_BLENDOP |
-                               /*D3DPMISCCAPS_INDEPENDENTWRITEMASKS |*/
+                               D3DPIPECAP(INDEP_BLEND_ENABLE, D3DPMISCCAPS_INDEPENDENTWRITEMASKS) |
                                /*D3DPMISCCAPS_PERSTAGECONSTANT |*/
-                               /*D3DPMISCCAPS_POSTBLENDSRGBCONVERT |*/
+                               /*D3DPMISCCAPS_POSTBLENDSRGBCONVERT |*/ /* TODO */
                                D3DPMISCCAPS_FOGANDSPECULARALPHA |
-                               /*D3DPMISCCAPS_SEPARATEALPHABLEND |*/
-                               /*D3DPMISCCAPS_MRTINDEPENDENTBITDEPTHS |*/
-                               /*D3DPMISCCAPS_MRTPOSTPIXELSHADERBLENDING |*/
+                               D3DPIPECAP(BLEND_EQUATION_SEPARATE, D3DPMISCCAPS_SEPARATEALPHABLEND) |
+                               D3DPIPECAP(MIXED_COLORBUFFER_FORMATS, D3DPMISCCAPS_MRTINDEPENDENTBITDEPTHS) |
+                               D3DPMISCCAPS_MRTPOSTPIXELSHADERBLENDING |
                                /*D3DPMISCCAPS_FOGVERTEXCLAMPED*/0;
+
     pCaps->RasterCaps =
         D3DPIPECAP(ANISOTROPIC_FILTER, D3DPRASTERCAPS_ANISOTROPY) |
         /*D3DPRASTERCAPS_COLORPERSPECTIVE |*/
-        /*D3DPRASTERCAPS_DITHER |*/
-        /*D3DPRASTERCAPS_DEPTHBIAS |*/
+        D3DPRASTERCAPS_DITHER |
+        D3DPRASTERCAPS_DEPTHBIAS |
         /*D3DPRASTERCAPS_FOGRANGE |*/
         /*D3DPRASTERCAPS_FOGTABLE |*/
         /*D3DPRASTERCAPS_FOGVERTEX |*/
-        /*D3DPRASTERCAPS_MIPMAPLODBIAS |*/
-        /*D3DPRASTERCAPS_MULTISAMPLE_TOGGLE |*/
-        /*D3DPRASTERCAPS_SCISSORTEST |*/
-        /*D3DPRASTERCAPS_SLOPESCALEDEPTHBIAS |*/
+        D3DPRASTERCAPS_MIPMAPLODBIAS |
+        D3DPRASTERCAPS_MULTISAMPLE_TOGGLE |
+        D3DPRASTERCAPS_SCISSORTEST |
+        D3DPRASTERCAPS_SLOPESCALEDEPTHBIAS |
         /*D3DPRASTERCAPS_WBUFFER |*/
         /*D3DPRASTERCAPS_WFOG |*/
         /*D3DPRASTERCAPS_ZBUFFERLESSHSR |*/
@@ -514,45 +531,42 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                           D3DPBLENDCAPS_SRCALPHASAT |
                           D3DPBLENDCAPS_BOTHSRCALPHA |
                           D3DPBLENDCAPS_BOTHINVSRCALPHA |
-                          D3DPBLENDCAPS_BLENDFACTOR;
+                          D3DPBLENDCAPS_BLENDFACTOR |
+                          D3DPIPECAP(MAX_DUAL_SOURCE_RENDER_TARGETS,
+                              D3DPBLENDCAPS_INVSRCCOLOR2 |
+                              D3DPBLENDCAPS_SRCCOLOR2);
 
-    pCaps->DestBlendCaps = D3DPBLENDCAPS_ZERO |
-                           D3DPBLENDCAPS_ONE |
-                           D3DPBLENDCAPS_SRCCOLOR |
-                           D3DPBLENDCAPS_INVSRCCOLOR |
-                           D3DPBLENDCAPS_SRCALPHA |
-                           D3DPBLENDCAPS_INVSRCALPHA |
-                           D3DPBLENDCAPS_DESTALPHA |
-                           D3DPBLENDCAPS_INVDESTALPHA |
-                           D3DPBLENDCAPS_DESTCOLOR |
-                           D3DPBLENDCAPS_INVDESTCOLOR |
-                           D3DPBLENDCAPS_SRCALPHASAT |
-                           D3DPBLENDCAPS_BOTHSRCALPHA |
-                           D3DPBLENDCAPS_BOTHINVSRCALPHA |
-                           D3DPBLENDCAPS_BLENDFACTOR;
+    pCaps->DestBlendCaps = pCaps->SrcBlendCaps;
 
-    pCaps->AlphaCmpCaps = D3DPCMPCAPS_ALWAYS;
+    pCaps->AlphaCmpCaps = D3DPCMPCAPS_LESS |
+                          D3DPCMPCAPS_EQUAL |
+                          D3DPCMPCAPS_LESSEQUAL |
+                          D3DPCMPCAPS_GREATER |
+                          D3DPCMPCAPS_NOTEQUAL |
+                          D3DPCMPCAPS_GREATEREQUAL |
+                          D3DPCMPCAPS_ALWAYS;
 
+    /* FLAT caps not legal for D3D9. */
     pCaps->ShadeCaps = D3DPSHADECAPS_COLORGOURAUDRGB |
                        D3DPSHADECAPS_SPECULARGOURAUDRGB |
                        D3DPSHADECAPS_ALPHAGOURAUDBLEND |
                        D3DPSHADECAPS_FOGGOURAUD;
 
     pCaps->TextureCaps =
-        D3DPTEXTURECAPS_PERSPECTIVE |
-        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_POW2) |
         D3DPTEXTURECAPS_ALPHA |
-        /*D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE |*/
         D3DPTEXTURECAPS_ALPHAPALETTE |
-        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_NONPOW2CONDITIONAL) |
+        D3DPTEXTURECAPS_PERSPECTIVE |
         D3DPTEXTURECAPS_PROJECTED |
+        /*D3DPTEXTURECAPS_TEXREPEATNOTSCALEDBYSIZE |*/
         D3DPTEXTURECAPS_CUBEMAP |
         D3DPTEXTURECAPS_VOLUMEMAP |
+        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_POW2) |
+        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_NONPOW2CONDITIONAL) |
+        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_CUBEMAP_POW2) |
+        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_VOLUMEMAP_POW2) |
         D3DPIPECAP(MAX_TEXTURE_2D_LEVELS, D3DPTEXTURECAPS_MIPMAP) |
         D3DPIPECAP(MAX_TEXTURE_3D_LEVELS, D3DPTEXTURECAPS_MIPVOLUMEMAP) |
-        D3DPIPECAP(MAX_TEXTURE_CUBE_LEVELS, D3DPTEXTURECAPS_MIPCUBEMAP) |
-        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_CUBEMAP_POW2) |
-        D3DNPIPECAP(NPOT_TEXTURES, D3DPTEXTURECAPS_VOLUMEMAP_POW2);
+        D3DPIPECAP(MAX_TEXTURE_CUBE_LEVELS, D3DPTEXTURECAPS_MIPCUBEMAP);
 
     pCaps->TextureFilterCaps =
         D3DPTFILTERCAPS_MINFPOINT |
@@ -572,39 +586,38 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     pCaps->VolumeTextureFilterCaps = pCaps->TextureFilterCaps;
 
     pCaps->TextureAddressCaps =
-        /*D3DPTADDRESSCAPS_WRAP |*/
+        D3DPTADDRESSCAPS_BORDER |
+        D3DPTADDRESSCAPS_INDEPENDENTUV |
+        D3DPTADDRESSCAPS_WRAP |
         D3DPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_MIRROR) |
         D3DPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_CLAMP) |
-        /*D3DPTADDRESSCAPS_BORDER |*/
-        /*D3DPTADDRESSCAPS_INDEPENDENTUV |*/
         D3DNPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_MIRRORONCE);
 
     pCaps->VolumeTextureAddressCaps = pCaps->TextureAddressCaps;
 
     pCaps->LineCaps =
+        D3DLINECAPS_ALPHACMP |
+        D3DLINECAPS_BLEND |
         D3DLINECAPS_TEXTURE |
         D3DLINECAPS_ZTEST |
-        D3DLINECAPS_BLEND |
-        /*D3DLINECAPS_ALPHACMP |*/
         D3DLINECAPS_FOG;
     if (screen->get_paramf(screen, PIPE_CAPF_MAX_LINE_WIDTH_AA) > 0.0) {
         pCaps->LineCaps |= D3DLINECAPS_ANTIALIAS;
     }
 
     pCaps->MaxTextureWidth =
-        1<<(screen->get_param(screen, PIPE_CAP_MAX_TEXTURE_2D_LEVELS)-1);
+        1 << (screen->get_param(screen, PIPE_CAP_MAX_TEXTURE_2D_LEVELS) - 1);
     pCaps->MaxTextureHeight = pCaps->MaxTextureWidth;
     pCaps->MaxVolumeExtent =
-        1<<(screen->get_param(screen, PIPE_CAP_MAX_TEXTURE_3D_LEVELS)-1);
-    /* XXX: Yeah... figure these out. */
-    pCaps->MaxTextureRepeat = 0;
-    pCaps->MaxTextureAspectRatio = 1;
+        1 << (screen->get_param(screen, PIPE_CAP_MAX_TEXTURE_3D_LEVELS) - 1);
+    /* XXX values from wine */
+    pCaps->MaxTextureRepeat = 32768;
+    pCaps->MaxTextureAspectRatio = pCaps->MaxTextureWidth;
 
     pCaps->MaxAnisotropy =
         (DWORD)screen->get_paramf(screen, PIPE_CAPF_MAX_TEXTURE_ANISOTROPY);
 
-    /* XXX: More to figure out. */
-    pCaps->MaxVertexW = 0.0f;
+    pCaps->MaxVertexW = 1.0f; /* XXX */
     pCaps->GuardBandLeft = screen->get_paramf(screen,
                                               PIPE_CAPF_GUARD_BAND_LEFT);
     pCaps->GuardBandTop = screen->get_paramf(screen,
@@ -627,7 +640,7 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
         D3DPIPECAP(TWO_SIDED_STENCIL, D3DSTENCILCAPS_TWOSIDED);
 
     pCaps->FVFCaps =
-        (D3DFVFCAPS_TEXCOORDCOUNTMASK & 1) |
+        (D3DFVFCAPS_TEXCOORDCOUNTMASK & 0xff) |
         /*D3DFVFCAPS_DONOTSTRIPELEMENTS |*/
         D3DFVFCAPS_PSIZE;
 
@@ -660,36 +673,37 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                            D3DTEXOPCAPS_MULTIPLYADD |
                            D3DTEXOPCAPS_LERP;
 
-    /* XXX: Is this right? */
-    pCaps->MaxTextureBlendStages =
+    pCaps->MaxTextureBlendStages = 8; /* XXX wine */
         (DWORD)screen->get_param(screen, PIPE_CAP_BLEND_EQUATION_SEPARATE);
-    pCaps->MaxSimultaneousTextures = pCaps->MaxTextureBlendStages;
+    pCaps->MaxSimultaneousTextures = screen->get_shader_param(screen,
+        PIPE_SHADER_FRAGMENT, PIPE_SHADER_CAP_MAX_TEXTURE_SAMPLERS);
 
     pCaps->VertexProcessingCaps = D3DVTXPCAPS_TEXGEN |
+                                  /*D3DVTXPCAPS_TEXGEN_SPHEREMAP |*/
                                   D3DVTXPCAPS_MATERIALSOURCE7 |
                                   D3DVTXPCAPS_DIRECTIONALLIGHTS |
                                   D3DVTXPCAPS_POSITIONALLIGHTS |
                                   /*D3DVTXPCAPS_LOCALVIEWER |*/
                                   /*D3DVTXPCAPS_TWEENING |*/
-                                  /*D3DVTXPCAPS_TEXGEN_SPHEREMAP |*/
                                   /*D3DVTXPCAPS_NO_TEXGEN_NONLOCALVIEWER*/0;
 
-    /* No idea and no PIPE_CAP. */
-    pCaps->MaxActiveLights = 100;
-    pCaps->MaxUserClipPlanes = 100;
-    pCaps->MaxVertexBlendMatrices = 4;
-    pCaps->MaxVertexBlendMatrixIndex = 4;
+    pCaps->MaxActiveLights = 8; /* like GL_LIGHTi */
+    pCaps->MaxUserClipPlanes = PIPE_MAX_CLIP_PLANES;
+    pCaps->MaxVertexBlendMatrices = 4; /* XXX */
+    pCaps->MaxVertexBlendMatrixIndex = 0; /* XXX wine */
 
     pCaps->MaxPointSize = screen->get_paramf(screen, PIPE_CAPF_MAX_POINT_WIDTH);
 
     pCaps->MaxPrimitiveCount = 0xFFFFFFFF;
     pCaps->MaxVertexIndex = 0xFFFFFFFF;
-    pCaps->MaxStreams = 16;
+    pCaps->MaxStreams = screen->get_shader_param(screen,
+        PIPE_SHADER_VERTEX, PIPE_SHADER_CAP_MAX_INPUTS);
+    if (pCaps->MaxStreams > 16)
+        pCaps->MaxStreams = 16;
 
-    /* XXX: No valid clue. */
-    pCaps->MaxStreamStride = 0xFFFF;
+    pCaps->MaxStreamStride = 0xFFFF; /* NV50 */
 
-    pCaps->VertexShaderVersion = sm3 ? 0xFFFE0300 : 0xFFFE0200;
+    pCaps->VertexShaderVersion = sm3 ? D3DVS_VERSION(3,0) : D3DVS_VERSION(2,0);
     if (vs) {
         /* VS 2 as well as 3.0 supports a minimum of 256 consts, no matter how
          * much our architecture moans about it. The problem is that D3D9
@@ -699,9 +713,10 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
          * removed support for the loop counter/boolean files. */
         pCaps->MaxVertexShaderConst =
             screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
-                                     PIPE_SHADER_CAP_MAX_CONSTS)-20;
-
-        /* Fake the minimum cap for Windows */
+                                     PIPE_SHADER_CAP_MAX_CONSTS) - 20;
+        if (pCaps->MaxVertexShaderConst > NINE_MAX_CONST_F)
+            pCaps->MaxVertexShaderConst = NINE_MAX_CONST_F;
+        /* Fake the minimum cap for Windows. */
         if (QUIRK(FAKE_CAPS)) {
             pCaps->MaxVertexShaderConst = 256;
         }
@@ -709,21 +724,22 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
         pCaps->MaxVertexShaderConst = 0;
     }
 
-    pCaps->PixelShaderVersion = sm3 ? 0xFFFF0300 : 0xFFFF0200;
-    pCaps->PixelShader1xMaxValue = 256.0f; /* I haven't a clue. */
+    pCaps->PixelShaderVersion = sm3 ? D3DPS_VERSION(3,0) : D3DPS_VERSION(2,0);
+    pCaps->PixelShader1xMaxValue = 8.0f; /* XXX: wine */
 
-    pCaps->DevCaps2 = /*D3DDEVCAPS2_STREAMOFFSET |*/
+    pCaps->DevCaps2 = D3DDEVCAPS2_STREAMOFFSET |
+                      D3DDEVCAPS2_VERTEXELEMENTSCANSHARESTREAMOFFSET |
+                      D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES |
                       /*D3DDEVCAPS2_DMAPNPATCH |*/
                       /*D3DDEVCAPS2_ADAPTIVETESSRTPATCH |*/
                       /*D3DDEVCAPS2_ADAPTIVETESSNPATCH |*/
-                      /*D3DDEVCAPS2_CAN_STRETCHRECT_FROM_TEXTURES |*/
-                      /*D3DDEVCAPS2_PRESAMPLEDDMAPNPATCH |*/
-                      /*D3DDEVCAPS2_VERTEXELEMENTSCANSHARESTREAMOFFSET*/0;
+                      /*D3DDEVCAPS2_PRESAMPLEDDMAPNPATCH*/0;
 
-    /* Undocumented? */
+    /* Undocumented ? */
     pCaps->MaxNpatchTessellationLevel = 0.0f;
     pCaps->Reserved5 = 0;
 
+    /* XXX: use is_format_supported */
     pCaps->DeclTypes = D3DDTCAPS_UBYTE4 |
                        D3DDTCAPS_UBYTE4N |
                        D3DDTCAPS_SHORT2N |
@@ -737,48 +753,101 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
 
     pCaps->NumSimultaneousRTs =
         screen->get_param(screen, PIPE_CAP_MAX_RENDER_TARGETS);
+    if (pCaps->NumSimultaneousRTs > NINE_MAX_SIMULTANEOUS_RENDERTARGETS)
+        pCaps->NumSimultaneousRTs = NINE_MAX_SIMULTANEOUS_RENDERTARGETS;
 
     pCaps->StretchRectFilterCaps = D3DPTFILTERCAPS_MINFPOINT |
                                    D3DPTFILTERCAPS_MINFLINEAR |
                                    D3DPTFILTERCAPS_MAGFPOINT |
                                    D3DPTFILTERCAPS_MAGFLINEAR;
 
-    pCaps->VS20Caps.Caps = 1;
-    pCaps->VS20Caps.DynamicFlowControlDepth = /* XXX is this dynamic? */
+
+    pCaps->VS20Caps.Caps = D3DVS20CAPS_PREDICATION;
+    pCaps->VS20Caps.DynamicFlowControlDepth = /* XXX is this dynamic ? */
         screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
                                  PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH);
     pCaps->VS20Caps.NumTemps =
         screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
                                  PIPE_SHADER_CAP_MAX_TEMPS);
-    pCaps->VS20Caps.StaticFlowControlDepth = /* XXX is this static? */
+    pCaps->VS20Caps.StaticFlowControlDepth = /* XXX is this static ? */
         screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
                                  PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH);
 
-    pCaps->PS20Caps.Caps = 1;
-    pCaps->PS20Caps.DynamicFlowControlDepth = /* XXX is this dynamic? */
+    if (pCaps->VS20Caps.DynamicFlowControlDepth > D3DVS20_MAX_DYNAMICFLOWCONTROLDEPTH)
+        pCaps->VS20Caps.DynamicFlowControlDepth = D3DVS20_MAX_DYNAMICFLOWCONTROLDEPTH;
+    if (pCaps->VS20Caps.StaticFlowControlDepth > D3DVS20_MAX_STATICFLOWCONTROLDEPTH)
+        pCaps->VS20Caps.StaticFlowControlDepth = D3DVS20_MAX_STATICFLOWCONTROLDEPTH;
+    if (pCaps->VS20Caps.NumTemps > D3DVS20_MAX_NUMTEMPS)
+        pCaps->VS20Caps.NumTemps = D3DVS20_MAX_NUMTEMPS;
+    assert(pCaps->VS20Caps.DynamicFlowControlDepth >= D3DVS20_MIN_DYNAMICFLOWCONTROLDEPTH);
+    assert(pCaps->VS20Caps.StaticFlowControlDepth >= D3DVS20_MIN_STATICFLOWCONTROLDEPTH);
+    assert(pCaps->VS20Caps.NumTemps >= D3DVS20_MIN_NUMTEMPS);
+
+
+    pCaps->PS20Caps.Caps = D3DPS20CAPS_ARBITRARYSWIZZLE |
+                           D3DPS20CAPS_GRADIENTINSTRUCTIONS |
+                           D3DPS20CAPS_PREDICATION;
+    if (screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
+                                 PIPE_SHADER_CAP_MAX_TEX_INSTRUCTIONS) ==
+        screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
+                                 PIPE_SHADER_CAP_MAX_INSTRUCTIONS))
+        pCaps->PS20Caps.Caps |= D3DPS20CAPS_NOTEXINSTRUCTIONLIMIT;
+    if (screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
+                                 PIPE_SHADER_CAP_MAX_TEX_INSTRUCTIONS) ==
+        screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
+                                 PIPE_SHADER_CAP_MAX_TEX_INDIRECTIONS))
+        pCaps->PS20Caps.Caps |= D3DPS20CAPS_NODEPENDENTREADLIMIT;
+    pCaps->PS20Caps.DynamicFlowControlDepth = /* XXX is this dynamic ? */
         screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
                                  PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH);;
     pCaps->PS20Caps.NumTemps =
         screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
                                  PIPE_SHADER_CAP_MAX_TEMPS);
-    pCaps->PS20Caps.StaticFlowControlDepth =  /* XXX is this static? */
+    pCaps->PS20Caps.StaticFlowControlDepth =  /* XXX is this static ? */
         screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
                                  PIPE_SHADER_CAP_MAX_CONTROL_FLOW_DEPTH);
     pCaps->PS20Caps.NumInstructionSlots =
         screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
                                  PIPE_SHADER_CAP_MAX_INSTRUCTIONS);
 
-    pCaps->VertexTextureFilterCaps = pCaps->TextureFilterCaps;
+    if (pCaps->PS20Caps.DynamicFlowControlDepth > D3DPS20_MAX_DYNAMICFLOWCONTROLDEPTH)
+        pCaps->PS20Caps.DynamicFlowControlDepth = D3DPS20_MAX_DYNAMICFLOWCONTROLDEPTH;
+    if (pCaps->PS20Caps.StaticFlowControlDepth > D3DPS20_MAX_STATICFLOWCONTROLDEPTH)
+        pCaps->PS20Caps.StaticFlowControlDepth = D3DPS20_MAX_STATICFLOWCONTROLDEPTH;
+    if (pCaps->PS20Caps.NumTemps > D3DPS20_MAX_NUMTEMPS)
+        pCaps->PS20Caps.NumTemps = D3DPS20_MAX_NUMTEMPS;
+    if (pCaps->PS20Caps.NumInstructionSlots > D3DPS20_MAX_NUMINSTRUCTIONSLOTS)
+        pCaps->PS20Caps.NumInstructionSlots = D3DPS20_MAX_NUMINSTRUCTIONSLOTS;
+    assert(pCaps->PS20Caps.DynamicFlowControlDepth >= D3DPS20_MIN_DYNAMICFLOWCONTROLDEPTH);
+    assert(pCaps->PS20Caps.StaticFlowControlDepth >= D3DPS20_MIN_STATICFLOWCONTROLDEPTH);
+    assert(pCaps->PS20Caps.NumTemps >= D3DPS20_MIN_NUMTEMPS);
+    assert(pCaps->PS20Caps.NumInstructionSlots >= D3DPS20_MIN_NUMINSTRUCTIONSLOTS);
 
-    pCaps->MaxVShaderInstructionsExecuted = 0xFFFF;
-    pCaps->MaxPShaderInstructionsExecuted = 0xFFFF;
+
+    if (screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
+                                 PIPE_SHADER_CAP_MAX_TEXTURE_SAMPLERS))
+        pCaps->VertexTextureFilterCaps = pCaps->TextureFilterCaps &
+            ~(D3DPTFILTERCAPS_MIPFPOINT |
+              D3DPTFILTERCAPS_MIPFPOINT); /* XXX */
+    else
+        pCaps->VertexTextureFilterCaps = 0;
 
     pCaps->MaxVertexShader30InstructionSlots =
         sm3 ? screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
                                        PIPE_SHADER_CAP_MAX_INSTRUCTIONS) : 0;
     pCaps->MaxPixelShader30InstructionSlots =
         sm3 ? screen->get_shader_param(screen, PIPE_SHADER_FRAGMENT,
-                                       PIPE_SHADER_CAP_MAX_INSTRUCTIONS) : 0;;
+                                       PIPE_SHADER_CAP_MAX_INSTRUCTIONS) : 0;
+    if (pCaps->MaxVertexShader30InstructionSlots > D3DMAX30SHADERINSTRUCTIONS)
+        pCaps->MaxVertexShader30InstructionSlots = D3DMAX30SHADERINSTRUCTIONS;
+    if (pCaps->MaxPixelShader30InstructionSlots > D3DMAX30SHADERINSTRUCTIONS)
+        pCaps->MaxPixelShader30InstructionSlots = D3DMAX30SHADERINSTRUCTIONS;
+    assert(pCaps->MaxVertexShader30InstructionSlots >= D3DMIN30SHADERINSTRUCTIONS);
+    assert(pCaps->MaxPixelShader30InstructionSlots >= D3DMIN30SHADERINSTRUCTIONS);
+
+    /* 65535 is required, advertise more for GPUs with >= 2048 instruction slots */
+    pCaps->MaxVShaderInstructionsExecuted = MAX2(65535, pCaps->MaxVertexShader30InstructionSlots * 32);
+    pCaps->MaxPShaderInstructionsExecuted = MAX2(65535, pCaps->MaxPixelShader30InstructionSlots * 32);
 
     return D3D_OK;
 }

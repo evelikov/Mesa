@@ -52,7 +52,7 @@
 #define NINE_STATE_MISC_CONST  (1 << 19)
 #define NINE_STATE_ALL          0xfffff
 
-#define NINE_MAX_SIMULTANEOUS_RENDER_TARGETS 4
+#define NINE_MAX_SIMULTANEOUS_RENDERTARGETS 4
 #define NINE_MAX_CONST_F 256
 #define NINE_MAX_CONST_I 16
 #define NINE_MAX_CONST_B 16
@@ -78,7 +78,7 @@ struct nine_state
         uint8_t ucp;
     } changed;
 
-    struct NineSurface9 *rt[NINE_MAX_SIMULTANEOUS_RENDER_TARGETS];
+    struct NineSurface9 *rt[NINE_MAX_SIMULTANEOUS_RENDERTARGETS];
     struct NineSurface9 *ds;
 
     D3DVIEWPORT9 viewport;
