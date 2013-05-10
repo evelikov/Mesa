@@ -32,6 +32,7 @@
 #include "pipe/p_context.h"
 #include "util/u_math.h"
 #include "util/u_inlines.h"
+#include "util/u_format.h"
 
 #include "cso_cache/cso_context.h"
 
@@ -542,7 +543,76 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
                          const RECT *pDestRect,
                          D3DTEXTUREFILTERTYPE Filter )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_screen *screen = This->screen;
+    struct pipe_context *pipe = This->pipe;
+    struct pipe_surface *dst = NineSurface9(pDestSurface)->surface;
+    struct pipe_surface *src = NineSurface9(pSourceSurface)->surface;
+    const boolean zs = util_format_is_depth_or_stencil(dst->format);
+    struct pipe_blit_info blit;
+
+    user_assert(!zs || !This->in_scene, D3DERR_INVALIDCALL);
+    user_assert(!zs || !pSourceRect ||
+                (pSourceRect->left == 0 &&
+                 pSourceRect->top == 0 &&
+                 pSourceRect->right == src->width &&
+                 pSourceRect->bottom == src->height), D3DERR_INVALIDCALL);
+    user_assert(!zs || !pDestRect ||
+                (pDestRect->left == 0 &&
+                 pDestRect->top == 0 &&
+                 pDestRect->right == dst->width &&
+                 pDestRect->bottom == dst->height), D3DERR_INVALIDCALL);
+    user_assert(screen->is_format_supported(screen, dst->format,
+                                            dst->texture->target,
+                                            dst->texture->nr_samples,
+                                            zs ? PIPE_BIND_DEPTH_STENCIL :
+                                            PIPE_BIND_RENDER_TARGET),
+                D3DERR_INVALIDCALL);
+    user_assert(screen->is_format_supported(screen, src->format,
+                                            src->texture->target,
+                                            src->texture->nr_samples,
+                                            PIPE_BIND_SAMPLER_VIEW),
+                D3DERR_INVALIDCALL);
+
+    blit.dst.resource = dst->texture;
+    blit.dst.level = dst->u.tex.level;
+    blit.dst.box.z = dst->u.tex.first_layer;
+    blit.dst.box.depth = 1;
+    blit.dst.format = dst->format;
+    if (pDestRect) {
+       blit.dst.box.x = pDestRect->left;
+       blit.dst.box.y = pDestRect->top;
+       blit.dst.box.width = pDestRect->right - pDestRect->left;
+       blit.dst.box.height = pDestRect->bottom - pDestRect->top;
+    } else {
+       blit.dst.box.x = 0;
+       blit.dst.box.y = 0;
+       blit.dst.box.width = dst->width;
+       blit.dst.box.height = dst->height;
+    }
+    blit.src.resource = src->texture;
+    blit.src.level = src->u.tex.level;
+    blit.src.box.z = src->u.tex.first_layer;
+    blit.src.box.depth = 1;
+    blit.src.format = src->format;
+    if (pSourceRect) {
+       blit.src.box.x = pSourceRect->left;
+       blit.src.box.y = pSourceRect->top;
+       blit.src.box.width = pSourceRect->right - pSourceRect->left;
+       blit.src.box.height = pSourceRect->bottom - pSourceRect->top;
+    } else {
+       blit.src.box.x = 0;
+       blit.src.box.y = 0;
+       blit.src.box.width = src->width;
+       blit.src.box.height = src->height;
+    }
+    blit.mask = zs ? PIPE_MASK_ZS : PIPE_MASK_RGBA;
+    blit.filter = Filter == D3DTEXF_LINEAR ?
+       PIPE_TEX_FILTER_LINEAR : PIPE_TEX_FILTER_NEAREST;
+    blit.scissor_enable = FALSE;
+
+    pipe->blit(pipe, &blit);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -618,13 +688,18 @@ NineDevice9_GetDepthStencilSurface( struct NineDevice9 *This,
 HRESULT WINAPI
 NineDevice9_BeginScene( struct NineDevice9 *This )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(!This->in_scene, D3DERR_INVALIDCALL);
+    This->in_scene = TRUE;
+    /* Do we want to do anything else here ? */
+    return D3D_OK;
 }
 
 HRESULT WINAPI
 NineDevice9_EndScene( struct NineDevice9 *This )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(This->in_scene, D3DERR_INVALIDCALL);
+    This->in_scene = FALSE;
+    return D3D_OK;
 }
 
 HRESULT WINAPI

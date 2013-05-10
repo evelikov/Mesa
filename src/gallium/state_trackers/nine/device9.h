@@ -59,6 +59,8 @@ struct NineDevice9
     struct nine_state *update; /* state to update (&state / &record->state) */
     struct nine_state state;   /* device state */
 
+    boolean in_scene;
+
     struct pipe_resource *constbuf_vs;
     struct pipe_resource *constbuf_ps;
 };
