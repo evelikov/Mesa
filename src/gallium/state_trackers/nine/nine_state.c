@@ -24,9 +24,13 @@
 #include "device9.h"
 #include "indexbuffer9.h"
 #include "surface9.h"
+#include "vertexshader9.h"
+#include "pixelshader9.h"
+#include "nine_pipe.h"
 #include "pipe/p_context.h"
 #include "pipe/p_state.h"
 #include "cso_cache/cso_context.h"
+#include "util/u_math.h"
 
 #define DBG_CHANNEL DBG_DEVICE
 
@@ -95,9 +99,101 @@ update_viewport(struct NineDevice9 *device)
 static INLINE void
 update_scissor(struct NineDevice9 *device)
 {
-   struct pipe_context *pipe = device->pipe;
+    struct pipe_context *pipe = device->pipe;
 
-   pipe->set_scissor_state(pipe, &device->state.scissor);
+    pipe->set_scissor_state(pipe, &device->state.scissor);
+}
+
+static INLINE void
+update_blend(struct NineDevice9 *device)
+{
+    nine_convert_blend_state(device->cso, device->state.rs);
+}
+
+static INLINE void
+update_dsa(struct NineDevice9 *device)
+{
+    nine_convert_dsa_state(device->cso, device->state.rs);
+}
+
+static INLINE void
+update_rasterizer(struct NineDevice9 *device)
+{
+    nine_convert_rasterizer_state(device->cso, device->state.rs);
+}
+
+static INLINE void
+update_vertex_elements(struct NineDevice9 *device)
+{
+}
+
+static void
+update_constants(struct NineDevice9 *device, unsigned shader_type)
+{
+    struct pipe_context *pipe = device->pipe;
+    struct pipe_resource *buf;
+    struct pipe_box box;
+    const void *data;
+    const float *const_f;
+    const int *const_i;
+    const BOOL *const_b;
+    uint32_t data_b[NINE_MAX_CONST_B];
+    uint32_t b_true;
+    uint16_t dirty_i;
+    uint16_t dirty_b;
+    uint32_t *dirty_f;
+    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    uint32_t m;
+    unsigned i, j, c, n;
+    unsigned x;
+
+    if (shader_type == PIPE_SHADER_VERTEX) {
+        buf = device->constbuf_vs;
+        dirty_f = device->state.changed.vs_const_f;
+        const_f = device->state.vs_const_f;
+        dirty_i = device->state.changed.vs_const_i;
+        const_i = &device->state.vs_const_i[0][0];
+        dirty_b = device->state.changed.vs_const_b;
+        const_b = device->state.vs_const_b;
+        b_true = device->vs_bool_true;
+    } else {
+        buf = device->constbuf_ps;
+        dirty_f = device->state.changed.ps_const_f;
+        const_f = device->state.ps_const_f;
+        dirty_i = device->state.changed.ps_const_i;
+        const_i = &device->state.ps_const_i[0][0];
+        dirty_b = device->state.changed.ps_const_b;
+        const_b = device->state.ps_const_b;
+        b_true = device->ps_bool_true;
+    }
+    box.y = 0;
+    box.z = 0;
+    box.height = 1;
+    box.depth = 1;
+
+    /* write range from min to max changed, it's not much data */
+    /* bool1 */
+    if (dirty_b) {
+       c = util_last_bit(dirty_b);
+       i = ffs(dirty_b) - 1;
+       x = buf->width0 - (NINE_MAX_CONST_B - i) * 4;
+       c -= i;
+       for (n = 0; n < c; ++n, ++i)
+          data_b[n] = const_b[i] ? b_true : 0;
+       box.x = x;
+       box.width = n * 4;
+       pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data_b, 0, 0);
+          
+    }
+
+    /* int4 */
+    if (dirty_i) {
+    }
+
+    /* float4 */
+    for (i = 0; i < 0; ++i) {
+        
+    }
 }
 
 static void
@@ -110,7 +206,7 @@ update_vertex_buffers(struct NineDevice9 *device)
     unsigned start;
     unsigned count = 0;
 
-    for (i = 0; mask; mask >>= 1) {
+    for (i = 0; mask; mask >>= 1, ++i) {
         if (mask & 1) {
             if (!count)
                 start = i;
@@ -122,6 +218,7 @@ update_vertex_buffers(struct NineDevice9 *device)
             count = 0;
         }
     }
+    state->changed.vtxbuf = 0;
 }
 
 static INLINE void
@@ -134,25 +231,203 @@ update_index_buffer(struct NineDevice9 *device)
         pipe->set_index_buffer(pipe, NULL);
 }
 
+#define NINE_STATE_FREQ_GROUP_0 \
+   (NINE_STATE_FB |             \
+    NINE_STATE_VIEWPORT |       \
+    NINE_STATE_SCISSOR |        \
+    NINE_STATE_BLEND |          \
+    NINE_STATE_DSA |            \
+    NINE_STATE_RASTERIZER |     \
+    NINE_STATE_VS |             \
+    NINE_STATE_PS |             \
+    NINE_STATE_BLEND_COLOR |    \
+    NINE_STATE_SAMPLE_MASK)
+
+#define NINE_STATE_FREQ_GROUP_1 ~NINE_STATE_FREQ_GROUP_0
 boolean
 nine_update_state(struct NineDevice9 *device)
 {
+    struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
 
-    if (state->changed.group & NINE_STATE_FB)
-        update_framebuffer(device);
-    if (state->changed.group & NINE_STATE_VIEWPORT)
-        update_viewport(device);
-    if (state->changed.group & NINE_STATE_SCISSOR)
-        update_scissor(device);
+    DBG("changed state groups: %x | %x\n",
+        state->changed.group & NINE_STATE_FREQ_GROUP_0,
+        state->changed.group & NINE_STATE_FREQ_GROUP_1);
 
-    if (state->changed.group & NINE_STATE_IDXBUF)
-        update_index_buffer(device);
+    if (state->changed.group & NINE_STATE_FREQ_GROUP_0) {
+        if (state->changed.group & NINE_STATE_FB)
+            update_framebuffer(device);
+        if (state->changed.group & NINE_STATE_VIEWPORT)
+            update_viewport(device);
+        if (state->changed.group & NINE_STATE_SCISSOR)
+            update_scissor(device);
 
+        if (state->changed.group & NINE_STATE_BLEND)
+            update_blend(device);
+        if (state->changed.group & NINE_STATE_DSA)
+            update_dsa(device);
+        if (state->changed.group & NINE_STATE_RASTERIZER)
+            update_rasterizer(device);
+
+        if (state->changed.group & NINE_STATE_VS)
+            pipe->bind_vs_state(pipe, device->state.vs->cso);
+        if (state->changed.group & NINE_STATE_PS)
+            pipe->bind_fs_state(pipe, device->state.ps->cso);
+
+        if (state->changed.group & NINE_STATE_BLEND_COLOR) {
+            struct pipe_blend_color color;
+            d3dcolor_to_rgba(&color.color[0], state->rs[D3DRS_BLENDFACTOR]);
+            pipe->set_blend_color(pipe, &color);
+        }
+        if (state->changed.group & NINE_STATE_SAMPLE_MASK) {
+            pipe->set_sample_mask(pipe, state->rs[D3DRS_MULTISAMPLEMASK]);
+        }
+    }
+
+    if (state->changed.ucp)
+        pipe->set_clip_state(pipe, &state->clip);
+
+    if (state->changed.group & NINE_STATE_FREQ_GROUP_1) {
+        if (state->changed.group & NINE_STATE_IDXBUF)
+            update_index_buffer(device);
+
+        if ((state->changed.group & (NINE_STATE_VDECL | NINE_STATE_VS)) ||
+            state->changed.stream_freq & ~1)
+            update_vertex_elements(device);
+
+        if (state->changed.group & NINE_STATE_VS_CONST)
+            update_constants(device, PIPE_SHADER_VERTEX);
+        if (state->changed.group & NINE_STATE_PS_CONST)
+            update_constants(device, PIPE_SHADER_FRAGMENT);
+    }
     if (state->changed.vtxbuf)
         update_vertex_buffers(device);
 
+    device->state.changed.group = 0;
+
     return TRUE;
+}
+
+
+static const DWORD nine_render_state_defaults[NINED3DRS_LAST + 1] =
+{
+ /* [D3DRS_ZENABLE] = D3DZB_TRUE; wine: auto_depth_stencil */
+    [D3DRS_ZENABLE] = D3DZB_FALSE,
+    [D3DRS_FILLMODE] = D3DFILL_SOLID,
+    [D3DRS_SHADEMODE] = D3DSHADE_GOURAUD,
+/*  [D3DRS_LINEPATTERN] = 0x00000000, */
+    [D3DRS_ZWRITEENABLE] = TRUE,
+    [D3DRS_ALPHATESTENABLE] = FALSE,
+    [D3DRS_LASTPIXEL] = TRUE,
+    [D3DRS_SRCBLEND] = D3DBLEND_ONE,
+    [D3DRS_DESTBLEND] = D3DBLEND_ZERO,
+    [D3DRS_CULLMODE] = D3DCULL_CCW,
+    [D3DRS_ZFUNC] = D3DCMP_LESSEQUAL,
+    [D3DRS_ALPHAFUNC] = D3DCMP_ALWAYS,
+    [D3DRS_ALPHAREF] = 0,
+    [D3DRS_DITHERENABLE] = FALSE,
+    [D3DRS_ALPHABLENDENABLE] = FALSE,
+    [D3DRS_FOGENABLE] = FALSE,
+    [D3DRS_SPECULARENABLE] = FALSE,
+/*  [D3DRS_ZVISIBLE] = 0, */
+    [D3DRS_FOGCOLOR] = 0,
+    [D3DRS_FOGTABLEMODE] = D3DFOG_NONE,
+    [D3DRS_FOGSTART] = 0x00000000,
+    [D3DRS_FOGEND] = 0x3F800000,
+    [D3DRS_FOGDENSITY] = 0x3F800000,
+/*  [D3DRS_EDGEANTIALIAS] = FALSE, */
+    [D3DRS_RANGEFOGENABLE] = FALSE,
+    [D3DRS_STENCILENABLE] = FALSE,
+    [D3DRS_STENCILFAIL] = D3DSTENCILOP_KEEP,
+    [D3DRS_STENCILZFAIL] = D3DSTENCILOP_KEEP,
+    [D3DRS_STENCILPASS] = D3DSTENCILOP_KEEP,
+    [D3DRS_STENCILREF] = 0,
+    [D3DRS_STENCILMASK] = 0xFFFFFFFF,
+    [D3DRS_STENCILFUNC] = D3DCMP_ALWAYS,
+    [D3DRS_STENCILWRITEMASK] = 0xFFFFFFFF,
+    [D3DRS_TEXTUREFACTOR] = 0xFFFFFFFF,
+    [D3DRS_WRAP0] = 0,
+    [D3DRS_WRAP1] = 0,
+    [D3DRS_WRAP2] = 0,
+    [D3DRS_WRAP3] = 0,
+    [D3DRS_WRAP4] = 0,
+    [D3DRS_WRAP5] = 0,
+    [D3DRS_WRAP6] = 0,
+    [D3DRS_WRAP7] = 0,
+    [D3DRS_CLIPPING] = TRUE,
+    [D3DRS_LIGHTING] = TRUE,
+    [D3DRS_AMBIENT] = 0,
+    [D3DRS_FOGVERTEXMODE] = D3DFOG_NONE,
+    [D3DRS_COLORVERTEX] = TRUE,
+    [D3DRS_LOCALVIEWER] = TRUE,
+    [D3DRS_NORMALIZENORMALS] = FALSE,
+    [D3DRS_DIFFUSEMATERIALSOURCE] = D3DMCS_COLOR1,
+    [D3DRS_SPECULARMATERIALSOURCE] = D3DMCS_COLOR2,
+    [D3DRS_AMBIENTMATERIALSOURCE] = D3DMCS_MATERIAL,
+    [D3DRS_EMISSIVEMATERIALSOURCE] = D3DMCS_MATERIAL,
+    [D3DRS_VERTEXBLEND] = D3DVBF_DISABLE,
+    [D3DRS_CLIPPLANEENABLE] = 0,
+/*  [D3DRS_SOFTWAREVERTEXPROCESSING] = FALSE, */
+    [D3DRS_POINTSIZE] = 0x3F800000,
+    [D3DRS_POINTSIZE_MIN] = 0x3F800000,
+    [D3DRS_POINTSPRITEENABLE] = FALSE,
+    [D3DRS_POINTSCALEENABLE] = FALSE,
+    [D3DRS_POINTSCALE_A] = 0x3F800000,
+    [D3DRS_POINTSCALE_B] = 0x00000000,
+    [D3DRS_POINTSCALE_C] = 0x00000000,
+    [D3DRS_MULTISAMPLEANTIALIAS] = TRUE,
+    [D3DRS_MULTISAMPLEMASK] = 0xFFFFFFFF,
+    [D3DRS_PATCHEDGESTYLE] = D3DPATCHEDGE_DISCRETE,
+/*  [D3DRS_PATCHSEGMENTS] = 0x3F800000, */
+    [D3DRS_DEBUGMONITORTOKEN] = 0xDEADCAFE,
+    [D3DRS_POINTSIZE_MAX] = 0x3F800000, /* depends on cap */
+    [D3DRS_INDEXEDVERTEXBLENDENABLE] = FALSE,
+    [D3DRS_COLORWRITEENABLE] = 0x0000000f,
+    [D3DRS_TWEENFACTOR] = 0x00000000,
+    [D3DRS_BLENDOP] = D3DBLENDOP_ADD,
+    [D3DRS_POSITIONDEGREE] = D3DDEGREE_CUBIC,
+    [D3DRS_NORMALDEGREE] = D3DDEGREE_LINEAR,
+    [D3DRS_SCISSORTESTENABLE] = FALSE,
+    [D3DRS_SLOPESCALEDEPTHBIAS] = 0,
+    [D3DRS_MINTESSELLATIONLEVEL] = 0x3F800000,
+    [D3DRS_MAXTESSELLATIONLEVEL] = 0x3F800000,
+    [D3DRS_ANTIALIASEDLINEENABLE] = FALSE,
+    [D3DRS_ADAPTIVETESS_X] = 0x00000000,
+    [D3DRS_ADAPTIVETESS_Y] = 0x00000000,
+    [D3DRS_ADAPTIVETESS_Z] = 0x3F800000,
+    [D3DRS_ADAPTIVETESS_W] = 0x00000000,
+    [D3DRS_ENABLEADAPTIVETESSELLATION] = FALSE,
+    [D3DRS_TWOSIDEDSTENCILMODE] = FALSE,
+    [D3DRS_CCW_STENCILFAIL] = D3DSTENCILOP_KEEP,
+    [D3DRS_CCW_STENCILZFAIL] = D3DSTENCILOP_KEEP,
+    [D3DRS_CCW_STENCILPASS] = D3DSTENCILOP_KEEP,
+    [D3DRS_CCW_STENCILFUNC] = D3DCMP_ALWAYS,
+    [D3DRS_COLORWRITEENABLE1] = 0x0000000F,
+    [D3DRS_COLORWRITEENABLE2] = 0x0000000F,
+    [D3DRS_COLORWRITEENABLE3] = 0x0000000F,
+    [D3DRS_BLENDFACTOR] = 0xFFFFFFFF,
+    [D3DRS_SRGBWRITEENABLE] = 0,
+    [D3DRS_DEPTHBIAS] = 0,
+    [D3DRS_WRAP8] = 0,
+    [D3DRS_WRAP9] = 0,
+    [D3DRS_WRAP10] = 0,
+    [D3DRS_WRAP11] = 0,
+    [D3DRS_WRAP12] = 0,
+    [D3DRS_WRAP13] = 0,
+    [D3DRS_WRAP14] = 0,
+    [D3DRS_WRAP15] = 0,
+    [D3DRS_SEPARATEALPHABLENDENABLE] = FALSE,
+    [D3DRS_SRCBLENDALPHA] = D3DBLEND_ONE,
+    [D3DRS_DESTBLENDALPHA] = D3DBLEND_ZERO,
+    [D3DRS_BLENDOPALPHA] = D3DBLENDOP_ADD,
+};
+void
+nine_state_set_defaults(struct nine_state *state, D3DCAPS9 *caps)
+{
+    memcpy(state->rs, nine_render_state_defaults, sizeof(state->rs));
+    state->rs[D3DRS_POINTSIZE_MAX] = fui(caps->MaxPointSize);
+
+    state->changed.group = NINE_STATE_ALL;
 }
 
 /*

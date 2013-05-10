@@ -48,7 +48,9 @@
 #define NINE_STATE_MATERIAL    (1 << 15)
 #define NINE_STATE_BLEND_COLOR (1 << 16)
 #define NINE_STATE_SAMPLE_MASK (1 << 17)
-#define NINE_STATE_ALL          0xffff
+#define NINE_STATE_FF          (1 << 18)
+#define NINE_STATE_MISC_CONST  (1 << 19)
+#define NINE_STATE_ALL          0xfffff
 
 #define NINE_MAX_SIMULTANEOUS_RENDER_TARGETS 4
 #define NINE_MAX_CONST_F 256
@@ -83,12 +85,12 @@ struct nine_state
 
     struct pipe_scissor_state scissor;
 
-    IDirect3DVertexShader9 *vs;
+    struct NineVertexShader9 *vs;
     float *vs_const_f;
     int    vs_const_i[NINE_MAX_CONST_I][4];
     BOOL   vs_const_b[NINE_MAX_CONST_B];
 
-    IDirect3DPixelShader9 *ps;
+    struct NinePixelShader9 *ps;
     float *ps_const_f;
     int    ps_const_i[NINE_MAX_CONST_I][4];
     BOOL   ps_const_b[NINE_MAX_CONST_B];
@@ -128,7 +130,9 @@ const uint32_t nine_render_states_vertex[(NINED3DRS_LAST + 31) / 32];
 
 struct NineDevice9;
 
-boolean nine_update_state(struct NineDevice9 *device);
+boolean nine_update_state(struct NineDevice9 *);
+
+void nine_state_set_defaults(struct nine_state *, D3DCAPS9 *);
 
 
 #endif /* _NINE_STATE_H_ */

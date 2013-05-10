@@ -29,6 +29,11 @@
 const enum pipe_format nine_d3d9_to_pipe_format_map[120];
 const D3DFORMAT nine_pipe_to_d3d9_format_map[PIPE_FORMAT_COUNT];
 
+void nine_convert_dsa_state(struct cso_context *, const DWORD *);
+void nine_convert_rasterizer_state(struct cso_context *, const DWORD *);
+void nine_convert_blend_state(struct cso_context *, const DWORD *);
+void nine_convert_sampler_state(struct cso_context *, const DWORD *);
+
 static INLINE float asfloat(DWORD value)
 {
     union {

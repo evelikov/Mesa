@@ -136,6 +136,15 @@ NineDevice9_ctor( struct NineDevice9 *This,
         pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
     }
 
+    This->vs_bool_true = pScreen->get_shader_param(pScreen,
+        PIPE_SHADER_VERTEX,
+        PIPE_SHADER_CAP_INTEGERS) ? 0xFFFFFFFF : fui(1.0f);
+    This->ps_bool_true = pScreen->get_shader_param(pScreen,
+        PIPE_SHADER_FRAGMENT,
+        PIPE_SHADER_CAP_INTEGERS) ? 0xFFFFFFFF : fui(1.0f);
+
+    nine_state_set_defaults(&This->state, &This->caps);
+
     This->state.changed.group = NINE_STATE_FB;
     nine_update_state(This);
 

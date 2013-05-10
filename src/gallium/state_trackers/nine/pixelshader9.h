@@ -28,6 +28,7 @@
 struct NinePixelShader9
 {
     struct NineUnknown base;
+    void *cso;
 };
 static INLINE struct NinePixelShader9 *
 NinePixelShader9( void *data )

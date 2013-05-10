@@ -63,6 +63,8 @@ struct NineDevice9
 
     struct pipe_resource *constbuf_vs;
     struct pipe_resource *constbuf_ps;
+    uint32_t vs_bool_true;
+    uint32_t ps_bool_true;
 };
 static INLINE struct NineDevice9 *
 NineDevice9( void *data )

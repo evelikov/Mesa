@@ -24,8 +24,10 @@
 #include "device9.h"
 #include "nine_pipe.h"
 
-static void
-convert_dsa_state(const DWORD *rs)
+#include "cso_cache/cso_context.h"
+
+void
+nine_convert_dsa_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_depth_stencil_alpha_state dsa;
 
@@ -55,11 +57,11 @@ convert_dsa_state(const DWORD *rs)
     dsa.alpha.func = d3dcmpfunc_to_pipe_func(rs[D3DRS_ALPHAFUNC]);
     dsa.alpha.ref_value = (float)rs[D3DRS_ALPHAREF] / 255.0f;
 
-    /* cso_set_depth_stencil_alpha(cso, &dsa); */
+    cso_set_depth_stencil_alpha(ctx, &dsa);
 }
 
-static void
-convert_rasterizer_state(const DWORD *rs)
+void
+nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_rasterizer_state rast;
 
@@ -102,14 +104,13 @@ convert_rasterizer_state(const DWORD *rs)
     rast.offset_scale = asfloat(rs[D3DRS_SLOPESCALEDEPTHBIAS]);
     rast.offset_clamp = 0.0f;
 
-    /* pipe->set_sample_mask(pipe, rs[D3DRS_MULTISAMPLEMASK]); */
+    cso_set_rasterizer(ctx, &rast);
 }
 
-static void
-convert_blend_state(const DWORD *rs)
+void
+nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_blend_state blend;
-    struct pipe_blend_color blend_color;
 
     memset(&blend, 0, sizeof(blend));
 
@@ -149,19 +150,11 @@ convert_blend_state(const DWORD *rs)
 
     /* blend.force_srgb = !!rs[D3DRS_SRGBWRITEENABLE]; */
 
-    if (1 /* changed.group & NINE_STATE_BLEND_COLOR */) {
-        blend_color.color[0] = ((rs[D3DRS_BLENDFACTOR] >>  0) & 0xff) / 255.0f;
-        blend_color.color[1] = ((rs[D3DRS_BLENDFACTOR] >>  8) & 0xff) / 255.0f;
-        blend_color.color[2] = ((rs[D3DRS_BLENDFACTOR] >> 16) & 0xff) / 255.0f;
-        blend_color.color[3] = ((rs[D3DRS_BLENDFACTOR] >> 24) & 0xff) / 255.0f;
-
-        /* pipe->set_blend_color(pipe, &blend_color); */
-        (void)blend_color;
-    }
+    cso_set_blend(ctx, &blend);
 }
 
-static void
-convert_sampler_state(const DWORD *rs)
+void
+nine_convert_sampler_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_sampler_state samp;
 
