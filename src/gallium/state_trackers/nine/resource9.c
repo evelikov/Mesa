@@ -34,6 +34,7 @@ struct pheader
 {
     boolean unknown;
     DWORD size;
+    char data[1];
 };
 
 static int
@@ -62,9 +63,8 @@ ht_guid_delete( void *key,
                 void *data )
 {
     struct pheader *header = value;
-    void *table_data = header+sizeof(struct pheader);
 
-    if (header->unknown) { IUnknown_Release(*(IUnknown **)table_data); }
+    if (header->unknown) { IUnknown_Release(*(IUnknown **)header->data); }
     FREE(header);
 
     return PIPE_OK;
@@ -160,14 +160,12 @@ NineResource9_SetPrivateData( struct NineResource9 *This,
 {
     enum pipe_error err;
     struct pheader *header;
-    void *dest;
     const void *user_data = pData;
 
     /* data consists of a header and the actual data. avoiding 2 mallocs */
-    header = CALLOC_VARIANT_LENGTH_STRUCT(pheader, SizeOfData);
+    header = CALLOC_VARIANT_LENGTH_STRUCT(pheader, SizeOfData-1);
     if (!header) { return E_OUTOFMEMORY; }
     header->unknown = (Flags & D3DSPD_IUNKNOWN) ? TRUE : FALSE;
-    dest = header+sizeof(struct pheader);
 
     /* if the refguid already exists, delete it */
     NineResource9_FreePrivateData(This, refguid);
@@ -183,11 +181,11 @@ NineResource9_SetPrivateData( struct NineResource9 *This,
     }
 
     header->size = SizeOfData;
-    memcpy(dest, user_data, header->size);
+    memcpy(header->data, user_data, header->size);
 
     err = util_hash_table_set(This->pdata, refguid, header);
     if (err == PIPE_OK) {
-        if (header->unknown) { IUnknown_AddRef(*(IUnknown **)dest); }
+        if (header->unknown) { IUnknown_AddRef(*(IUnknown **)header->data); }
         return D3D_OK;
     }
 
@@ -204,7 +202,6 @@ NineResource9_GetPrivateData( struct NineResource9 *This,
                               DWORD *pSizeOfData )
 {
     struct pheader *header;
-    void *table_data;
 
     user_assert(pSizeOfData, E_POINTER);
 
@@ -219,9 +216,8 @@ NineResource9_GetPrivateData( struct NineResource9 *This,
         return D3DERR_MOREDATA;
     }
 
-    table_data = header+sizeof(struct pheader);
-    if (header->unknown) { IUnknown_AddRef(*(IUnknown **)table_data); }
-    memcpy(pData, table_data, header->size);
+    if (header->unknown) { IUnknown_AddRef(*(IUnknown **)header->data); }
+    memcpy(pData, header->data, header->size);
 
     return D3D_OK;
 }
