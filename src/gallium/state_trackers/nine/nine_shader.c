@@ -763,7 +763,7 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         src = ureg_src_register(TGSI_FILE_SAMPLER, param->idx);
         break;
     case D3DSPR_CONST:
-        if (!tx_lconstf(tx, &src, param->idx))
+        if (param->rel || !tx_lconstf(tx, &src, param->idx))
             src = ureg_src_register(TGSI_FILE_CONSTANT, param->idx);
         break;
     case D3DSPR_CONST2:
@@ -774,12 +774,12 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         src = ureg_imm1f(ureg, 0.0f);
         break;
     case D3DSPR_CONSTINT:
-        if (!tx_lconsti(tx, &src, param->idx))
+        if (param->rel || !tx_lconsti(tx, &src, param->idx))
             src = ureg_src_register(TGSI_FILE_CONSTANT,
                                     NINE_CONST_I_BASE_IDX + param->idx);
         break;
     case D3DSPR_CONSTBOOL:
-        if (!tx_lconstb(tx, &src, param->idx)) {
+        if (param->rel || !tx_lconstb(tx, &src, param->idx)) {
            char r = param->idx / 4;
            char s = param->idx & 3;
            src = ureg_src_register(TGSI_FILE_CONSTANT,
