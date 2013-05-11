@@ -455,9 +455,11 @@ struct shader_translator
         struct ureg_dst p;
         struct ureg_dst a;
         struct ureg_dst t[5]; /* scratch TEMPs */
+        struct ureg_src vC[2]; /* PS color in */
+        struct ureg_src vT[8]; /* PS texcoord in */
         struct ureg_dst aL[NINE_MAX_LOOP_DEPTH]; /* loop ctr */
     } regs;
-    unsigned num_temp;
+    unsigned num_temp; /* Elements(regs.r) */
     unsigned num_scratch;
     unsigned loop_depth;
     unsigned loop_depth_max;
@@ -475,6 +477,9 @@ struct shader_translator
     struct sm1_local_const lconsti[NINE_MAX_CONST_I];
     struct sm1_local_const lconstb[NINE_MAX_CONST_B];
 };
+
+#define IS_VS (tx->processor == TGSI_PROCESSOR_VERTEX)
+#define IS_PS (tx->processor == TGSI_PROCESSOR_FRAGMENT)
 
 static void
 sm1_read_semantic(struct shader_translator *, struct sm1_semantic *);
@@ -637,6 +642,18 @@ tx_pred_alloc(struct shader_translator *tx, INT idx)
         tx->regs.p = ureg_DECL_predicate(tx->ureg);
 }
 
+static INLINE void
+tx_texcoord_alloc(struct shader_translator *tx, INT idx)
+{
+    const unsigned sn = tx->want_texcoord ?
+       TGSI_SEMANTIC_TEXCOORD : TGSI_SEMANTIC_GENERIC;
+    assert(IS_PS);
+    assert(idx >= 0 && idx < Elements(tx->regs.vT));
+    if (ureg_src_is_undef(tx->regs.vT[idx]))
+       tx->regs.vT[idx] = ureg_DECL_fs_input(tx->ureg, sn, idx,
+                                             TGSI_INTERPOLATE_PERSPECTIVE);
+}
+
 static INLINE unsigned *
 tx_bgnloop(struct shader_translator *tx)
 {
@@ -724,10 +741,16 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         tx_temp_alloc(tx, param->idx);
         src = ureg_src(tx->regs.r[param->idx]);
         break;
+ /* case D3DSPR_TEXTURE: == D3DSPR_ADDR */
     case D3DSPR_ADDR:
         assert(!param->rel);
-        tx_addr_alloc(tx, param->idx);
-        src = ureg_src(tx->regs.a);
+        if (IS_VS) {
+            tx_addr_alloc(tx, param->idx);
+            src = ureg_src(tx->regs.a);
+        } else {
+            tx_texcoord_alloc(tx, param->idx);
+            src = tx->regs.vT[param->idx];
+        }
         break;
     case D3DSPR_INPUT:
         src = ureg_src_register(TGSI_FILE_INPUT, param->idx);
@@ -748,10 +771,11 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
             src = ureg_src_register(TGSI_FILE_CONSTANT, param->idx);
         break;
     case D3DSPR_CONST2:
-        break;
     case D3DSPR_CONST3:
-        break;
     case D3DSPR_CONST4:
+        DBG("CONST2/3/4 should have been collapsed into D3DSPR_CONST !\n");
+        assert(!"CONST2/3/4");
+        src = ureg_imm1f(ureg, 0.0f);
         break;
     case D3DSPR_CONSTINT:
         if (!tx_lconsti(tx, &src, param->idx))
@@ -892,10 +916,10 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
         dst = tx->regs.a;
         break;
     case D3DSPR_RASTOUT:
-        break;
     case D3DSPR_ATTROUT:
+        DBG("FIXME: RASTOUT/ATTROUT\n");
         break;
-    /* case D3DSPR_TEXCRDOUT: == D3DSPR_OUTPUT */
+ /* case D3DSPR_TEXCRDOUT: == D3DSPR_OUTPUT */
     case D3DSPR_OUTPUT:
         dst = nine_ureg_dst_register(TGSI_FILE_OUTPUT, param->idx);
         break;
@@ -934,6 +958,8 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
         dst = ureg_writemask(dst, param->mask);
     if (param->mod == NINED3DSPDM_SATURATE)
         dst = ureg_saturate(dst);
+
+    assert(!param->shift); /* TODO */
 
     return dst;
 }
@@ -977,9 +1003,6 @@ NineTranslateInstruction_Mkxn(struct shader_translator *tx, const unsigned k, co
 
 #define VNOTSUPPORTED   0, 0
 #define V(maj, min)     (((maj) << 8) | (min))
-
-#define IS_VS (tx->processor == TGSI_PROCESSOR_VERTEX)
-#define IS_PS (tx->processor == TGSI_PROCESSOR_FRAGMENT)
 
 static INLINE const char *
 d3dsio_to_string( unsigned opcode )
@@ -2040,6 +2063,14 @@ sm1_parse_src_param(struct sm1_src_param *src, DWORD tok)
     src->rel = NULL;
     src->swizzle = (tok & D3DSP_SWIZZLE_MASK) >> D3DSP_SWIZZLE_SHIFT;
     src->mod = (tok & D3DSP_SRCMOD_MASK) >> D3DSP_SRCMOD_SHIFT;
+
+    switch (src->file) {
+    case D3DSPR_CONST2: src->file = D3DSPR_CONST; src->idx += 2048; break;
+    case D3DSPR_CONST3: src->file = D3DSPR_CONST; src->idx += 4096; break;
+    case D3DSPR_CONST4: src->file = D3DSPR_CONST; src->idx += 6144; break;
+    default:
+        break;
+    }
 }
 
 static void
@@ -2202,8 +2233,12 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
    tx->regs.oDepth = ureg_dst_undef();
    tx->regs.vPos = ureg_src_undef();
    tx->regs.vFace = ureg_src_undef();
-   for (i = 0; i < 4; ++i)
+   for (i = 0; i < Elements(tx->regs.oCol); ++i)
       tx->regs.oCol[i] = ureg_dst_undef();
+   for (i = 0; i < Elements(tx->regs.vC); ++i)
+      tx->regs.vC[i] = ureg_src_undef();
+   for (i = 0; i < Elements(tx->regs.vT); ++i)
+      tx->regs.vT[i] = ureg_src_undef();
 
    sm1_read_version(tx);
 }
@@ -2223,12 +2258,12 @@ tx_dtor(struct shader_translator *tx)
 static INLINE unsigned
 tgsi_processor_from_type(unsigned shader_type)
 {
-   switch (shader_type) {
-   case PIPE_SHADER_VERTEX: return TGSI_PROCESSOR_VERTEX;
-   case PIPE_SHADER_FRAGMENT: return TGSI_PROCESSOR_FRAGMENT;
-   default:
-      return ~0;
-   }
+    switch (shader_type) {
+    case PIPE_SHADER_VERTEX: return TGSI_PROCESSOR_VERTEX;
+    case PIPE_SHADER_FRAGMENT: return TGSI_PROCESSOR_FRAGMENT;
+    default:
+        return ~0;
+    }
 }
 
 #define GET_CAP(n) device->screen->get_param( \
@@ -2257,17 +2292,17 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         goto out;
     }
     if (tx->processor != processor) {
-       hr = D3DERR_INVALIDCALL;
-       DBG("Shader type mismatch: %u / %u !\n", tx->processor, processor);
-       goto out;
+        hr = D3DERR_INVALIDCALL;
+        DBG("Shader type mismatch: %u / %u !\n", tx->processor, processor);
+        goto out;
     }
     DUMP("%s%u.%u\n", processor == TGSI_PROCESSOR_VERTEX ? "VS" : "PS",
          tx->version.major, tx->version.minor);
 
     tx->ureg = ureg_create(processor);
     if (!tx->ureg) {
-       hr = E_OUTOFMEMORY;
-       goto out;
+        hr = E_OUTOFMEMORY;
+        goto out;
     }
     tx_decl_constants(tx);
 
@@ -2283,17 +2318,17 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
 
 #if 1
     {
-       unsigned count;
-       const struct tgsi_token *toks = ureg_get_tokens(tx->ureg, &count);
-       tgsi_dump(toks, 0);
-       ureg_free_tokens(toks);
+        unsigned count;
+        const struct tgsi_token *toks = ureg_get_tokens(tx->ureg, &count);
+        tgsi_dump(toks, 0);
+        ureg_free_tokens(toks);
     }
 #endif
 
     info->cso = ureg_create_shader_and_destroy(tx->ureg, device->pipe);
     if (!info->cso) {
-       hr = D3DERR_DRIVERINTERNALERROR;
-       goto out;
+        hr = D3DERR_DRIVERINTERNALERROR;
+        goto out;
     }
 
     info->byte_size = (tx->parse - tx->byte_code) * sizeof(DWORD);
