@@ -52,6 +52,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     if (FAILED(hr))
         return hr;
 
+    This->byte_code.tokens = mem_dup(pFunction, info.byte_size);
     This->byte_code.size = info.byte_size;
     This->cso = info.cso;
 
@@ -64,6 +65,9 @@ NineVertexShader9_dtor( struct NineVertexShader9 *This )
     struct pipe_context *pipe = This->device->pipe;
     if (This->cso)
         pipe->delete_vs_state(pipe, This->cso);
+
+    if (This->byte_code.tokens)
+        FREE((void *)This->byte_code.tokens); /* const_cast */
 
     NineUnknown_dtor(&This->base);
 }

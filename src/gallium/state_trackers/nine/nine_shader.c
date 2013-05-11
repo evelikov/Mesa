@@ -33,11 +33,9 @@
 #include "tgsi/tgsi_ureg.h"
 #include "tgsi/tgsi_dump.h"
 
-#ifndef Elements
-#define Elements(x) (sizeof(x)/sizeof((x)[0]))
-#endif
-
 #define DBG_CHANNEL DBG_SHADER
+
+#define DUMP(args...) _nine_debug_printf(DBG_CHANNEL, NULL, args)
 
 
 struct shader_translator;
@@ -47,8 +45,6 @@ typedef HRESULT (*translate_instruction_func)(struct shader_translator *);
 
 static INLINE const char *d3dsio_to_string(unsigned opcode);
 
-
-#define DUMP(args...) _nine_debug_printf(DBG_CHANNEL, NULL, args)
 
 #define NINED3D_SM1_VS 0xfffe
 #define NINED3D_SM1_PS 0xffff
