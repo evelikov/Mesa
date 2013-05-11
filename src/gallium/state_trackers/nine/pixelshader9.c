@@ -53,6 +53,8 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
         return hr;
 
     This->byte_code.tokens = mem_dup(pFunction, info.byte_size);
+    if (!This->byte_code.tokens)
+        return E_OUTOFMEMORY;
     This->byte_code.size = info.byte_size;
     This->cso = info.cso;
 
@@ -62,9 +64,11 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
 void
 NinePixelShader9_dtor( struct NinePixelShader9 *This )
 {
-    struct pipe_context *pipe = This->device->pipe;
-    if (This->cso)
-        pipe->delete_fs_state(pipe, This->cso);
+    if (This->device) {
+        struct pipe_context *pipe = This->device->pipe;
+        if (This->cso)
+            pipe->delete_fs_state(pipe, This->cso);
+    }
 
     if (This->byte_code.tokens)
         FREE((void *)This->byte_code.tokens); /* const_cast */
