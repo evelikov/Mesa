@@ -90,6 +90,11 @@ NineQuery9_ctor( struct NineQuery9 *This,
 {
     struct pipe_context *pipe = pDevice->pipe;
     const unsigned ptype = d3dquerytype_to_pipe_query(Type);
+    HRESULT hr;
+
+    hr = NineUnknown_ctor(&This->base, pParams);
+    if (FAILED(hr))
+        return hr;
 
     This->device = pDevice;
     This->state = NINE_QUERY_STATE_IDLE;
@@ -124,6 +129,7 @@ NineQuery9_dtor( struct NineQuery9 *This )
             pipe->end_query(pipe, This->pq);
         pipe->destroy_query(pipe, This->pq);
     }
+    NineUnknown_dtor(&This->base);
 }
 
 HRESULT WINAPI
