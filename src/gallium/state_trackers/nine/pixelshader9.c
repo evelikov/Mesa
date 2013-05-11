@@ -39,6 +39,10 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
     struct nine_shader_info info;
     HRESULT hr;
 
+    hr = NineUnknown_ctor(&This->base, pParams);
+    if (FAILED(hr))
+        return hr;
+
     This->device = pDevice;
 
     info.type = PIPE_SHADER_FRAGMENT;

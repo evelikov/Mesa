@@ -32,6 +32,10 @@ NineStateBlock9_ctor( struct NineStateBlock9 *This,
                       struct NineDevice9 *pDevice,
                       enum nine_stateblock_type type )
 {
+    HRESULT hr = NineUnknown_ctor(&This->base, pParams);
+    if (FAILED(hr))
+        return hr;
+
     This->device = pDevice;
     This->type = type;
 
@@ -60,6 +64,8 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
         FREE(state->vs_const_f);
     if (state->ps_const_f)
         FREE(state->ps_const_f);
+
+    NineUnknown_dtor(&This->base);
 }
 
 HRESULT WINAPI
