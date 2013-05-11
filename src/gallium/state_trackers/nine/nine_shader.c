@@ -31,6 +31,7 @@
 #include "util/u_inlines.h"
 #include "pipe/p_shader_tokens.h"
 #include "tgsi/tgsi_ureg.h"
+#include "tgsi/tgsi_dump.h"
 
 #ifndef Elements
 #define Elements(x) (sizeof(x)/sizeof((x)[0]))
@@ -365,6 +366,10 @@ sm1_dump_instruction(struct sm1_instruction *insn)
 {
     unsigned i;
 
+    /* no info stored for these: */
+    if (insn->opcode == D3DSIO_DCL)
+        return;
+
     if (insn->predicated) {
         DUMP("@");
         sm1_dump_src_param(&insn->pred);
@@ -383,12 +388,23 @@ sm1_dump_instruction(struct sm1_instruction *insn)
     }
     if (insn->coissue)
         DUMP("_co");
+    DUMP(" ");
 
-    for (i = 0; i < insn->ndst && i < Elements(insn->dst); ++i)
+    for (i = 0; i < insn->ndst && i < Elements(insn->dst); ++i) {
         sm1_dump_dst_param(&insn->dst[i]);
+        DUMP(" ");
+    }
 
-    for (i = 0; i < insn->nsrc && i < Elements(insn->src); ++i)
+    for (i = 0; i < insn->nsrc && i < Elements(insn->src); ++i) {
         sm1_dump_src_param(&insn->src[i]);
+        DUMP(" ");
+    }
+    if (insn->opcode == D3DSIO_DEF ||
+        insn->opcode == D3DSIO_DEFI ||
+        insn->opcode == D3DSIO_DEFB)
+        sm1_dump_immediate(&insn->src[0]);
+
+    DUMP("\n");
 }
 
 struct sm1_local_const
@@ -1532,21 +1548,18 @@ DECL_SPECIAL(DCL)
 
 DECL_SPECIAL(DEF)
 {
-    sm1_parse_immediate(tx, &tx->insn.src[0]);
-    tx_set_lconstf(tx, tx->insn.src[0].idx, tx->insn.src[0].imm.f);
+    tx_set_lconstf(tx, tx->insn.dst[0].idx, tx->insn.src[0].imm.f);
     return D3D_OK;
 }
 
 DECL_SPECIAL(DEFB)
 {
-    sm1_parse_immediate(tx, &tx->insn.src[0]);
     tx_set_lconstb(tx, tx->insn.dst[0].idx, tx->insn.src[0].imm.b);
     return D3D_OK;
 }
 
 DECL_SPECIAL(DEFI)
 {
-    sm1_parse_immediate(tx, &tx->insn.src[0]);
     tx_set_lconsti(tx, tx->insn.dst[0].idx, tx->insn.src[0].imm.i);
     return D3D_OK;
 }
@@ -1952,8 +1965,8 @@ sm1_parse_get_skip(struct shader_translator *tx)
     const DWORD tok = TOKEN_PEEK(tx);
 
     if (tx->version.major >= 2) {
-        tx->parse_next = tx->parse +
-           ((tok & D3DSI_INSTLENGTH_MASK) >> D3DSI_INSTLENGTH_SHIFT);
+        tx->parse_next = tx->parse + 1 /* this */ +
+            ((tok & D3DSI_INSTLENGTH_MASK) >> D3DSI_INSTLENGTH_SHIFT);
     } else {
         tx->parse_next = NULL; /* TODO: determine from param count */
     }
@@ -2158,6 +2171,12 @@ sm1_parse_instruction(struct shader_translator *tx)
     for (i = 0; i < insn->nsrc; ++i)
         sm1_read_src_param(tx, &insn->src[i], &insn->src_rel[i]);
 
+    /* parse here so we can dump them before processing */
+    if (insn->opcode == D3DSIO_DEF ||
+        insn->opcode == D3DSIO_DEFI ||
+        insn->opcode == D3DSIO_DEFB)
+        sm1_parse_immediate(tx, &tx->insn.src[0]);
+
     sm1_dump_instruction(insn);
     sm1_instruction_check(insn);
 
@@ -2260,6 +2279,16 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     while (!sm1_parse_eof(tx))
         sm1_parse_instruction(tx);
     tx->parse++; /* for byte_size */
+    ureg_END(tx->ureg);
+
+#if 1
+    {
+       unsigned count;
+       const struct tgsi_token *toks = ureg_get_tokens(tx->ureg, &count);
+       tgsi_dump(toks, 0);
+       ureg_free_tokens(toks);
+    }
+#endif
 
     info->cso = ureg_create_shader_and_destroy(tx->ureg, device->pipe);
     if (!info->cso) {
