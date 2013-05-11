@@ -40,7 +40,6 @@
 
 struct shader_translator;
 
-typedef uint8_t UBYTE;
 typedef HRESULT (*translate_instruction_func)(struct shader_translator *);
 
 static INLINE const char *d3dsio_to_string(unsigned opcode);
@@ -141,7 +140,7 @@ static const char *sm1_mod_str[] =
 };
 
 static void
-sm1_dump_writemask(UBYTE mask)
+sm1_dump_writemask(BYTE mask)
 {
     if (mask & 1) DUMP("x"); else DUMP("_");
     if (mask & 2) DUMP("y"); else DUMP("_");
@@ -150,7 +149,7 @@ sm1_dump_writemask(UBYTE mask)
 }
 
 static void
-sm1_dump_swizzle(UBYTE s)
+sm1_dump_swizzle(BYTE s)
 {
     char c[4] = { 'x', 'y', 'z', 'w' };
     DUMP("%c%c%c%c",
@@ -182,7 +181,7 @@ static const char sm1_file_char[] =
 };
 
 static void
-sm1_dump_reg(UBYTE file, INT index)
+sm1_dump_reg(BYTE file, INT index)
 {
     switch (file) {
     case D3DSPR_LOOP:
@@ -213,10 +212,10 @@ struct sm1_src_param
 {
     INT idx;
     struct sm1_src_param *rel;
-    UBYTE file;
-    UBYTE swizzle;
-    UBYTE mod;
-    UBYTE type;
+    BYTE file;
+    BYTE swizzle;
+    BYTE mod;
+    BYTE type;
     union {
         DWORD d[4];
         float f[4];
@@ -231,11 +230,11 @@ struct sm1_dst_param
 {
     INT idx;
     struct sm1_src_param *rel;
-    UBYTE file;
-    UBYTE mask;
-    UBYTE mod;
-    UBYTE shift; /* sint4 */
-    UBYTE type;
+    BYTE file;
+    BYTE mask;
+    BYTE mod;
+    BYTE shift; /* sint4 */
+    BYTE type;
 };
 
 static void
@@ -315,9 +314,9 @@ sm1_dump_dst_param(struct sm1_dst_param *param)
 struct sm1_semantic
 {
    struct sm1_dst_param reg;
-   UBYTE sampler_type;
+   BYTE sampler_type;
    D3DDECLUSAGE usage;
-   UBYTE usage_idx;
+   BYTE usage_idx;
 };
 
 struct sm1_op_info
@@ -343,11 +342,11 @@ struct sm1_op_info
 struct sm1_instruction
 {
     D3DSHADER_INSTRUCTION_OPCODE_TYPE opcode;
-    UBYTE flags;
+    BYTE flags;
     BOOL coissue;
     BOOL predicated;
-    UBYTE ndst;
-    UBYTE nsrc;
+    BYTE ndst;
+    BYTE nsrc;
     struct sm1_src_param src[4];
     struct sm1_src_param src_rel[4];
     struct sm1_src_param pred;
@@ -426,8 +425,8 @@ struct shader_translator
 
     /* shader version */
     struct {
-        UBYTE major;
-        UBYTE minor;
+        BYTE major;
+        BYTE minor;
     } version;
     unsigned processor; /* TGSI_PROCESSOR_VERTEX/FRAMGENT */
 
@@ -1318,7 +1317,7 @@ DECL_SPECIAL(IF)
 }
 
 static INLINE unsigned
-sm1_insn_flags_to_tgsi_setop(UBYTE flags)
+sm1_insn_flags_to_tgsi_setop(BYTE flags)
 {
     switch (flags) {
     case NINED3DSHADER_REL_OP_GT: return TGSI_OPCODE_SGT;
@@ -1458,7 +1457,7 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
 #define NINED3DSTT_VOLUME (D3DSTT_VOLUME >> D3DSP_TEXTURETYPE_SHIFT)
 #define NINED3DSTT_CUBE   (D3DSTT_CUBE >> D3DSP_TEXTURETYPE_SHIFT)
 static INLINE unsigned
-d3dstt_to_tgsi_tex(UBYTE sampler_type)
+d3dstt_to_tgsi_tex(BYTE sampler_type)
 {
     switch (sampler_type) {
     case NINED3DSTT_1D:     return TGSI_TEXTURE_1D;
