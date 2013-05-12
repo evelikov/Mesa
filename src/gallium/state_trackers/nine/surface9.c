@@ -80,10 +80,11 @@ NineSurface9_ctor( struct NineSurface9 *This,
 void
 NineSurface9_dtor( struct NineSurface9 *This )
 {
-    if (This->surface) { pipe_surface_reference(&This->surface, NULL); }
-    if (This->transfer) { NineSurface9_UnlockRect(This); }
-
+    if (This->transfer)
+        NineSurface9_UnlockRect(This);
     NineSurface9_ClearDirtyRects(This);
+
+    pipe_surface_reference(&This->surface, NULL);
 
     NineUnknown_Release(This->container);
 

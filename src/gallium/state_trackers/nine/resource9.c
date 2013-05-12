@@ -83,7 +83,10 @@ NineResource9_ctor( struct NineResource9 *This,
 
     This->device = pDevice;
     This->screen = NineDevice9_GetScreen(pDevice);
-    This->resource = pResource;
+
+    /* NOTE: Take care to unreference the resource in the caller. */
+    pipe_resource_reference(&This->resource, pResource);
+
     This->type = Type;
     This->pool = Pool;
     This->priority = 0;
@@ -106,26 +109,37 @@ NineResource9_dtor( struct NineResource9 *This )
         util_hash_table_destroy(This->pdata);
     }
 
-    switch (This->type) {
-        case D3DRTYPE_TEXTURE:
-        case D3DRTYPE_VOLUMETEXTURE:
-        case D3DRTYPE_CUBETEXTURE:
-        case D3DRTYPE_VERTEXBUFFER:
-        case D3DRTYPE_INDEXBUFFER:
-            /* This object owns the resource. Note that the ctor might have
-             * been called with a NULL resource because the toplevel failed to
-             * create it. */
-            if (This->resource)
-                This->screen->resource_destroy(This->screen, This->resource);
-            if (This->sys.data)
-                FREE(This->sys.data);
-            break;
+    /* NOTE: We do have to use refcounting, the driver might still hold a reference. */
+    pipe_resource_reference(&This->resource, NULL);
 
-        default:
-            /* This object doesn't own the resource. There's also no point in
-             * reference counting an object that gets destroyed on a whim. */
-            break;
+#if 0
+    switch (This->type) {
+    case D3DRTYPE_TEXTURE:
+    case D3DRTYPE_VOLUMETEXTURE:
+    case D3DRTYPE_CUBETEXTURE:
+    case D3DRTYPE_VERTEXBUFFER:
+    case D3DRTYPE_INDEXBUFFER:
+        /* This object owns the resource. Note that the ctor might have
+         * been called with a NULL resource because the toplevel failed to
+         * create it. */
+        if (This->resource)
+            This->screen->resource_destroy(This->screen, This->resource);
+        break;
+
+    case D3DRTYPE_SURFACE:
+        if (This->resource &&
+            (This->resource->flags & NINE_RESOURCE_FLAG_OWNED_BY_SURFACE))
+            This->screen->resource_destroy(This->screen, This->resource);
+
+    default:
+        /* This object doesn't own the resource. There's also no point in
+         * reference counting an object that gets destroyed on a whim. */
+        break;
     }
+#endif
+
+    if (This->sys.data)
+        FREE(This->sys.data);
 
     NineUnknown_dtor(&This->base);
 }

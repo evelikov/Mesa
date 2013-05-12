@@ -23,6 +23,12 @@
 #ifndef _NINE_DEFINES_H_
 #define _NINE_DEFINES_H_
 
+#include "pipe/p_defines.h"
+
+
+#define NINE_RESOURCE_FLAG_OWNED_BY_SURFACE (PIPE_RESOURCE_FLAG_ST_PRIV << 1)
+
+
 /* vertexdeclaration9.c */
 unsigned nine_d3d9_to_nine_declusage(unsigned usage, unsigned index);
 
