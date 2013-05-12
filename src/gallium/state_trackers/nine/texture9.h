@@ -35,6 +35,30 @@ NineTexture9( void *data )
     return (struct NineTexture9 *)data;
 }
 
+HRESULT
+NineTexture9_new( struct NineDevice9 *pDevice,
+                  UINT Width, UINT Height, UINT Levels,
+                  DWORD Usage,
+                  D3DFORMAT Format,
+                  D3DPOOL Pool,
+                  struct NineTexture9 **ppOut,
+                  HANDLE *pSharedHandle );
+
+/*
+HRESULT
+NineTexture9_ctor( struct NineTexture9 *This,
+                   struct NineUnknownParams *pParams,
+                   struct NineDevice9 *pDevice,
+                   UINT Width, UINT Height, UINT Levels,
+                   DWORD Usage,
+                   D3DFORMAT Format,
+                   D3DPOOL Pool,
+                   HANDLE *pSharedHandle );
+
+void
+NineTexture9_dtor( struct NineTexture9 *This );
+*/
+
 HRESULT WINAPI
 NineTexture9_GetLevelDesc( struct NineTexture9 *This,
                            UINT Level,

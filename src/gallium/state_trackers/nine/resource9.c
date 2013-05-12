@@ -115,9 +115,10 @@ NineResource9_dtor( struct NineResource9 *This )
             /* This object owns the resource. Note that the ctor might have
              * been called with a NULL resource because the toplevel failed to
              * create it. */
-            if (This->resource) {
+            if (This->resource)
                 This->screen->resource_destroy(This->screen, This->resource);
-            }
+            if (This->sys.data)
+                FREE(This->sys.data);
             break;
 
         default:

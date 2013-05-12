@@ -40,6 +40,13 @@ struct NineResource9
     D3DRESOURCETYPE type;
     D3DPOOL pool;
     DWORD priority;
+    DWORD usage;
+
+    /* system memory copy for non-default pool */
+    struct {
+        uint8_t *data;
+        unsigned size;
+    } sys;
 
     /* creator device */
     struct NineDevice9 *device;

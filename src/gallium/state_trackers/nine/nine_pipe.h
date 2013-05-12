@@ -26,6 +26,8 @@
 #include "d3d9.h"
 #include "pipe/p_format.h"
 
+struct cso_context;
+
 const enum pipe_format nine_d3d9_to_pipe_format_map[120];
 const D3DFORMAT nine_pipe_to_d3d9_format_map[PIPE_FORMAT_COUNT];
 

@@ -50,6 +50,10 @@ NineSurface9_ctor( struct NineSurface9 *This,
                                     D3DRTYPE_SURFACE, pDesc->Pool);
     if (FAILED(hr)) { return hr; }
 
+    /* Reference the container so the data doesn't get deallocated in case
+     * the user releases the container.
+     */
+    NineUnknown_AddRef(pContainer);
     This->container = pContainer;
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->screen = NineDevice9_GetScreen(pDevice);
@@ -74,6 +78,8 @@ NineSurface9_dtor( struct NineSurface9 *This )
 {
     if (This->surface) { pipe_surface_reference(&This->surface, NULL); }
     if (This->transfer) { NineSurface9_UnlockRect(This); }
+
+    NineUnknown_Release(This->container);
 
     NineResource9_dtor(&This->base);
 }

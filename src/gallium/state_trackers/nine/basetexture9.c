@@ -23,6 +23,8 @@
 #include "basetexture9.h"
 #include "device9.h"
 
+#include "util/u_gen_mipmap.h"
+
 #define DBG_CHANNEL DBG_BASETEXTURE
 
 HRESULT
@@ -38,9 +40,10 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
     if (FAILED(hr)) { return hr; }
 
     This->pipe = NineDevice9_GetPipe(pDevice);
-    This->cso = NineDevice9_GetCSO(pDevice);
     This->mipfilter = D3DTEXF_LINEAR;
     This->lod = 0;
+
+    list_inithead(&This->dirty);
 
     return D3D_OK;
 }
@@ -48,6 +51,10 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
 void
 NineBaseTexture9_dtor( struct NineBaseTexture9 *This )
 {
+    pipe_sampler_view_reference(&This->view, NULL);
+
+    NineBaseTexture9_ClearDirtyRegions(This);
+
     NineResource9_dtor(&This->base);
 }
 
@@ -99,5 +106,14 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This )
 void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
 {
-    STUB();
+    unsigned base_level = 0; /* TODO */
+    unsigned last_level = 0;
+    unsigned z;
+    unsigned filter = This->mipfilter == D3DTEXF_POINT ? PIPE_TEX_FILTER_NEAREST
+                                                       : PIPE_TEX_FILTER_LINEAR;
+
+    for (z = 0; z < This->layers; ++z)
+        util_gen_mipmap(This->base.device->gen_mipmap,
+                        This->view,
+                        z, base_level, last_level, filter);
 }

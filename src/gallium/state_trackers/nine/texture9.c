@@ -20,16 +20,159 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include "device9.h"
+#include "surface9.h"
 #include "texture9.h"
+#include "nine_helpers.h"
+#include "nine_pipe.h"
+
+#include "pipe/p_state.h"
+#include "pipe/p_context.h"
+#include "pipe/p_screen.h"
+#include "util/u_inlines.h"
+#include "util/u_resource.h"
 
 #define DBG_CHANNEL DBG_TEXTURE
+
+static void
+NineTexture9_UpdateSamplerView( struct NineTexture9 *This )
+{
+    struct pipe_context *pipe = This->base.pipe;
+    struct pipe_resource *resource = This->base.base.resource;
+    struct pipe_sampler_view templ;
+
+    assert(resource);
+
+    pipe_sampler_view_reference(&This->base.view, NULL);
+
+    templ.format = resource->format;
+    templ.u.tex.first_layer = 0;
+    templ.u.tex.last_layer = 0;
+    templ.u.tex.first_level = 0;
+    templ.u.tex.last_level = resource->last_level;
+    templ.swizzle_r = PIPE_SWIZZLE_RED;
+    templ.swizzle_g = PIPE_SWIZZLE_GREEN;
+    templ.swizzle_b = PIPE_SWIZZLE_BLUE;
+    templ.swizzle_a = PIPE_SWIZZLE_ALPHA;
+
+    This->base.view = pipe->create_sampler_view(pipe, resource, &templ);
+}
+
+static HRESULT
+NineTexture9_ctor( struct NineTexture9 *This,
+                   struct NineUnknownParams *pParams,
+                   struct NineDevice9 *pDevice,
+                   UINT Width, UINT Height, UINT Levels,
+                   DWORD Usage,
+                   D3DFORMAT Format,
+                   D3DPOOL Pool,
+                   HANDLE *pSharedHandle )
+{
+    struct pipe_screen *screen = pDevice->screen;
+    struct pipe_resource *resource = NULL;
+    HRESULT hr;
+    struct pipe_resource templ;
+
+    assert(!pSharedHandle); /* TODO */
+
+    templ.target = PIPE_TEXTURE_2D;
+    templ.format = d3d9_to_pipe_format(Format);
+    templ.width0 = Width;
+    templ.height0 = Height;
+    templ.depth0 = 1;
+    if (Levels)
+        templ.last_level = Levels - 1;
+    else
+        templ.last_level = util_logbase2(MAX2(Width, Height));
+    templ.array_size = 1;
+    templ.nr_samples = 0;
+    templ.flags = 0;
+
+    if (Pool != D3DPOOL_SYSTEMMEM && Pool != D3DPOOL_SCRATCH) {
+        /* create device-accessible texture */
+        unsigned bind =
+            PIPE_BIND_SAMPLER_VIEW |
+            PIPE_BIND_TRANSFER_WRITE |
+            PIPE_BIND_TRANSFER_READ;
+        unsigned usage = PIPE_USAGE_STATIC;
+
+        if (Usage & D3DUSAGE_RENDERTARGET)
+            bind |= PIPE_BIND_RENDER_TARGET;
+        if (Usage & D3DUSAGE_DEPTHSTENCIL)
+            bind |= PIPE_BIND_DEPTH_STENCIL;
+
+        if (Usage & D3DUSAGE_DYNAMIC)
+            usage = PIPE_USAGE_DYNAMIC;
+
+        templ.usage = usage;
+        templ.bind = bind;
+
+        if (!screen->is_format_supported(screen, templ.format, PIPE_TEXTURE_2D,
+                                         0, bind))
+            return D3DERR_WRONGTEXTUREFORMAT;
+
+        resource = screen->resource_create(screen, &templ);
+        if (!resource)
+            return D3DERR_OUTOFVIDEOMEMORY;
+    }
+    if (Pool != D3DPOOL_DEFAULT) {
+        /* create system memory backing */
+        struct NineResource9 *base = NineResource9(This);
+
+        base->sys.size = util_resource_size(&templ);
+        base->sys.data = (uint8_t *)MALLOC(base->sys.size);
+        if (!base->sys.data)
+            return E_OUTOFMEMORY;
+    }
+    This->base.format = Format;
+    This->base.width = Width;
+    This->base.height = Height;
+    This->base.layers = 1;
+    This->base.last_level = templ.last_level;
+    This->base.base.usage = Usage;
+
+    hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
+                               resource,
+                               D3DRTYPE_TEXTURE, Pool);
+    if (FAILED(hr))
+        return hr;
+
+    NineTexture9_UpdateSamplerView(This);
+
+    return D3D_OK;
+}
+
+static void
+NineTexture9_dtor( struct NineTexture9 *This )
+{
+    NineBaseTexture9_dtor(&This->base);
+}
 
 HRESULT WINAPI
 NineTexture9_GetLevelDesc( struct NineTexture9 *This,
                            UINT Level,
                            D3DSURFACE_DESC *pDesc )
 {
-    STUB(D3DERR_INVALIDCALL);
+    const struct pipe_resource *resource = This->base.base.resource;
+
+    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(pDesc, E_POINTER);
+
+    pDesc->Format = This->base.format;
+    pDesc->Type = D3DRTYPE_TEXTURE;
+    pDesc->Usage = This->base.base.usage;
+    pDesc->Pool = This->base.base.pool;
+    if (resource) {
+        pDesc->MultiSampleType = (D3DMULTISAMPLE_TYPE)resource->nr_samples;
+        pDesc->MultiSampleQuality = 0;
+    } else {
+        pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
+        pDesc->MultiSampleQuality = 0;
+    }
+    pDesc->Width = u_minify(This->base.width, Level);
+    pDesc->Height = u_minify(This->base.height, Level);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -37,7 +180,22 @@ NineTexture9_GetSurfaceLevel( struct NineTexture9 *This,
                               UINT Level,
                               IDirect3DSurface9 **ppSurfaceLevel )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_resource *resource = This->base.base.resource;
+    struct NineDevice9 *device = This->base.base.device;
+    struct NineSurface9 *surf;
+    HRESULT hr;
+    D3DSURFACE_DESC desc;
+
+    hr = NineTexture9_GetLevelDesc(This, Level, &desc);
+    if (FAILED(hr))
+        return hr;
+
+    hr = NineSurface9_new(device, NineUnknown(This),
+                          resource, Level, 0, &desc, &surf);
+    if (SUCCEEDED(hr))
+        *ppSurfaceLevel = (IDirect3DSurface9 *)surf;
+
+    return hr;
 }
 
 HRESULT WINAPI
@@ -47,14 +205,55 @@ NineTexture9_LockRect( struct NineTexture9 *This,
                        const RECT *pRect,
                        DWORD Flags )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_context *pipe = This->base.pipe;
+    struct pipe_resource *resource = This->base.base.resource;
+    struct pipe_box box;
+    unsigned usage;
+
+    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+
+    NineBaseTexture9_GetPipeBox2D(&This->base, &box, Level, 0, pRect);
+
+    usage = (Flags & D3DLOCK_READONLY) ?
+        PIPE_TRANSFER_READ : PIPE_TRANSFER_WRITE;
+    usage |= (Flags & D3DLOCK_DISCARD) ?
+        PIPE_TRANSFER_DISCARD_RANGE : PIPE_TRANSFER_READ;
+
+    if (This->base.base.pool == D3DPOOL_DEFAULT) {
+        pLockedRect->pBits =
+            pipe->transfer_map(pipe, resource, Level, usage, &box,
+                               &This->base.transfer[Level]);
+        pLockedRect->Pitch = This->base.transfer[Level]->stride;
+    } else {
+        /* we should probably remember these ... */
+        unsigned offset = 0;
+        unsigned stride = 0;
+        pLockedRect->pBits = This->base.base.sys.data + offset;
+        pLockedRect->Pitch = stride;
+
+        if (!(Flags & D3DLOCK_NO_DIRTY_UPDATE))
+            NineBaseTexture9_AddDirtyRegion(&This->base, &box);
+    }
+
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
 NineTexture9_UnlockRect( struct NineTexture9 *This,
                          UINT Level )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_context *pipe = This->base.pipe;
+
+    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+
+    if (This->base.base.pool == D3DPOOL_DEFAULT) {
+        user_assert(This->base.transfer[Level], D3DERR_INVALIDCALL);
+        pipe->transfer_unmap(pipe, This->base.transfer[Level]);
+    } else {
+    }
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -88,3 +287,25 @@ IDirect3DTexture9Vtbl NineTexture9_vtable = {
     (void *)NineTexture9_UnlockRect,
     (void *)NineTexture9_AddDirtyRect
 };
+
+static const GUID *NineTexture9_IIDs[] = {
+    &IID_IDirect3DTexture9,
+    &IID_IDirect3DBaseTexture9,
+    &IID_IDirect3DResource9,
+    &IID_IUnknown,
+    NULL
+};
+
+HRESULT
+NineTexture9_new( struct NineDevice9 *pDevice,
+                  UINT Width, UINT Height, UINT Levels,
+                  DWORD Usage,
+                  D3DFORMAT Format,
+                  D3DPOOL Pool,
+                  struct NineTexture9 **ppOut,
+                  HANDLE *pSharedHandle )
+{
+    NINE_NEW(NineTexture9, ppOut, pDevice,
+             Width, Height, Levels,
+             Usage, Format, Pool, pSharedHandle);
+}

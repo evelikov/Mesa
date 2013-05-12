@@ -30,6 +30,7 @@
 
 #include "d3dpresent.h"
 
+struct gen_mipmap_state;
 struct pipe_screen;
 struct pipe_context;
 struct cso_context;
@@ -65,6 +66,8 @@ struct NineDevice9
     struct pipe_resource *constbuf_ps;
     uint32_t vs_bool_true;
     uint32_t ps_bool_true;
+
+    struct gen_mipmap_state *gen_mipmap;
 };
 static INLINE struct NineDevice9 *
 NineDevice9( void *data )

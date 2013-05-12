@@ -29,6 +29,7 @@
 #include "vertexshader9.h"
 #include "pixelshader9.h"
 #include "query9.h"
+#include "texture9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
 
@@ -37,6 +38,7 @@
 #include "util/u_math.h"
 #include "util/u_inlines.h"
 #include "util/u_format.h"
+#include "util/u_gen_mipmap.h"
 
 #include "cso_cache/cso_context.h"
 
@@ -146,6 +148,10 @@ NineDevice9_ctor( struct NineDevice9 *This,
     This->ps_bool_true = pScreen->get_shader_param(pScreen,
         PIPE_SHADER_FRAGMENT,
         PIPE_SHADER_CAP_INTEGERS) ? 0xFFFFFFFF : fui(1.0f);
+
+    This->gen_mipmap = util_create_gen_mipmap(This->pipe, This->cso);
+    if (!This->gen_mipmap)
+        return E_OUTOFMEMORY;
 
     nine_state_set_defaults(&This->state, &This->caps);
 
@@ -412,10 +418,23 @@ NineDevice9_CreateTexture( struct NineDevice9 *This,
                            IDirect3DTexture9 **ppTexture,
                            HANDLE *pSharedHandle )
 {
+    struct NineTexture9 *tex;
+    HRESULT hr;
+
     Usage &= D3DUSAGE_AUTOGENMIPMAP | D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_DMAP |
              D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET |
              D3DUSAGE_SOFTWAREPROCESSING | D3DUSAGE_TEXTAPI;
-    STUB(D3DERR_INVALIDCALL);
+
+    user_assert(Width && Height, D3DERR_INVALIDCALL);
+    user_assert(!pSharedHandle || Pool != D3DPOOL_SYSTEMMEM || Levels == 1,
+                D3DERR_INVALIDCALL);
+
+    hr = NineTexture9_new(This, Width, Height, Levels, Usage, Format, Pool,
+                          &tex, pSharedHandle);
+    if (SUCCEEDED(hr))
+        *ppTexture = (IDirect3DTexture9 *)tex;
+
+    return hr;
 }
 
 HRESULT WINAPI
