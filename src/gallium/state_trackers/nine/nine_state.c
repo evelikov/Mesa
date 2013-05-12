@@ -300,6 +300,20 @@ update_index_buffer(struct NineDevice9 *device)
         pipe->set_index_buffer(pipe, NULL);
 }
 
+static void
+update_samplers()
+{
+}
+
+static void
+update_textures()
+{
+#if 0
+    if (MANAGED)
+        texture->PreLoad();
+#endif
+}
+
 #define NINE_STATE_FREQ_GROUP_0 \
    (NINE_STATE_FB |             \
     NINE_STATE_VIEWPORT |       \
@@ -357,6 +371,11 @@ nine_update_state(struct NineDevice9 *device)
         pipe->set_clip_state(pipe, &state->clip);
 
     if (state->changed.group & NINE_STATE_FREQ_GROUP_1) {
+        if (state->changed.group & NINE_STATE_SAMPLER)
+            update_samplers(device);
+        if (state->changed.group & NINE_STATE_TEXTURE)
+            update_textures(device);
+
         if (state->changed.group & NINE_STATE_IDXBUF)
             update_index_buffer(device);
 

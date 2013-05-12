@@ -281,3 +281,42 @@ NineResource9_GetType( struct NineResource9 *This )
 {
     return This->type;
 }
+
+#if 0
+HRESULT
+NineSource9_AllocateData( struct NineResource9 *This )
+{
+    struct pipe_resource *resource = NULL;
+
+    if (type == D3DRTYPE_SURFACE) {
+        /* Allocate a staging resource to save a copy:
+         * user -> staging resource
+         * staging resource -> (blit) -> video memory
+         *
+         * Instead of:
+         * user -> system memory
+         * system memory -> transfer staging area
+         * transfer -> video memory
+         */
+        struct pipe_resource templ;
+        templ.target = PIPE_TEXTURE_2D;
+        templ.format = format;
+        templ.width0 = w;
+        templ.height0 = h;
+        templ.depth0 = 1;
+        templ.array_size = 1;
+        templ.last_level = 0;
+        templ.nr_samples = 0;
+        templ.usage = PIPE_USAGE_STAGING;
+        templ.bind = PIPE_BIND_SAMPLER_VIEW;
+        templ.flags = 0;
+        resource = screen->resource_create(screen, &templ);
+    }
+    if (!resource) {
+        data = MALLOC(size);
+        if (!data)
+            return E_OUTOFMEMORY;
+    }
+    return D3D_OK;
+}
+#endif
