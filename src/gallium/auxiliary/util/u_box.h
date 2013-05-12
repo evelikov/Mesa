@@ -77,4 +77,31 @@ void u_box_3d( unsigned x,
    box->depth = d;
 }
 
+/* Returns whether @a is contained in or equal to @b. */
+static INLINE
+boolean u_box_contained(struct pipe_box *a, struct pipe_box *b)
+{
+   return
+      a->x >= b->x && (a->x + a->width  <= b->x + b->width) &&
+      a->y >= b->y && (a->y + a->height <= b->y + b->height) &&
+      a->z >= b->z && (a->z + a->depth  <= b->z + b->depth);
+}
+
+/* Clips @box to width @w and height @h.
+ * Returns -1 if the resulting box would be empty (then @box is left unchanged).
+ * Otherwise, returns 1/2/0/3 if width/height/neither/both have been reduced.
+ */
+static INLINE
+int u_box_clip_2d(struct pipe_box *box, unsigned w, unsigned h)
+{
+   unsigned max_w = w - box->x;
+   unsigned max_h = h - box->y;
+   int res = 0;
+   if (box->x >= w || box->y >= h)
+      return -1;
+   if (box->width  > max_w) { res |= 1; box->width  = max_w; }
+   if (box->height > max_h) { res |= 2; box->height = max_h; }
+   return res;
+}
+
 #endif

@@ -73,6 +73,9 @@ NineTexture9_ctor( struct NineTexture9 *This,
     HRESULT hr;
     struct pipe_resource templ;
 
+    user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
+                Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+
     assert(!pSharedHandle); /* TODO */
 
     templ.target = PIPE_TEXTURE_2D;
@@ -145,6 +148,15 @@ NineTexture9_ctor( struct NineTexture9 *This,
 static void
 NineTexture9_dtor( struct NineTexture9 *This )
 {
+    unsigned l;
+
+    if (This->surfaces) {
+        for (l = 0; l <= This->base.last_level; ++l)
+            if (This->surfaces[l])
+                NineUnknown_Release(NineUnknown(This->surfaces[l]));
+        FREE(This->surfaces);
+    }
+
     NineBaseTexture9_dtor(&This->base);
 }
 
@@ -153,24 +165,9 @@ NineTexture9_GetLevelDesc( struct NineTexture9 *This,
                            UINT Level,
                            D3DSURFACE_DESC *pDesc )
 {
-    const struct pipe_resource *resource = This->base.base.resource;
-
     user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
-    user_assert(pDesc, E_POINTER);
 
-    pDesc->Format = This->base.format;
-    pDesc->Type = D3DRTYPE_TEXTURE;
-    pDesc->Usage = This->base.base.usage;
-    pDesc->Pool = This->base.base.pool;
-    if (resource) {
-        pDesc->MultiSampleType = (D3DMULTISAMPLE_TYPE)resource->nr_samples;
-        pDesc->MultiSampleQuality = 0;
-    } else {
-        pDesc->MultiSampleType = D3DMULTISAMPLE_NONE;
-        pDesc->MultiSampleQuality = 0;
-    }
-    pDesc->Width = u_minify(This->base.width, Level);
-    pDesc->Height = u_minify(This->base.height, Level);
+    *pDesc = This->surfaces[Level]->desc;
 
     return D3D_OK;
 }
@@ -180,22 +177,12 @@ NineTexture9_GetSurfaceLevel( struct NineTexture9 *This,
                               UINT Level,
                               IDirect3DSurface9 **ppSurfaceLevel )
 {
-    struct pipe_resource *resource = This->base.base.resource;
-    struct NineDevice9 *device = This->base.base.device;
-    struct NineSurface9 *surf;
-    HRESULT hr;
-    D3DSURFACE_DESC desc;
+    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
 
-    hr = NineTexture9_GetLevelDesc(This, Level, &desc);
-    if (FAILED(hr))
-        return hr;
+    NineUnknown_AddRef(NineUnknown(This->surfaces[Level]));
+    *ppSurfaceLevel = (IDirect3DSurface9 *)This->surfaces[Level];
 
-    hr = NineSurface9_new(device, NineUnknown(This),
-                          resource, Level, 0, &desc, &surf);
-    if (SUCCEEDED(hr))
-        *ppSurfaceLevel = (IDirect3DSurface9 *)surf;
-
-    return hr;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -205,12 +192,16 @@ NineTexture9_LockRect( struct NineTexture9 *This,
                        const RECT *pRect,
                        DWORD Flags )
 {
+    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+
+    return NineSurface9_LockRect(This->surfaces[Level], pLockedRect,
+                                 pRect, Flags);
+
+#if 0
     struct pipe_context *pipe = This->base.pipe;
     struct pipe_resource *resource = This->base.base.resource;
     struct pipe_box box;
     unsigned usage;
-
-    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
 
     NineBaseTexture9_GetPipeBox2D(&This->base, &box, Level, 0, pRect);
 
@@ -234,33 +225,31 @@ NineTexture9_LockRect( struct NineTexture9 *This,
         if (!(Flags & D3DLOCK_NO_DIRTY_UPDATE))
             NineBaseTexture9_AddDirtyRegion(&This->base, &box);
     }
-
-
     return D3D_OK;
+#endif
 }
 
 HRESULT WINAPI
 NineTexture9_UnlockRect( struct NineTexture9 *This,
                          UINT Level )
 {
-    struct pipe_context *pipe = This->base.pipe;
-
     user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
 
-    if (This->base.base.pool == D3DPOOL_DEFAULT) {
-        user_assert(This->base.transfer[Level], D3DERR_INVALIDCALL);
-        pipe->transfer_unmap(pipe, This->base.transfer[Level]);
-    } else {
-    }
-
-    return D3D_OK;
+    return NineSurface9_UnlockRect(This->surfaces[Level]);
 }
 
 HRESULT WINAPI
 NineTexture9_AddDirtyRect( struct NineTexture9 *This,
                            const RECT *pDirtyRect )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineDirtyRect *entry;
+    struct u_rect rect;
+    rect_to_g3d_u_rect(&rect, pDirtyRect);
+
+    entry = NineSurface9_AddDirtyRect(This->surfaces[0], &rect, TRUE);
+    if (!entry)
+        return E_OUTOFMEMORY;
+    return D3D_OK;
 }
 
 IDirect3DTexture9Vtbl NineTexture9_vtable = {

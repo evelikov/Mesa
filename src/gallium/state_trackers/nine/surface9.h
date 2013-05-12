@@ -26,6 +26,15 @@
 #include "resource9.h"
 
 #include "pipe/p_state.h"
+#include "util/u_double_list.h"
+#include "util/u_rect.h"
+
+struct NineDirtyRect
+{
+    struct list_head list;
+    struct u_rect rect;
+    boolean all_levels;
+};
 
 struct NineSurface9
 {
@@ -38,11 +47,14 @@ struct NineSurface9
     struct pipe_context *pipe;
     struct pipe_screen *screen;
     struct pipe_transfer *transfer;
-    struct pipe_surface *surface;
+    struct pipe_surface *surface; /* created on-demand */
 
     /* resource description */
     unsigned level;
+    unsigned layer;
     D3DSURFACE_DESC desc;
+
+    struct list_head dirty;
 };
 static INLINE struct NineSurface9 *
 NineSurface9( void *data )
@@ -75,7 +87,21 @@ NineSurface9_dtor( struct NineSurface9 *This );
 /*** Nine private ***/
 
 struct pipe_surface *
-NineSurface9_GetSurface( struct NineSurface9 *This );
+NineSurface9_CreatePipeSurface( struct NineSurface9 *This );
+
+static INLINE struct pipe_surface *
+NineSurface9_GetSurface( struct NineSurface9 *This )
+{
+    if (This->surface)
+        return This->surface;
+    return NineSurface9_CreatePipeSurface(This);
+}
+
+static INLINE struct pipe_resource *
+NineSurface9_GetResource( struct NineSurface9 *This )
+{
+    return This->base.resource;
+}
 
 /*** Direct3D public ***/
 
@@ -104,5 +130,43 @@ NineSurface9_GetDC( struct NineSurface9 *This,
 HRESULT WINAPI
 NineSurface9_ReleaseDC( struct NineSurface9 *This,
                         HDC hdc );
+
+
+static INLINE struct NineDirtyRect *
+NineSurface9_AddDirtyRect( struct NineSurface9 *This,
+                           const struct u_rect *rect, boolean all_levels )
+{
+    struct NineDirtyRect *drect;
+
+    LIST_FOR_EACH_ENTRY(drect, &This->dirty, list) {
+        if (drect->all_levels || !all_levels)
+            if (u_rect_contained(rect, &drect->rect))
+                return NULL;
+        if (!drect->all_levels || all_levels) {
+            if (u_rect_contained(&drect->rect, rect)) {
+                drect->rect = *rect;
+                drect->all_levels = all_levels;
+                return drect;
+            }
+        }
+    }
+    drect = CALLOC_STRUCT(NineDirtyRect);
+    if (drect) {
+        list_inithead(&drect->list);
+        list_addtail(&This->dirty, &drect->list);
+        drect->rect = *rect;
+        drect->all_levels = all_levels;
+    }
+    return drect;
+}
+
+static INLINE void
+NineSurface9_ClearDirtyRects( struct NineSurface9 *This )
+{
+    struct NineDirtyRect *r, *s;
+
+    LIST_FOR_EACH_ENTRY_SAFE(r, s, &This->dirty, list)
+        FREE(r);
+}
 
 #endif /* _NINE_SURFACE9_H_ */

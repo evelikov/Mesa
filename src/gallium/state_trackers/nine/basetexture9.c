@@ -43,8 +43,6 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
     This->mipfilter = D3DTEXF_LINEAR;
     This->lod = 0;
 
-    list_inithead(&This->dirty);
-
     return D3D_OK;
 }
 
@@ -52,8 +50,6 @@ void
 NineBaseTexture9_dtor( struct NineBaseTexture9 *This )
 {
     pipe_sampler_view_reference(&This->view, NULL);
-
-    NineBaseTexture9_ClearDirtyRegions(This);
 
     NineResource9_dtor(&This->base);
 }

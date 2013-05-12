@@ -67,6 +67,17 @@ u_rect_find_intersection(const struct u_rect *a,
 }
 
 
+/* Return true if @a is contained in or equal to @b.
+ */
+static INLINE boolean
+u_rect_contained(const struct u_rect *a, const struct u_rect *b)
+{
+   return
+      a->x0 >= b->x0 && a->x1 <= b->x1 &&
+      a->y0 >= b->y0 && a->y1 <= b->y1;
+}
+
+
 static INLINE void
 u_rect_possible_intersection(const struct u_rect *a,
                              struct u_rect *b)

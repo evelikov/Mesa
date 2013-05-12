@@ -24,6 +24,7 @@
 #include "device9.h"
 
 #include "nine_helpers.h"
+#include "nine_pipe.h"
 
 #include "pipe/p_context.h"
 #include "pipe/p_screen.h"
@@ -45,30 +46,33 @@ NineSurface9_ctor( struct NineSurface9 *This,
                    unsigned Layer,
                    D3DSURFACE_DESC *pDesc )
 {
-    struct pipe_surface tmplt;
     HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice, pResource,
                                     D3DRTYPE_SURFACE, pDesc->Pool);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr))
+        return hr;
 
     /* Reference the container so the data doesn't get deallocated in case
      * the user releases the container.
      */
     NineUnknown_AddRef(pContainer);
     This->container = pContainer;
+
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->screen = NineDevice9_GetScreen(pDevice);
     This->transfer = NULL;
 
-    memset(&tmplt, 0, sizeof(struct pipe_surface));
-    u_surface_default_template(&tmplt, pResource);
-    tmplt.u.tex.level = Level;
-    tmplt.u.tex.first_layer = Layer;
-    tmplt.u.tex.last_layer = Layer;
-    This->surface = This->pipe->create_surface(This->pipe, pResource, &tmplt);
-
     This->level = Level;
+    This->layer = Layer;
     This->desc = *pDesc;
-    if (!This->surface) { return D3DERR_DRIVERINTERNALERROR; }
+
+    if ((pDesc->Usage & (D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_RENDERTARGET)) &&
+        Level == 0) {
+        NineSurface9_CreatePipeSurface(This);
+        if (!This->surface)
+            return D3DERR_DRIVERINTERNALERROR;
+    }
+
+    list_inithead(&This->dirty);
 
     return D3D_OK;
 }
@@ -79,14 +83,26 @@ NineSurface9_dtor( struct NineSurface9 *This )
     if (This->surface) { pipe_surface_reference(&This->surface, NULL); }
     if (This->transfer) { NineSurface9_UnlockRect(This); }
 
+    NineSurface9_ClearDirtyRects(This);
+
     NineUnknown_Release(This->container);
 
     NineResource9_dtor(&This->base);
 }
 
 struct pipe_surface *
-NineSurface9_GetSurface( struct NineSurface9 *This )
+NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
 {
+    struct pipe_context *pipe = This->pipe;
+    struct pipe_resource *resource = This->base.resource;
+    struct pipe_surface templ;
+
+    templ.format = resource->format;
+    templ.u.tex.level = This->level;
+    templ.u.tex.first_layer = This->layer;
+    templ.u.tex.last_layer = This->layer;
+
+    This->surface = pipe->create_surface(pipe, resource, &templ);
     return This->surface;
 }
 
@@ -113,56 +129,58 @@ NineSurface9_LockRect( struct NineSurface9 *This,
                        const RECT *pRect,
                        DWORD Flags )
 {
+    struct pipe_resource *resource = This->base.resource;
     struct pipe_box box;
-    unsigned usage = 0;
+    unsigned usage;
+
+    user_assert(!(Flags & ~(D3DLOCK_DISCARD |
+                            D3DLOCK_DONOTWAIT |
+                            D3DLOCK_NO_DIRTY_UPDATE |
+                            D3DLOCK_NOSYSLOCK | /* ignored */
+                            D3DLOCK_READONLY)), D3DERR_INVALIDCALL);
+    user_assert(!((Flags & D3DLOCK_DISCARD) && (Flags & D3DLOCK_READONLY)),
+                D3DERR_INVALIDCALL);
 
     /* check if it's already locked */
     user_assert(!This->transfer, D3DERR_INVALIDCALL);
     user_assert(pLockedRect, E_POINTER);
 
     if (Flags & D3DLOCK_DISCARD) {
-        usage |= PIPE_TRANSFER_DISCARD_RANGE;
+        usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     } else {
-        usage |= PIPE_TRANSFER_READ;
+        usage = (Flags & D3DLOCK_READONLY) ?
+            PIPE_TRANSFER_READ : PIPE_TRANSFER_READ_WRITE;
     }
-
-    if (!(Flags & D3DLOCK_READONLY)) { usage |= PIPE_TRANSFER_WRITE; }
-    if (Flags & D3DLOCK_DONOTWAIT) { usage |= PIPE_TRANSFER_DONTBLOCK; }
-    if (Flags & D3DLOCK_NOOVERWRITE) { usage |= PIPE_TRANSFER_UNSYNCHRONIZED; }
-    /* XXX prevent dirty state updates?
-    if (Flags & D3DLOCK_NO_DIRTY_UPDATE) { } */
-    /* XXX we don't have a system-wide lock for this, so ignore
-    if (Flags & D3DLOCK_NOSYSLOCK) { } */
+    if (Flags & D3DLOCK_DONOTWAIT)
+        usage |= PIPE_TRANSFER_DONTBLOCK;
 
     if (pRect) {
-        box.x = pRect->left;
-        box.y = pRect->top;
-        box.z = 0;
-        box.width = pRect->right-pRect->left;
-        box.height = pRect->bottom-pRect->top;
-        box.depth = 0;
+        rect_to_pipe_box(&box, pRect);
+        if (u_box_clip_2d(&box, This->desc.Width, This->desc.Height) < 0)
+            return D3DERR_INVALIDCALL;
     } else {
-        box.x = 0;
-        box.y = 0;
-        box.z = 0;
-        box.width = This->desc.Width;
-        box.height = This->desc.Height;
-        box.depth = 0;
+        u_box_origin_2d(This->desc.Width, This->desc.Height, &box);
     }
-    box.width = MIN2(box.width-box.x, This->desc.Width-box.x);
-    box.height = MIN2(box.height-box.y, This->desc.Height-box.y);
 
-    pLockedRect->pBits = This->pipe->transfer_map(This->pipe,
-                                                  This->surface->texture,
+    pLockedRect->pBits = This->pipe->transfer_map(This->pipe, resource,
                                                   This->level, usage, &box,
                                                   &This->transfer);
     if (!This->transfer) {
-        if (Flags & D3DLOCK_DONOTWAIT) {
+        if (Flags & D3DLOCK_DONOTWAIT)
             return D3DERR_WASSTILLDRAWING;
-        }
         return D3DERR_INVALIDCALL;
     }
     pLockedRect->Pitch = This->transfer->stride;
+
+    if (!(Flags & D3DLOCK_NO_DIRTY_UPDATE)) {
+        /* XXX: make this a pipe_box ? */
+        struct u_rect rect;
+        rect.x0 = box.x;
+        rect.x1 = box.x + box.width;
+        rect.y0 = box.y;
+        rect.y1 = box.y + box.height;
+        NineSurface9_AddDirtyRect(This, &rect, FALSE);
+    }
 
     return D3D_OK;
 }

@@ -24,10 +24,12 @@
 #define _NINE_TEXTURE9_H_
 
 #include "basetexture9.h"
+#include "surface9.h"
 
 struct NineTexture9
 {
     struct NineBaseTexture9 base;
+    struct NineSurface9 **surfaces;
 };
 static INLINE struct NineTexture9 *
 NineTexture9( void *data )

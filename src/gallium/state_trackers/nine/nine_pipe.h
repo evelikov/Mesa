@@ -25,6 +25,8 @@
 
 #include "d3d9.h"
 #include "pipe/p_format.h"
+#include "pipe/p_state.h" /* pipe_box */
+#include "util/u_rect.h"
 
 struct cso_context;
 
@@ -44,6 +46,46 @@ static INLINE float asfloat(DWORD value)
     } u;
     u.w = value;
     return u.f;
+}
+
+static INLINE void
+rect_to_pipe_box(struct pipe_box *dst, const RECT *src)
+{
+    dst->x = src->left;
+    dst->y = src->top;
+    dst->z = 0;
+    dst->width = src->right - src->left;
+    dst->height = src->top - src->bottom;
+    dst->depth = 1;
+}
+
+static INLINE void
+rect_to_pipe_box_xy_only(struct pipe_box *dst, const RECT *src)
+{
+    dst->x = src->left;
+    dst->y = src->top;
+    dst->width = src->right - src->left;
+    dst->height = src->top - src->bottom;
+}
+
+static INLINE void
+rect_to_g3d_u_rect(struct u_rect *dst, const RECT *src)
+{
+    dst->x0 = src->left;
+    dst->x1 = src->right;
+    dst->y0 = src->top;
+    dst->y1 = src->bottom;
+}
+
+static INLINE void
+d3dbox_to_pipe_box(struct pipe_box *dst, const D3DBOX *src)
+{
+    dst->x = src->Left;
+    dst->y = src->Top;
+    dst->z = src->Front;
+    dst->width = src->Right - src->Left;
+    dst->height = src->Top - src->Bottom;
+    dst->depth = src->Back - src->Front;
 }
 
 static INLINE D3DFORMAT

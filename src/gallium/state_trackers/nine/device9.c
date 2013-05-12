@@ -577,65 +577,61 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
 {
     struct pipe_screen *screen = This->screen;
     struct pipe_context *pipe = This->pipe;
-    struct pipe_surface *dst = NineSurface9(pDestSurface)->surface;
-    struct pipe_surface *src = NineSurface9(pSourceSurface)->surface;
-    const boolean zs = util_format_is_depth_or_stencil(dst->format);
+    struct NineSurface9 *dst = NineSurface9(pDestSurface);
+    struct NineSurface9 *src = NineSurface9(pSourceSurface);
+    struct pipe_resource *dst_res = NineSurface9_GetResource(dst);
+    struct pipe_resource *src_res = NineSurface9_GetResource(src);
+    const boolean zs = util_format_is_depth_or_stencil(dst_res->format);
     struct pipe_blit_info blit;
 
     user_assert(!zs || !This->in_scene, D3DERR_INVALIDCALL);
     user_assert(!zs || !pSourceRect ||
                 (pSourceRect->left == 0 &&
                  pSourceRect->top == 0 &&
-                 pSourceRect->right == src->width &&
-                 pSourceRect->bottom == src->height), D3DERR_INVALIDCALL);
+                 pSourceRect->right == src->desc.Width &&
+                 pSourceRect->bottom == src->desc.Height), D3DERR_INVALIDCALL);
     user_assert(!zs || !pDestRect ||
                 (pDestRect->left == 0 &&
                  pDestRect->top == 0 &&
-                 pDestRect->right == dst->width &&
-                 pDestRect->bottom == dst->height), D3DERR_INVALIDCALL);
-    user_assert(screen->is_format_supported(screen, dst->format,
-                                            dst->texture->target,
-                                            dst->texture->nr_samples,
+                 pDestRect->right == dst->desc.Width &&
+                 pDestRect->bottom == dst->desc.Height), D3DERR_INVALIDCALL);
+    user_assert(screen->is_format_supported(screen, dst_res->format,
+                                            dst_res->target,
+                                            dst_res->nr_samples,
                                             zs ? PIPE_BIND_DEPTH_STENCIL :
                                             PIPE_BIND_RENDER_TARGET),
                 D3DERR_INVALIDCALL);
-    user_assert(screen->is_format_supported(screen, src->format,
-                                            src->texture->target,
-                                            src->texture->nr_samples,
+    user_assert(screen->is_format_supported(screen, src_res->format,
+                                            src_res->target,
+                                            src_res->nr_samples,
                                             PIPE_BIND_SAMPLER_VIEW),
                 D3DERR_INVALIDCALL);
 
-    blit.dst.resource = dst->texture;
-    blit.dst.level = dst->u.tex.level;
-    blit.dst.box.z = dst->u.tex.first_layer;
+    blit.dst.resource = dst_res;
+    blit.dst.level = dst->level;
+    blit.dst.box.z = dst->layer;
     blit.dst.box.depth = 1;
-    blit.dst.format = dst->format;
+    blit.dst.format = dst_res->format;
     if (pDestRect) {
-       blit.dst.box.x = pDestRect->left;
-       blit.dst.box.y = pDestRect->top;
-       blit.dst.box.width = pDestRect->right - pDestRect->left;
-       blit.dst.box.height = pDestRect->bottom - pDestRect->top;
+        rect_to_pipe_box_xy_only(&blit.dst.box, pDestRect);
     } else {
        blit.dst.box.x = 0;
        blit.dst.box.y = 0;
-       blit.dst.box.width = dst->width;
-       blit.dst.box.height = dst->height;
+       blit.dst.box.width = dst->desc.Width;
+       blit.dst.box.height = dst->desc.Height;
     }
-    blit.src.resource = src->texture;
-    blit.src.level = src->u.tex.level;
-    blit.src.box.z = src->u.tex.first_layer;
+    blit.src.resource = src_res;
+    blit.src.level = src->level;
+    blit.src.box.z = src->layer;
     blit.src.box.depth = 1;
-    blit.src.format = src->format;
+    blit.src.format = src_res->format;
     if (pSourceRect) {
-       blit.src.box.x = pSourceRect->left;
-       blit.src.box.y = pSourceRect->top;
-       blit.src.box.width = pSourceRect->right - pSourceRect->left;
-       blit.src.box.height = pSourceRect->bottom - pSourceRect->top;
+        rect_to_pipe_box_xy_only(&blit.src.box, pSourceRect);
     } else {
        blit.src.box.x = 0;
        blit.src.box.y = 0;
-       blit.src.box.width = src->width;
-       blit.src.box.height = src->height;
+       blit.src.box.width = src->desc.Width;
+       blit.src.box.height = src->desc.Height;
     }
     blit.mask = zs ? PIPE_MASK_ZS : PIPE_MASK_RGBA;
     blit.filter = Filter == D3DTEXF_LINEAR ?
