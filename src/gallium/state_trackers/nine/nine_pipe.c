@@ -31,6 +31,8 @@ nine_convert_dsa_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_depth_stencil_alpha_state dsa;
 
+    memset(&dsa, 0, sizeof(dsa)); /* memcmp safety */
+
     dsa.depth.enabled = !!rs[D3DRS_ZENABLE];
     dsa.depth.writemask = !!rs[D3DRS_ZWRITEENABLE];
     dsa.depth.func = d3dcmpfunc_to_pipe_func(rs[D3DRS_ZFUNC]);
@@ -60,49 +62,52 @@ nine_convert_dsa_state(struct cso_context *ctx, const DWORD *rs)
     cso_set_depth_stencil_alpha(ctx, &dsa);
 }
 
+/* TODO: Keep a static copy in device so we don't have to memset every time ? */
 void
 nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_rasterizer_state rast;
 
+    memset(&rast, 0, sizeof(rast)); /* memcmp safety */
+
     rast.flatshade = rs[D3DRS_SHADEMODE] == D3DSHADE_FLAT;
-    rast.light_twoside = 0;
+ /* rast.light_twoside = 0; */
     rast.clamp_vertex_color = 1;
     rast.clamp_fragment_color = 1; /* XXX */
-    rast.front_ccw = 0;
+ /* rast.front_ccw = 0; */
     rast.cull_face = d3dcull_to_pipe_face(rs[D3DRS_CULLMODE]);
     rast.fill_front = d3dfillmode_to_pipe_polygon_mode(rs[D3DRS_FILLMODE]);
     rast.fill_back = rast.fill_front;
-    rast.offset_point = 0; /* XXX */
-    rast.offset_line = 0; /* XXX */
+ /* rast.offset_point = 0; */ /* XXX */
+ /* rast.offset_line = 0; */ /* XXX */
     rast.offset_tri = 1;
     rast.scissor = !!rs[D3DRS_SCISSORTESTENABLE];
-    rast.poly_smooth = 0;
-    rast.poly_stipple_enable = 0;
-    rast.point_smooth = 0;
+ /* rast.poly_smooth = 0; */
+ /* rast.poly_stipple_enable = 0; */
+ /* rast.point_smooth = 0; */
     rast.sprite_coord_mode = PIPE_SPRITE_COORD_UPPER_LEFT;
     rast.point_quad_rasterization = !!rs[D3DRS_POINTSPRITEENABLE];
     rast.point_size_per_vertex = 1; /* XXX */
     rast.multisample = !!rs[D3DRS_MULTISAMPLEANTIALIAS];
     rast.line_smooth = !!rs[D3DRS_ANTIALIASEDLINEENABLE];
-    rast.line_stipple_enable = 0;
+ /* rast.line_stipple_enable = 0; */
     rast.line_last_pixel = !!rs[D3DRS_LASTPIXEL];
     rast.flatshade_first = 1;
-    rast.half_pixel_center = 0;
-    /* rast.lower_left_origin = 0; */
-    rast.bottom_edge_rule = 0;
-    rast.rasterizer_discard = 0;
+ /* rast.half_pixel_center = 0; */
+ /* rast.lower_left_origin = 0; */
+ /* rast.bottom_edge_rule = 0; */
+ /* rast.rasterizer_discard = 0; */
     rast.depth_clip = 1;
     rast.clip_halfz = 1;
     rast.clip_plane_enable = rs[D3DRS_CLIPPLANEENABLE];
-    rast.line_stipple_factor = 0;
-    rast.line_stipple_pattern = 0;
-    rast.sprite_coord_enable = 0x00;
+ /* rast.line_stipple_factor = 0; */
+ /* rast.line_stipple_pattern = 0; */
+ /* rast.sprite_coord_enable = 0x00; */
     rast.line_width = 1.0f;
     rast.point_size = asfloat(rs[D3DRS_POINTSIZE]); /* XXX: D3DRS_POINTSIZE_MIN/MAX */
     rast.offset_units = asfloat(rs[D3DRS_DEPTHBIAS]);
     rast.offset_scale = asfloat(rs[D3DRS_SLOPESCALEDEPTHBIAS]);
-    rast.offset_clamp = 0.0f;
+ /* rast.offset_clamp = 0.0f; */
 
     cso_set_rasterizer(ctx, &rast);
 }
@@ -112,12 +117,12 @@ nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_blend_state blend;
 
-    memset(&blend, 0, sizeof(blend));
+    memset(&blend, 0, sizeof(blend)); /* memcmp safety */
 
     blend.dither = !!rs[D3DRS_DITHERENABLE];
 
-    blend.alpha_to_one = 0;
-    blend.alpha_to_coverage = 0; /* XXX */
+ /* blend.alpha_to_one = 0; */
+ /* blend.alpha_to_coverage = 0; */ /* XXX */
 
     blend.rt[0].blend_enable = !!rs[D3DRS_ALPHABLENDENABLE];
     if (blend.rt[0].blend_enable) {
@@ -157,6 +162,8 @@ void
 nine_convert_sampler_state(struct cso_context *ctx, const DWORD *rs)
 {
     struct pipe_sampler_state samp;
+
+    memset(&samp, 0, sizeof(samp)); /* memcmp safety */
 
     samp.wrap_s = d3dtextureaddress_to_pipe_tex_wrap(rs[D3DSAMP_ADDRESSU]);
     samp.wrap_t = d3dtextureaddress_to_pipe_tex_wrap(rs[D3DSAMP_ADDRESSV]);
