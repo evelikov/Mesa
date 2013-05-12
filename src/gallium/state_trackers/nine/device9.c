@@ -25,6 +25,7 @@
 #include "surface9.h"
 #include "swapchain9.h"
 #include "vertexbuffer9.h"
+#include "vertexdeclaration9.h"
 #include "vertexshader9.h"
 #include "pixelshader9.h"
 #include "query9.h"
@@ -1397,7 +1398,13 @@ NineDevice9_CreateVertexDeclaration( struct NineDevice9 *This,
                                      const D3DVERTEXELEMENT9 *pVertexElements,
                                      IDirect3DVertexDeclaration9 **ppDecl )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineVertexDeclaration9 *vdecl;
+
+    HRESULT hr = NineVertexDeclaration9_new(This, pVertexElements, &vdecl);
+    if (SUCCEEDED(hr))
+        *ppDecl = (IDirect3DVertexDeclaration9 *)vdecl;
+
+    return hr;
 }
 
 HRESULT WINAPI
