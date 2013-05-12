@@ -24,6 +24,7 @@
 #include "device9.h"
 #include "indexbuffer9.h"
 #include "surface9.h"
+#include "vertexdeclaration9.h"
 #include "vertexshader9.h"
 #include "pixelshader9.h"
 #include "nine_pipe.h"
@@ -122,9 +123,37 @@ update_rasterizer(struct NineDevice9 *device)
     nine_convert_rasterizer_state(device->cso, device->state.rs);
 }
 
-static INLINE void
+/* Loop through VS inputs and pick the vertex elements with the declared
+ * usage from the vertex declaration, then insert the instance divisor from
+ * the stream source frequency setting.
+ */
+static void
 update_vertex_elements(struct NineDevice9 *device)
 {
+    const struct NineVertexShader9 *vs = device->state.vs;
+    const struct NineVertexDeclaration9 *vdecl = device->state.vdecl;
+    const struct nine_state *state = &device->state;
+    unsigned n, l, b;
+    struct pipe_vertex_element ve[PIPE_MAX_ATTRIBS];
+
+    for (n = 0; n < vs->num_inputs; ++n) {
+        l = vdecl->usage_map[vs->input_map[n].ndecl];
+
+        if (likely(l < vdecl->nelems)) {
+            ve[n] = vdecl->elems[l];
+            b = ve[n].vertex_buffer_index;
+            /* XXX wine just uses 1 here: */
+            if (state->stream_freq[b] & D3DSTREAMSOURCE_INSTANCEDATA)
+                ve[n].instance_divisor = state->stream_freq[b] & 0x7FFFFF;
+        } else {
+            /* no data, disable */
+            ve[n].src_format = PIPE_FORMAT_NONE;
+            ve[n].src_offset = 0;
+            ve[n].instance_divisor = 0;
+            ve[n].vertex_buffer_index = 0;
+        }
+    }
+    cso_set_vertex_elements(device->cso, vs->num_inputs, ve);
 }
 
 /* OK, this is a bit ugly ... */

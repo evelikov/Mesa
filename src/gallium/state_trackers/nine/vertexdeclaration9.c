@@ -28,58 +28,81 @@
 
 #define DBG_CHANNEL DBG_VERTEXDECLARATION
 
-static INLINE enum pipe_format
-decltype_format( BYTE type )
+static INLINE enum pipe_format decltype_format(BYTE type)
 {
     switch (type) {
-        case D3DDECLTYPE_FLOAT1: return PIPE_FORMAT_R32_FLOAT;
-        case D3DDECLTYPE_FLOAT2: return PIPE_FORMAT_R32G32_FLOAT;
-        case D3DDECLTYPE_FLOAT3: return PIPE_FORMAT_R32G32B32_FLOAT;
-        case D3DDECLTYPE_FLOAT4: return PIPE_FORMAT_R32G32B32A32_FLOAT;
-        case D3DDECLTYPE_D3DCOLOR: return PIPE_FORMAT_B8G8R8A8_UNORM;
-        case D3DDECLTYPE_UBYTE4: return PIPE_FORMAT_R8G8B8A8_USCALED;
-        case D3DDECLTYPE_SHORT2: return PIPE_FORMAT_R16G16_SSCALED;
-        case D3DDECLTYPE_SHORT4: return PIPE_FORMAT_R16G16B16A16_SSCALED;
-        case D3DDECLTYPE_UBYTE4N: return PIPE_FORMAT_R8G8B8A8_UNORM;
-        case D3DDECLTYPE_SHORT2N: return PIPE_FORMAT_R16G16_SNORM;
-        case D3DDECLTYPE_SHORT4N: return PIPE_FORMAT_R16G16B16A16_SNORM;
-        case D3DDECLTYPE_USHORT2N: return PIPE_FORMAT_R16G16_UNORM;
-        case D3DDECLTYPE_USHORT4N: return PIPE_FORMAT_R16G16B16A16_UNORM;
-        case D3DDECLTYPE_UDEC3: return PIPE_FORMAT_R10G10B10X2_USCALED;
-        case D3DDECLTYPE_DEC3N: return PIPE_FORMAT_R10G10B10X2_SNORM;
-        case D3DDECLTYPE_FLOAT16_2: return PIPE_FORMAT_R16G16_FLOAT;
-        case D3DDECLTYPE_FLOAT16_4: return PIPE_FORMAT_R16G16B16A16_FLOAT;
-        default:
-            assert(!"Implementation error!");
+    case D3DDECLTYPE_FLOAT1:    return PIPE_FORMAT_R32_FLOAT;
+    case D3DDECLTYPE_FLOAT2:    return PIPE_FORMAT_R32G32_FLOAT;
+    case D3DDECLTYPE_FLOAT3:    return PIPE_FORMAT_R32G32B32_FLOAT;
+    case D3DDECLTYPE_FLOAT4:    return PIPE_FORMAT_R32G32B32A32_FLOAT;
+    case D3DDECLTYPE_D3DCOLOR:  return PIPE_FORMAT_B8G8R8A8_UNORM;
+    case D3DDECLTYPE_UBYTE4:    return PIPE_FORMAT_R8G8B8A8_USCALED;
+    case D3DDECLTYPE_SHORT2:    return PIPE_FORMAT_R16G16_SSCALED;
+    case D3DDECLTYPE_SHORT4:    return PIPE_FORMAT_R16G16B16A16_SSCALED;
+    case D3DDECLTYPE_UBYTE4N:   return PIPE_FORMAT_R8G8B8A8_UNORM;
+    case D3DDECLTYPE_SHORT2N:   return PIPE_FORMAT_R16G16_SNORM;
+    case D3DDECLTYPE_SHORT4N:   return PIPE_FORMAT_R16G16B16A16_SNORM;
+    case D3DDECLTYPE_USHORT2N:  return PIPE_FORMAT_R16G16_UNORM;
+    case D3DDECLTYPE_USHORT4N:  return PIPE_FORMAT_R16G16B16A16_UNORM;
+    case D3DDECLTYPE_UDEC3:     return PIPE_FORMAT_R10G10B10X2_USCALED;
+    case D3DDECLTYPE_DEC3N:     return PIPE_FORMAT_R10G10B10X2_SNORM;
+    case D3DDECLTYPE_FLOAT16_2: return PIPE_FORMAT_R16G16_FLOAT;
+    case D3DDECLTYPE_FLOAT16_4: return PIPE_FORMAT_R16G16B16A16_FLOAT;
+    default:
+        assert(!"Implementation error !");
     }
     return PIPE_FORMAT_NONE;
 }
 
-static INLINE unsigned
-decltype_size( BYTE type )
+static INLINE unsigned decltype_size(BYTE type)
 {
     switch (type) {
-        case D3DDECLTYPE_FLOAT1: return 1*4;
-        case D3DDECLTYPE_FLOAT2: return 2*4;
-        case D3DDECLTYPE_FLOAT3: return 3*4;
-        case D3DDECLTYPE_FLOAT4: return 4*4;
-        case D3DDECLTYPE_D3DCOLOR: return 1*4;
-        case D3DDECLTYPE_UBYTE4: return 4*1;
-        case D3DDECLTYPE_SHORT2: return 2*2;
-        case D3DDECLTYPE_SHORT4: return 4*2;
-        case D3DDECLTYPE_UBYTE4N: return 4*1;
-        case D3DDECLTYPE_SHORT2N: return 2*2;
-        case D3DDECLTYPE_SHORT4N: return 4*2;
-        case D3DDECLTYPE_USHORT2N: return 2*2;
-        case D3DDECLTYPE_USHORT4N: return 4*2;
-        case D3DDECLTYPE_UDEC3: return 4;
-        case D3DDECLTYPE_DEC3N: return 4;
-        case D3DDECLTYPE_FLOAT16_2: return 2*2;
-        case D3DDECLTYPE_FLOAT16_4: return 4*2;
-        default:
-            assert(!"Implementation error!");
+    case D3DDECLTYPE_FLOAT1: return 1 * sizeof(float);
+    case D3DDECLTYPE_FLOAT2: return 2 * sizeof(float);
+    case D3DDECLTYPE_FLOAT3: return 3 * sizeof(float);
+    case D3DDECLTYPE_FLOAT4: return 4 * sizeof(float);
+    case D3DDECLTYPE_D3DCOLOR: return 1 * sizeof(DWORD);
+    case D3DDECLTYPE_UBYTE4: return 4 * sizeof(BYTE);
+    case D3DDECLTYPE_SHORT2: return 2 * sizeof(short);
+    case D3DDECLTYPE_SHORT4: return 4 * sizeof(short);
+    case D3DDECLTYPE_UBYTE4N: return 4 * sizeof(BYTE);
+    case D3DDECLTYPE_SHORT2N: return 2 * sizeof(short);
+    case D3DDECLTYPE_SHORT4N: return 4 * sizeof(short);
+    case D3DDECLTYPE_USHORT2N: return 2 * sizeof(short);
+    case D3DDECLTYPE_USHORT4N: return 4 * sizeof(short);
+    case D3DDECLTYPE_UDEC3: return 4;
+    case D3DDECLTYPE_DEC3N: return 4;
+    case D3DDECLTYPE_FLOAT16_2: return 2 * 2;
+    case D3DDECLTYPE_FLOAT16_4: return 4 * 2;
+    default:
+        assert(!"Implementation error !");
     }
     return 0;
+}
+
+#define NINE_DECLUSAGE_CASE0(n) case D3DDECLUSAGE_##n: return NINE_DECLUSAGE_##n
+#define NINE_DECLUSAGE_CASEi(n) case D3DDECLUSAGE_##n: return NINE_DECLUSAGE_##n(usage_idx)
+INLINE unsigned
+nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
+{
+    switch (usage) {
+    NINE_DECLUSAGE_CASE0(POSITION);
+    NINE_DECLUSAGE_CASE0(BLENDWEIGHT);
+    NINE_DECLUSAGE_CASE0(BLENDINDICES);
+    NINE_DECLUSAGE_CASEi(NORMAL);
+    NINE_DECLUSAGE_CASE0(PSIZE);
+    NINE_DECLUSAGE_CASEi(TEXCOORD);
+    NINE_DECLUSAGE_CASE0(TANGENT);
+    NINE_DECLUSAGE_CASE0(BINORMAL);
+    NINE_DECLUSAGE_CASE0(TESSFACTOR);
+    NINE_DECLUSAGE_CASE0(POSITIONT);
+    NINE_DECLUSAGE_CASEi(COLOR);
+    NINE_DECLUSAGE_CASE0(DEPTH);
+    NINE_DECLUSAGE_CASE0(SAMPLE);
+    default:
+        assert(!"Invalid DECLUSAGE.");
+        return NINE_DECLUSAGE_NONE;
+    }
 }
 
 HRESULT
@@ -110,7 +133,13 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
     if (!This->decls || !This->elems) { return E_OUTOFMEMORY; }
     memcpy(This->decls, pElements, sizeof(D3DVERTEXELEMENT9)*(This->nelems+1));
 
+    memset(This->usage_map, 0xff, sizeof(This->usage_map));
+
     for (i = 0; i < This->nelems; ++i) {
+        uint8_t usage = nine_d3d9_to_nine_declusage(This->decls[i].Usage,
+                                                    This->decls[i].UsageIndex);
+        This->usage_map[usage] = i;
+
         This->elems[i].src_offset = This->decls[i].Offset;
         This->elems[i].instance_divisor = 0;
         This->elems[i].vertex_buffer_index = This->decls[i].Stream;
@@ -124,6 +153,11 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
 void
 NineVertexDeclaration9_dtor( struct NineVertexDeclaration9 *This )
 {
+    if (This->decls)
+        FREE(This->decls);
+    if (This->elems)
+        FREE(This->elems);
+
     NineUnknown_dtor(&This->base);
 }
 
@@ -132,6 +166,7 @@ NineVertexDeclaration9_GetDevice( struct NineVertexDeclaration9 *This,
                                   IDirect3DDevice9 **ppDevice )
 {
     user_assert(ppDevice, E_POINTER);
+    NineUnknown_AddRef(NineUnknown(This->device));
     *ppDevice = (IDirect3DDevice9 *)This->device;
     return D3D_OK;
 }

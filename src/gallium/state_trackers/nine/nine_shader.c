@@ -1388,29 +1388,10 @@ static const char *sm1_declusage_names[] =
     [D3DDECLUSAGE_SAMPLE] = "SAMPLE"
 };
 
-#define NINE_DECLUSAGE_CASE0(n) case D3DDECLUSAGE_##n: return NINE_DECLUSAGE_##n
-#define NINE_DECLUSAGE_CASEi(n) case D3DDECLUSAGE_##n: return NINE_DECLUSAGE_##n(dcl->usage_idx)
-static unsigned
+static INLINE unsigned
 sm1_to_nine_declusage(struct sm1_semantic *dcl)
 {
-    switch (dcl->usage) {
-    NINE_DECLUSAGE_CASE0(POSITION);
-    NINE_DECLUSAGE_CASE0(BLENDWEIGHT);
-    NINE_DECLUSAGE_CASE0(BLENDINDICES);
-    NINE_DECLUSAGE_CASEi(NORMAL);
-    NINE_DECLUSAGE_CASE0(PSIZE);
-    NINE_DECLUSAGE_CASEi(TEXCOORD);
-    NINE_DECLUSAGE_CASE0(TANGENT);
-    NINE_DECLUSAGE_CASE0(BINORMAL);
-    NINE_DECLUSAGE_CASE0(TESSFACTOR);
-    NINE_DECLUSAGE_CASE0(POSITIONT);
-    NINE_DECLUSAGE_CASEi(COLOR);
-    NINE_DECLUSAGE_CASE0(DEPTH);
-    NINE_DECLUSAGE_CASE0(SAMPLE);
-    default:
-       assert(!"Invalid DECLUSAGE.");
-       return ~0;
-    }
+    return nine_d3d9_to_nine_declusage(dcl->usage, dcl->usage_idx);
 }
 
 static void

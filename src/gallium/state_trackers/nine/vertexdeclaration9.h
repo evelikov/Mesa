@@ -23,6 +23,7 @@
 #ifndef _NINE_VERTEXDECLARATION9_H_
 #define _NINE_VERTEXDECLARATION9_H_
 
+#include "nine_defines.h"
 #include "iunknown.h"
 
 struct pipe_vertex_element;
@@ -35,6 +36,10 @@ struct NineVertexDeclaration9
     /* G3D state */
     struct pipe_vertex_element *elems;
     unsigned nelems;
+
+    /* DECLUSAGE -> element index, for selecting the vertex element
+     * for each VS input */
+    uint8_t usage_map[NINE_DECLUSAGE_COUNT];
 
     struct NineDevice9 *device;
     D3DVERTEXELEMENT9 *decls;

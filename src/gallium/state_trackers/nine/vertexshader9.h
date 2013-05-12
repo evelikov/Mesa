@@ -31,6 +31,7 @@ struct NineVertexShader9
     struct NineUnknown base;
     void *cso;
     struct {
+        uint8_t ndecl; /* NINE_DECLUSAGE_x */
     } input_map[PIPE_MAX_ATTRIBS];
     unsigned num_inputs;
     struct {
