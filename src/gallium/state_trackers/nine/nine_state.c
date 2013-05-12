@@ -50,7 +50,7 @@ update_framebuffer(struct NineDevice9 *device)
 
     for (i = 0; i < device->caps.NumSimultaneousRTs; ++i) {
         if (state->rt[i]) {
-            fb->cbufs[i] = state->rt[i]->surface;
+            fb->cbufs[i] = NineSurface9_GetSurface(state->rt[i]);
             fb->nr_cbufs = i + 1;
         } else {
             /* Color outputs must match RT slot,
@@ -59,7 +59,7 @@ update_framebuffer(struct NineDevice9 *device)
             fb->cbufs[i] = NULL;
         }
     }
-    fb->zsbuf = state->ds ? state->ds->surface : NULL;
+    fb->zsbuf = state->ds ? NineSurface9_GetSurface(state->ds) : NULL;
 
     surf = fb->nr_cbufs ? fb->cbufs[fb->nr_cbufs - 1] : fb->zsbuf;
 

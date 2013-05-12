@@ -61,8 +61,8 @@
 #define NINE_CONST_I_BASE_IDX  NINE_MAX_CONST_F
 #define NINE_CONST_B_BASE_IDX (NINE_MAX_CONST_F + NINE_MAX_CONST_I)
 
-#define NINE_MAX_SAMPLERS 16
-#define NINE_MAX_TEXTURES 16
+#define NINE_MAX_SAMPLERS PIPE_MAX_SAMPLERS
+#define NINE_MAX_TEXTURES PIPE_MAX_SAMPLERS
 
 struct nine_state
 {
@@ -71,8 +71,8 @@ struct nine_state
         uint32_t rs[(NINED3DRS_LAST + 1 + 31) / 32];
         uint32_t vtxbuf;
         uint32_t stream_freq;
-        uint32_t texture_state[NINE_MAX_TEXTURES];
-        uint16_t sampler_state[NINE_MAX_SAMPLERS];
+        uint16_t texture; /* NINE_MAX_SAMPLERS == 16 */
+        uint16_t sampler[NINE_MAX_SAMPLERS];
         uint32_t vs_const_f[(NINE_MAX_CONST_F + 31) / 32]; /* ref: 224 in PS */
         uint32_t ps_const_f[(NINE_MAX_CONST_F + 31) / 32];
         uint16_t vs_const_i; /* NINE_MAX_CONST_I == 16 */
@@ -80,6 +80,7 @@ struct nine_state
         uint16_t vs_const_b; /* NINE_MAX_CONST_B == 16 */
         uint16_t ps_const_b;
         uint8_t ucp;
+        uint32_t texenv[NINE_MAX_TEXTURES]; /* FF */
     } changed;
 
     struct NineSurface9 *rt[NINE_MAX_SIMULTANEOUS_RENDERTARGETS];
@@ -120,7 +121,9 @@ struct nine_state
 
     DWORD rs[NINED3DRS_LAST + 1];
 
-    DWORD samp[NINED3DSAMP_LAST + 1];
+    struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS];
+
+    DWORD samp[NINE_MAX_SAMPLERS][NINED3DSAMP_LAST + 1];
 };
 
 /* map D3DRS -> log2(NINE_STATE_x) (do we need this ?)

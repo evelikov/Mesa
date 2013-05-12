@@ -754,7 +754,8 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
     }
     d3dcolor_to_pipe_color_union(&rgba, color);
 
-    pipe->clear_render_target(pipe, surf->surface, &rgba, x, y, w, h);
+    pipe->clear_render_target(pipe, NineSurface9_GetSurface(surf), &rgba,
+                              x, y, w, h);
 
     return D3D_OK;
 }
@@ -1182,7 +1183,10 @@ NineDevice9_GetTexture( struct NineDevice9 *This,
                         DWORD Stage,
                         IDirect3DBaseTexture9 **ppTexture )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+    nine_reference(ppTexture, state->texture[Stage]);
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1190,7 +1194,14 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
                         DWORD Stage,
                         IDirect3DBaseTexture9 *pTexture )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+
+    nine_reference(&state->texture[Stage], pTexture);
+    state->changed.texture |= 1 << Stage;
+    state->changed.group |= NINE_STATE_TEXTURE;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1217,7 +1228,10 @@ NineDevice9_GetSamplerState( struct NineDevice9 *This,
                              D3DSAMPLERSTATETYPE Type,
                              DWORD *pValue )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    user_assert(Sampler < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+    *pValue = state->samp[Sampler][Type];
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1226,7 +1240,14 @@ NineDevice9_SetSamplerState( struct NineDevice9 *This,
                              D3DSAMPLERSTATETYPE Type,
                              DWORD Value )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    user_assert(Sampler < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+
+    state->samp[Sampler][Type] = Value;
+    state->changed.group |= NINE_STATE_SAMPLER;
+    state->changed.sampler[Sampler] |= 1 << Type;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI

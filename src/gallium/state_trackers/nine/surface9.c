@@ -109,6 +109,7 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
     templ.u.tex.last_layer = This->layer;
 
     This->surface = pipe->create_surface(pipe, resource, &templ);
+    assert(This->surface);
     return This->surface;
 }
 
