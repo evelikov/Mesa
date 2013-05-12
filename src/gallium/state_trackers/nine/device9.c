@@ -536,7 +536,14 @@ NineDevice9_UpdateSurface( struct NineDevice9 *This,
                            IDirect3DSurface9 *pDestinationSurface,
                            const POINT *pDestPoint )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineSurface9 *dst = NineSurface9(pDestinationSurface);
+    struct NineSurface9 *src = NineSurface9(pSourceSurface);
+
+    user_assert(dst->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(src->base.pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+    user_assert(dst->desc.Format == src->desc.Format, D3DERR_INVALIDCALL);
+
+    return NineSurface9_UploadFromSurface(dst, src);
 }
 
 HRESULT WINAPI
@@ -544,6 +551,12 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
                            IDirect3DBaseTexture9 *pSourceTexture,
                            IDirect3DBaseTexture9 *pDestinationTexture )
 {
+    struct NineBaseTexture9 *dst = NineBaseTexture9(pDestinationTexture);
+    struct NineBaseTexture9 *src = NineBaseTexture9(pSourceTexture);
+
+    user_assert(pSourceTexture != pDestinationTexture, D3DERR_INVALIDCALL);
+    user_assert(dst->base.type == src->base.type, D3DERR_INVALIDCALL);
+
     STUB(D3DERR_INVALIDCALL);
 }
 

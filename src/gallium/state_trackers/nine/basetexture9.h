@@ -34,6 +34,9 @@ struct NineBaseTexture9
     struct pipe_context *pipe;
     struct pipe_sampler_view *view;
 
+    /* This group is initialized from the superclass ctor, too lazy to
+     * pack them as args into the NineBaseTexture9_ctor:
+     */
     D3DFORMAT format;
     UINT width;
     UINT height;

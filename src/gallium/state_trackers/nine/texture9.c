@@ -71,6 +71,8 @@ NineTexture9_ctor( struct NineTexture9 *This,
     struct pipe_screen *screen = pDevice->screen;
     struct pipe_resource *resource = NULL;
     HRESULT hr;
+    D3DSURFACE_DESC sfdesc;
+    unsigned l;
     struct pipe_resource templ;
 
     user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
@@ -90,6 +92,10 @@ NineTexture9_ctor( struct NineTexture9 *This,
     templ.array_size = 1;
     templ.nr_samples = 0;
     templ.flags = 0;
+
+    This->surfaces = CALLOC(templ.last_level + 1, sizeof(*This->surfaces));
+    if (!This->surfaces)
+        return E_OUTOFMEMORY;
 
     if (Pool != D3DPOOL_SYSTEMMEM && Pool != D3DPOOL_SCRATCH) {
         /* create device-accessible texture */
@@ -117,15 +123,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
         resource = screen->resource_create(screen, &templ);
         if (!resource)
             return D3DERR_OUTOFVIDEOMEMORY;
-    }
-    if (Pool != D3DPOOL_DEFAULT) {
-        /* create system memory backing */
-        struct NineResource9 *base = NineResource9(This);
-
-        base->sys.size = util_resource_size(&templ);
-        base->sys.data = (uint8_t *)MALLOC(base->sys.size);
-        if (!base->sys.data)
-            return E_OUTOFMEMORY;
+        /* NOTE: Don't return without unreferencing the resource ! */
     }
     This->base.format = Format;
     This->base.width = Width;
@@ -137,8 +135,29 @@ NineTexture9_ctor( struct NineTexture9 *This,
     hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
                                resource,
                                D3DRTYPE_TEXTURE, Pool);
+    /* BaseTexture9::Resource9 will hold the reference from here on. */
+    pipe_resource_reference(&resource, NULL);
     if (FAILED(hr))
         return hr;
+
+    /* Create all the surfaces right away, they manage backing storage
+     * and transfers (LockRect) are deferred to them.
+     */
+    sfdesc.Format = Format;
+    sfdesc.Type = D3DRTYPE_TEXTURE;
+    sfdesc.Usage = Usage;
+    sfdesc.Pool = Pool;
+    sfdesc.MultiSampleType = D3DMULTISAMPLE_NONE;
+    sfdesc.MultiSampleQuality = 0;
+    for (l = 0; l <= This->base.last_level; ++l) {
+        sfdesc.Width = u_minify(Width, l);
+        sfdesc.Height = u_minify(Height, l);
+
+        hr = NineSurface9_new(pDevice, NineUnknown(This), resource, l, 0,
+                              &sfdesc, &This->surfaces[l]);
+        if (FAILED(hr))
+            return hr;
+    }
 
     NineTexture9_UpdateSamplerView(This);
 

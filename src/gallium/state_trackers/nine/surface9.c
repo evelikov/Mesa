@@ -51,6 +51,9 @@ NineSurface9_ctor( struct NineSurface9 *This,
     if (FAILED(hr))
         return hr;
 
+    user_assert(!(pDesc->Usage & D3DUSAGE_DYNAMIC) ||
+                (pDesc->Pool != D3DPOOL_MANAGED), D3DERR_INVALIDCALL);
+
     /* Reference the container so the data doesn't get deallocated in case
      * the user releases the container.
      */
@@ -228,6 +231,23 @@ IDirect3DSurface9Vtbl NineSurface9_vtable = {
     (void *)NineSurface9_GetDC,
     (void *)NineSurface9_ReleaseDC
 };
+
+
+HRESULT
+NineSurface9_UploadFromSurface( struct NineSurface9 *This,
+                                struct NineSurface9 *From )
+{
+    STUB(D3DERR_INVALIDCALL);
+}
+
+HRESULT
+NineSurface9_UploadSelf( struct NineSurface9 *This )
+{
+    assert(This->desc.Pool == D3DPOOL_MANAGED);
+
+    STUB(D3DERR_INVALIDCALL);
+}
+
 
 static const GUID *NineSurface9_IIDs[] = {
     &IID_IDirect3DSurface9,

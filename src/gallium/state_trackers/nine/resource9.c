@@ -27,6 +27,7 @@
 #include "pipe/p_screen.h"
 
 #include "util/u_hash_table.h"
+#include "util/u_inlines.h"
 
 #define DBG_CHANNEL DBG_RESOURCE
 
