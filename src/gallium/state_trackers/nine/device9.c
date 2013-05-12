@@ -501,6 +501,64 @@ NineDevice9_CreateIndexBuffer( struct NineDevice9 *This,
     STUB(D3DERR_INVALIDCALL);
 }
 
+static HRESULT
+create_zs_or_rt_surface(struct NineDevice9 *This,
+                        boolean zs,
+                        UINT Width, UINT Height,
+                        D3DFORMAT Format,
+                        D3DMULTISAMPLE_TYPE MultiSample,
+                        DWORD MultisampleQuality,
+                        BOOL Discard_or_Lockable,
+                        IDirect3DSurface9 **ppSurface,
+                        HANDLE *pSharedHandle)
+{
+    struct NineSurface9 *surface;
+    struct pipe_screen *screen = This->screen;
+    struct pipe_resource *resource = NULL;
+    HRESULT hr;
+    D3DSURFACE_DESC desc;
+    struct pipe_resource templ;
+
+    assert(!pSharedHandle);
+    user_assert(Width && Height, D3DERR_INVALIDCALL);
+
+    templ.target = PIPE_TEXTURE_2D;
+    templ.format = d3d9_to_pipe_format(Format);
+    templ.width0 = Width;
+    templ.height0 = Height;
+    templ.depth0 = 1;
+    templ.array_size = 1;
+    templ.last_level = 0;
+    templ.nr_samples = (unsigned)MultiSample;
+    templ.usage = PIPE_USAGE_STATIC;
+    templ.bind = zs ? PIPE_BIND_DEPTH_STENCIL : PIPE_BIND_RENDER_TARGET;
+    templ.flags = 0;
+
+    /* since resource_create doesn't return an error code, check format here */
+    user_assert(screen->is_format_supported(screen, templ.format, templ.target,
+                    templ.nr_samples, templ.bind), D3DERR_INVALIDCALL);
+
+    resource = screen->resource_create(screen, &templ);
+
+    user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
+
+    desc.Format = Format;
+    desc.Type = D3DRTYPE_SURFACE;
+    desc.Usage = zs ? D3DUSAGE_DEPTHSTENCIL : D3DUSAGE_RENDERTARGET;
+    desc.Pool = D3DPOOL_DEFAULT;
+    desc.MultiSampleType = MultiSample;
+    desc.MultiSampleQuality = MultisampleQuality;
+    desc.Width = Width;
+    desc.Height = Height;
+
+    hr = NineSurface9_new(This, NULL, resource, 0, 0, &desc, &surface);
+    pipe_resource_reference(&resource, NULL);
+
+    if (SUCCEEDED(hr))
+        *ppSurface = (IDirect3DSurface9 *)surface;
+    return hr;
+}
+
 HRESULT WINAPI
 NineDevice9_CreateRenderTarget( struct NineDevice9 *This,
                                 UINT Width,
@@ -512,7 +570,9 @@ NineDevice9_CreateRenderTarget( struct NineDevice9 *This,
                                 IDirect3DSurface9 **ppSurface,
                                 HANDLE *pSharedHandle )
 {
-    STUB(D3DERR_INVALIDCALL);
+    return create_zs_or_rt_surface(This, FALSE, Width, Height, Format,
+                                   MultiSample, MultisampleQuality,
+                                   Lockable, ppSurface, pSharedHandle);
 }
 
 HRESULT WINAPI
@@ -526,7 +586,9 @@ NineDevice9_CreateDepthStencilSurface( struct NineDevice9 *This,
                                        IDirect3DSurface9 **ppSurface,
                                        HANDLE *pSharedHandle )
 {
-    STUB(D3DERR_INVALIDCALL);
+    return create_zs_or_rt_surface(This, TRUE, Width, Height, Format,
+                                   MultiSample, MultisampleQuality,
+                                   Discard, ppSurface, pSharedHandle);
 }
 
 HRESULT WINAPI
@@ -565,7 +627,15 @@ NineDevice9_GetRenderTargetData( struct NineDevice9 *This,
                                  IDirect3DSurface9 *pRenderTarget,
                                  IDirect3DSurface9 *pDestSurface )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineSurface9 *dst = NineSurface9(pDestSurface);
+    struct NineSurface9 *src = NineSurface9(pRenderTarget);
+
+    user_assert(dst->desc.Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(src->desc.Pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+    user_assert(src->desc.MultiSampleType < 2, D3DERR_INVALIDCALL);
+    user_assert(dst->desc.Format == src->desc.Format, D3DERR_INVALIDCALL);
+
+    return NineSurface9_DownloadFromSurface(dst, src);
 }
 
 HRESULT WINAPI

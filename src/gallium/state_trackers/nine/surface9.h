@@ -108,6 +108,10 @@ NineSurface9_UploadFromSurface( struct NineSurface9 *This,
                                 struct NineSurface9 *From );
 
 HRESULT
+NineSurface9_DownloadFromSurface( struct NineSurface9 *This,
+                                  struct NineSurface9 *From );
+
+HRESULT
 NineSurface9_UploadSelf( struct NineSurface9 *This );
 
 /*** Direct3D public ***/

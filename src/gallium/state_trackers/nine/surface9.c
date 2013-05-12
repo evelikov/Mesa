@@ -57,7 +57,8 @@ NineSurface9_ctor( struct NineSurface9 *This,
     /* Reference the container so the data doesn't get deallocated in case
      * the user releases the container.
      */
-    NineUnknown_AddRef(pContainer);
+    if (pContainer)
+        NineUnknown_AddRef(pContainer);
     This->container = pContainer;
 
     This->pipe = NineDevice9_GetPipe(pDevice);
@@ -89,7 +90,8 @@ NineSurface9_dtor( struct NineSurface9 *This )
 
     pipe_surface_reference(&This->surface, NULL);
 
-    NineUnknown_Release(This->container);
+    if (This->container)
+        NineUnknown_Release(This->container);
 
     NineResource9_dtor(&This->base);
 }
@@ -115,6 +117,8 @@ NineSurface9_GetContainer( struct NineSurface9 *This,
                            REFIID riid,
                            void **ppContainer )
 {
+    if (!This->container)
+        return E_NOINTERFACE;
     return NineUnknown_QueryInterface(This->container, riid, ppContainer);
 }
 
@@ -236,6 +240,13 @@ IDirect3DSurface9Vtbl NineSurface9_vtable = {
 HRESULT
 NineSurface9_UploadFromSurface( struct NineSurface9 *This,
                                 struct NineSurface9 *From )
+{
+    STUB(D3DERR_INVALIDCALL);
+}
+
+HRESULT
+NineSurface9_DownloadFromSurface( struct NineSurface9 *This,
+                                  struct NineSurface9 *From )
 {
     STUB(D3DERR_INVALIDCALL);
 }
