@@ -1298,6 +1298,8 @@ NineDevice9_SetScissorRect( struct NineDevice9 *This,
     state->scissor.maxx = pRect->right;
     state->scissor.maxy = pRect->bottom;
 
+    state->changed.group |= NINE_STATE_SCISSOR;
+
     return D3D_OK;
 }
 
