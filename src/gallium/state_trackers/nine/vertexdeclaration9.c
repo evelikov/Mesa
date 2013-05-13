@@ -155,7 +155,6 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
          pElements[This->nelems].Type != D3DDECLTYPE_UNUSED &&
          pElements[This->nelems].Stream != 0xFF; /* wine */
          ++This->nelems);
-    --This->nelems;
 
     This->device = pDevice;
     caps = NineDevice9_GetCaps(This->device);
@@ -174,17 +173,17 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
                                                     This->decls[i].UsageIndex);
         This->usage_map[usage] = i;
 
-        DBG("VERTEXELEMENT[%u]: Stream=%u Offset=%u Type=%s DeclUsage=%s\n", i,
-            This->decls[i].Stream,
-            This->decls[i].Offset,
-            util_format_name(This->elems[i].src_format),
-            nine_declusage_name(usage));
-
         This->elems[i].src_offset = This->decls[i].Offset;
         This->elems[i].instance_divisor = 0;
         This->elems[i].vertex_buffer_index = This->decls[i].Stream;
         This->elems[i].src_format = decltype_format(This->decls[i].Type);
         /* XXX Remember Method (tesselation), Usage, UsageIndex */
+
+        DBG("VERTEXELEMENT[%u]: Stream=%u Offset=%u Type=%s DeclUsage=%s\n", i,
+            This->decls[i].Stream,
+            This->decls[i].Offset,
+            util_format_name(This->elems[i].src_format),
+            nine_declusage_name(usage));
     }
 
     return D3D_OK;
