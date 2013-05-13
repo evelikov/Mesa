@@ -34,7 +34,7 @@ HRESULT
 NineVertexShader9_ctor( struct NineVertexShader9 *This,
                         struct NineUnknownParams *pParams,
                         struct NineDevice9 *pDevice,
-                        const DWORD *pFunction )
+                        const DWORD *pFunction, void *cso )
 {
     struct nine_shader_info info;
     HRESULT hr;
@@ -44,6 +44,11 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
         return hr;
 
     This->device = pDevice;
+
+    if (cso) {
+        This->cso = cso;
+        return D3D_OK;
+    }
 
     info.type = PIPE_SHADER_VERTEX;
     info.byte_code = pFunction;
@@ -121,7 +126,7 @@ static const GUID *NineVertexShader9_IIDs[] = {
 HRESULT
 NineVertexShader9_new( struct NineDevice9 *pDevice,
                        struct NineVertexShader9 **ppOut,
-                       const DWORD *pFunction )
+                       const DWORD *pFunction, void *cso )
 {
-    NINE_NEW(NineVertexShader9, ppOut, pDevice, pFunction);
+    NINE_NEW(NineVertexShader9, ppOut, pDevice, pFunction, cso);
 }

@@ -34,7 +34,7 @@ HRESULT
 NinePixelShader9_ctor( struct NinePixelShader9 *This,
                        struct NineUnknownParams *pParams,
                        struct NineDevice9 *pDevice,
-                       const DWORD *pFunction )
+                       const DWORD *pFunction, void *cso )
 {
     struct nine_shader_info info;
     HRESULT hr;
@@ -44,6 +44,11 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
         return hr;
 
     This->device = pDevice;
+
+    if (cso) {
+        This->cso = cso;
+        return D3D_OK;
+    }
 
     info.type = PIPE_SHADER_FRAGMENT;
     info.byte_code = pFunction;
@@ -121,7 +126,7 @@ static const GUID *NinePixelShader9_IIDs[] = {
 HRESULT
 NinePixelShader9_new( struct NineDevice9 *pDevice,
                       struct NinePixelShader9 **ppOut,
-                      const DWORD *pFunction )
+                      const DWORD *pFunction, void *cso )
 {
-    NINE_NEW(NinePixelShader9, ppOut, pDevice, pFunction);
+    NINE_NEW(NinePixelShader9, ppOut, pDevice, pFunction, cso);
 }

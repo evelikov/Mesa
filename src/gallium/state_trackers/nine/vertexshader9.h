@@ -49,13 +49,13 @@ NineVertexShader9( void *data )
 HRESULT
 NineVertexShader9_new( struct NineDevice9 *pDevice,
                        struct NineVertexShader9 **ppOut,
-                       const DWORD *pFunction );
+                       const DWORD *pFunction, void *cso );
 
 HRESULT
 NineVertexShader9_ctor( struct NineVertexShader9 *,
                         struct NineUnknownParams *pParams,
                         struct NineDevice9 *pDevice,
-                        const DWORD *pFunction );
+                        const DWORD *pFunction, void *cso );
 
 void
 NineVertexShader9_dtor( struct NineVertexShader9 * );

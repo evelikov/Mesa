@@ -18,4 +18,10 @@ nine_d3d_matrix_det(const D3DMATRIX *);
 void
 nine_d3d_matrix_inverse(D3DMATRIX *, const D3DMATRIX *);
 
+void
+nine_d3d_matrix_inverse_3x3(D3DMATRIX *, const D3DMATRIX *);
+
+void
+nine_d3d_matrix_transpose(D3DMATRIX *, const D3DMATRIX *);
+
 #endif /* _NINE_FF_H_ */

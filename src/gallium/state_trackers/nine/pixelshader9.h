@@ -44,13 +44,13 @@ NinePixelShader9( void *data )
 HRESULT
 NinePixelShader9_new( struct NineDevice9 *pDevice,
                       struct NinePixelShader9 **ppOut,
-                      const DWORD *pFunction );
+                      const DWORD *pFunction, void *cso );
 
 HRESULT
 NinePixelShader9_ctor( struct NinePixelShader9 *,
                        struct NineUnknownParams *pParams,
                        struct NineDevice9 *pDevice,
-                       const DWORD *pFunction );
+                       const DWORD *pFunction, void *cso );
 
 void
 NinePixelShader9_dtor( struct NinePixelShader9 * );

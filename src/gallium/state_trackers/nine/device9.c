@@ -1554,6 +1554,7 @@ NineDevice9_SetVertexDeclaration( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
     nine_reference(&state->vdecl, pDecl);
     state->changed.group |= NINE_STATE_VDECL;
+    /* XXX: should this really change the result of GetFVF ? */
     return D3D_OK;
 }
 
@@ -1570,14 +1571,37 @@ HRESULT WINAPI
 NineDevice9_SetFVF( struct NineDevice9 *This,
                     DWORD FVF )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    struct NineVertexDeclaration9 *vdecl;
+    HRESULT hr;
+
+    if (!FVF) {
+        /* XXX: is this correct ? */
+        if (state->vdecl && state->vdecl->fvf)
+            nine_reference(&state->vdecl, NULL);
+        return D3D_OK;
+    }
+
+    /* TODO: cache FVF vdecls */
+    hr = NineVertexDeclaration9_new_from_fvf(This, FVF, &vdecl);
+    if (FAILED(hr))
+        return hr;
+    vdecl->fvf = FVF;
+
+    nine_reference(&state->vdecl, NULL);
+    state->vdecl = vdecl; /* don't increase refcount */
+    state->changed.group |= NINE_STATE_VDECL;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
 NineDevice9_GetFVF( struct NineDevice9 *This,
                     DWORD *pFVF )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    *pFVF = state->vdecl ? state->vdecl->fvf : 0;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1588,7 +1612,7 @@ NineDevice9_CreateVertexShader( struct NineDevice9 *This,
     struct NineVertexShader9 *vs;
     HRESULT hr;
 
-    hr = NineVertexShader9_new(This, &vs, pFunction);
+    hr = NineVertexShader9_new(This, &vs, pFunction, NULL);
     if (FAILED(hr))
         return hr;
     *ppShader = (IDirect3DVertexShader9 *)vs;
@@ -1866,7 +1890,7 @@ NineDevice9_CreatePixelShader( struct NineDevice9 *This,
     struct NinePixelShader9 *ps;
     HRESULT hr;
 
-    hr = NinePixelShader9_new(This, &ps, pFunction);
+    hr = NinePixelShader9_new(This, &ps, pFunction, NULL);
     if (FAILED(hr))
         return hr;
     *ppShader = (IDirect3DPixelShader9 *)ps;

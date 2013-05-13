@@ -43,6 +43,7 @@ struct NineVertexDeclaration9
 
     struct NineDevice9 *device;
     D3DVERTEXELEMENT9 *decls;
+    DWORD fvf;
 };
 static INLINE struct NineVertexDeclaration9 *
 NineVertexDeclaration9( void *data )

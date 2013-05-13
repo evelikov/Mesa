@@ -68,6 +68,11 @@ struct NineDevice9
     uint32_t ps_bool_true;
 
     struct gen_mipmap_state *gen_mipmap;
+
+    struct {
+        struct NineVertexShader9 *vs;
+        struct NinePixelShader9 *ps;
+    } ff;
 };
 static INLINE struct NineDevice9 *
 NineDevice9( void *data )
