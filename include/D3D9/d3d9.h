@@ -315,6 +315,15 @@ struct IDirect3DPixelShader9 : public IUnknown
 	virtual HRESULT WINAPI GetFunction(void *pData, UINT *pSizeOfData) = 0;
 };
 
+struct IDirect3DQuery9 : public IUnknown
+{
+	virtual HRESULT WINAPI GetDevice(IDirect3DDevice9 **ppDevice) = 0;
+	virtual D3DQUERYTYPE WINAPI GetType() = 0;
+	virtual DWORD WINAPI GetDataSize() = 0;
+	virtual HRESULT WINAPI Issue(DWORD dwIssueFlags) = 0;
+	virtual HRESULT WINAPI GetData(void *pData, DWORD dwSize, DWORD dwGetDataFlags) = 0;
+};
+
 struct IDirect3DStateBlock9 : public IUnknown
 {
 	virtual HRESULT WINAPI GetDevice(IDirect3DDevice9 **ppDevice) = 0;
