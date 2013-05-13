@@ -36,6 +36,30 @@
 
 #define DBG_CHANNEL DBG_SURFACE
 
+/* Bloody resources:
+ *
+ * DEFAULT: device memory, can't be locked, no worries
+ *  resource: driver pipe_resource
+ *  dirty regions: ?
+ *  mip generation: yes, when ?
+ *
+ * SYSTEMEM: non-device memory only, can be locked, just write stuff
+ *  to the "storage" which is allocated via ...
+ *  resource: driver staging resource or MALLOC pointer
+ *  lock: write to driver staging or MALLOC area
+ *  dirty regions: added when ? which level ? container ?
+ *  mip generation: no
+ *  levels:
+ *
+ * MANAGED: device and normal memory, just consider it a pair of
+ *  DEFAULT and SYSTEMMEM resources with Update* called whenever the thing is
+ *  "used". When is that ?
+ *  resource: driver pipe_resource
+ *  lock: let's simply treat it as DEFAULT for simplicity
+ *  dirty regions: ?
+ *  mip generation: yes, when ?
+ */
+
 HRESULT
 NineSurface9_ctor( struct NineSurface9 *This,
                    struct NineUnknownParams *pParams,
@@ -154,6 +178,9 @@ NineSurface9_LockRect( struct NineSurface9 *This,
     user_assert(!This->transfer, D3DERR_INVALIDCALL);
     user_assert(pLockedRect, E_POINTER);
 
+    user_assert(This->desc.MultiSampleType == D3DMULTISAMPLE_NONE,
+                D3DERR_INVALIDCALL);
+
     if (Flags & D3DLOCK_DISCARD) {
         usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     } else {
@@ -181,7 +208,7 @@ NineSurface9_LockRect( struct NineSurface9 *This,
     }
     pLockedRect->Pitch = This->transfer->stride;
 
-    if (!(Flags & D3DLOCK_NO_DIRTY_UPDATE)) {
+    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY))) {
         /* XXX: make this a pipe_box ? */
         struct u_rect rect;
         rect.x0 = box.x;
@@ -251,6 +278,10 @@ NineSurface9_UploadFromSurface( struct NineSurface9 *This,
     RECT rect;
     const unsigned width = From->desc.Width;
     const unsigned height = From->desc.Height;
+
+    user_assert(This->desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
+                From->desc.MultiSampleType == D3DMULTISAMPLE_NONE,
+                D3DERR_INVALIDCALL);
 
     /* What about mip-maps ? */
 

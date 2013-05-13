@@ -197,6 +197,8 @@ NineTexture9_GetSurfaceLevel( struct NineTexture9 *This,
                               IDirect3DSurface9 **ppSurfaceLevel )
 {
     user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
 
     NineUnknown_AddRef(NineUnknown(This->surfaces[Level]));
     *ppSurfaceLevel = (IDirect3DSurface9 *)This->surfaces[Level];
@@ -212,6 +214,8 @@ NineTexture9_LockRect( struct NineTexture9 *This,
                        DWORD Flags )
 {
     user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
 
     return NineSurface9_LockRect(This->surfaces[Level], pLockedRect,
                                  pRect, Flags);

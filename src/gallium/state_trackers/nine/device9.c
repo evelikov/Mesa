@@ -628,6 +628,13 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
     user_assert(pSourceTexture != pDestinationTexture, D3DERR_INVALIDCALL);
     user_assert(dst->base.type == src->base.type, D3DERR_INVALIDCALL);
 
+    if (dst->base.usage & D3DUSAGE_AUTOGENMIPMAP) {
+        /* only update 1st level */
+        /* ... */
+        NineBaseTexture9_GenerateMipSubLevels(dst);
+    } else {
+        /* update all levels */
+    }
     STUB(D3DERR_INVALIDCALL);
 }
 

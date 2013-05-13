@@ -103,13 +103,19 @@ void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
 {
     unsigned base_level = 0; /* TODO */
-    unsigned last_level = 0;
-    unsigned z;
+    unsigned last_level = This->last_level; /* XXX */
+    unsigned faces = 1;
     unsigned filter = This->mipfilter == D3DTEXF_POINT ? PIPE_TEX_FILTER_NEAREST
                                                        : PIPE_TEX_FILTER_LINEAR;
+    unsigned i;
 
-    for (z = 0; z < This->layers; ++z)
+    if (This->base.type == D3DRTYPE_CUBETEXTURE) {
+        faces = 6;
+        assert(This->layers == 6);
+    }
+
+    for (i = 0; i < faces; ++i)
         util_gen_mipmap(This->base.device->gen_mipmap,
                         This->view,
-                        z, base_level, last_level, filter);
+                        i, base_level, last_level, filter);
 }
