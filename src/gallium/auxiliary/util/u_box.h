@@ -92,10 +92,10 @@ boolean u_box_contained(struct pipe_box *a, struct pipe_box *b)
  * Otherwise, returns 1/2/0/3 if width/height/neither/both have been reduced.
  */
 static INLINE
-int u_box_clip_2d(struct pipe_box *box, unsigned w, unsigned h)
+int u_box_clip_2d(struct pipe_box *box, int w, int h)
 {
-   unsigned max_w = w - box->x;
-   unsigned max_h = h - box->y;
+   int max_w = w - box->x;
+   int max_h = h - box->y;
    int res = 0;
    if (box->x >= w || box->y >= h)
       return -1;
