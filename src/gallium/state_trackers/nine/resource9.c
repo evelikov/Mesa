@@ -23,11 +23,13 @@
 #include "resource9.h"
 #include "device9.h"
 #include "nine_helpers.h"
+#include "nine_defines.h"
 
 #include "pipe/p_screen.h"
 
 #include "util/u_hash_table.h"
 #include "util/u_inlines.h"
+#include "util/u_resource.h"
 
 #define DBG_CHANNEL DBG_RESOURCE
 
@@ -110,8 +112,14 @@ NineResource9_dtor( struct NineResource9 *This )
         util_hash_table_destroy(This->pdata);
     }
 
-    /* NOTE: We do have to use refcounting, the driver might still hold a reference. */
-    pipe_resource_reference(&This->resource, NULL);
+    if (This->resource) {
+        if (This->resource->flags & NINE_RESOURCE_FLAG_DUMMY)
+            FREE(This->resource);
+        else
+            /* NOTE: We do have to use refcounting, the driver might
+             * still hold a reference. */
+            pipe_resource_reference(&This->resource, NULL);
+    }
 
 #if 0
     switch (This->type) {
@@ -139,8 +147,8 @@ NineResource9_dtor( struct NineResource9 *This )
     }
 #endif
 
-    if (This->sys.data)
-        FREE(This->sys.data);
+    if (This->sysmem)
+        FREE(This->sysmem);
 
     NineUnknown_dtor(&This->base);
 }
@@ -282,13 +290,44 @@ NineResource9_GetType( struct NineResource9 *This )
     return This->type;
 }
 
-#if 0
 HRESULT
-NineSource9_AllocateData( struct NineResource9 *This )
+NineResource9_CreateDummyResource( struct NineResource9 *This,
+                                   const struct pipe_resource *templ )
 {
+    struct pipe_resource *resource = MALLOC_STRUCT(pipe_resource);
+    if (!resource)
+        return E_OUTOFMEMORY;
+
+    assert(templ->last_level == 0);
+    assert(templ->nr_samples <= 1);
+
+    pipe_reference_init(&resource->reference, 1);
+    resource->screen = NULL;
+    resource->target = templ->target;
+    resource->format = templ->format;
+    resource->width0 = templ->width0;
+    resource->height0 = templ->height0;
+    resource->depth0 = templ->depth0;
+    resource->last_level = 0;
+    resource->array_size = 1;
+    resource->nr_samples = 0;
+    resource->usage = PIPE_USAGE_DEFAULT;
+    resource->bind = PIPE_BIND_TRANSFER_READ | PIPE_BIND_TRANSFER_WRITE;
+    resource->flags = NINE_RESOURCE_FLAG_DUMMY;
+
+    This->resource = resource;
+    return D3D_OK;
+}
+
+HRESULT
+NineResource9_AllocateData( struct NineResource9 *This )
+{
+    struct pipe_screen *screen = This->screen;
     struct pipe_resource *resource = NULL;
 
-    if (type == D3DRTYPE_SURFACE) {
+    if (This->pool == D3DPOOL_SYSTEMMEM &&
+        This->type == D3DRTYPE_SURFACE &&
+        This->resource && (This->resource->flags & NINE_RESOURCE_FLAG_DUMMY)) {
         /* Allocate a staging resource to save a copy:
          * user -> staging resource
          * staging resource -> (blit) -> video memory
@@ -297,12 +336,14 @@ NineSource9_AllocateData( struct NineResource9 *This )
          * user -> system memory
          * system memory -> transfer staging area
          * transfer -> video memory
+         *
+         * Does this work if we "lose" the device ?
          */
         struct pipe_resource templ;
         templ.target = PIPE_TEXTURE_2D;
-        templ.format = format;
-        templ.width0 = w;
-        templ.height0 = h;
+        templ.format = This->resource->format;
+        templ.width0 = This->resource->width0;
+        templ.height0 = This->resource->height0;
         templ.depth0 = 1;
         templ.array_size = 1;
         templ.last_level = 0;
@@ -311,12 +352,23 @@ NineSource9_AllocateData( struct NineResource9 *This )
         templ.bind = PIPE_BIND_SAMPLER_VIEW;
         templ.flags = 0;
         resource = screen->resource_create(screen, &templ);
+        if (resource) {
+            FREE(This->resource);
+            This->resource = resource;
+        } else {
+            DBG("Failed to allocate staging texture.\n");
+        }
     }
     if (!resource) {
-        data = MALLOC(size);
-        if (!data)
+        const unsigned size = util_resource_size(This->resource);
+
+        DBG("Allocating %f KiB of system memory.\n", (float)size / 1024.0f);
+        assert(size);
+
+        This->sysmem = MALLOC(size);
+        if (!This->sysmem)
             return E_OUTOFMEMORY;
     }
     return D3D_OK;
 }
-#endif
+

@@ -42,11 +42,8 @@ struct NineResource9
     DWORD priority;
     DWORD usage;
 
-    /* system memory copy for non-default pool */
-    struct {
-        uint8_t *data;
-        unsigned size;
-    } sys;
+    /* for non-default pool, use MALLOC'd storage: */
+    uint8_t *sysmem;
 
     /* creator device */
     struct NineDevice9 *device;
@@ -78,6 +75,16 @@ NineResource9_GetResource( struct NineResource9 *This );
 
 D3DPOOL
 NineResource9_GetPool( struct NineResource9 *This );
+
+/* Create a state tracker private pipe_resource.
+ * XXX: Is this really a good idea ?
+ */
+HRESULT
+NineResource9_CreateDummyResource( struct NineResource9 *This,
+                                   const struct pipe_resource *templ );
+
+HRESULT
+NineResource9_AllocateData( struct NineResource9 *This );
 
 /*** Direct3D public methods ***/
 

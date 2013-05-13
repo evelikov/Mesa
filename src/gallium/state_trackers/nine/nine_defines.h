@@ -27,6 +27,7 @@
 
 
 #define NINE_RESOURCE_FLAG_OWNED_BY_SURFACE (PIPE_RESOURCE_FLAG_ST_PRIV << 1)
+#define NINE_RESOURCE_FLAG_DUMMY            (PIPE_RESOURCE_FLAG_ST_PRIV << 2)
 
 
 /* vertexdeclaration9.c */
