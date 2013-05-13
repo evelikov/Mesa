@@ -36,7 +36,8 @@ struct NineVertexBuffer9
     /* G3D */
     struct pipe_screen *screen;
     struct pipe_context *pipe;
-    struct pipe_transfer *transfer;
+    struct pipe_transfer **maps;
+    int nmaps, maxmaps;
 
     D3DVERTEXBUFFER_DESC desc;
 };
