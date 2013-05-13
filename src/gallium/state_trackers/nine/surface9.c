@@ -70,6 +70,9 @@ NineSurface9_ctor( struct NineSurface9 *This,
                    unsigned Layer,
                    D3DSURFACE_DESC *pDesc )
 {
+    /* Mark this as a special surface held by another internal resource */
+    pParams->container = pContainer;
+
     HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice, pResource,
                                     D3DRTYPE_SURFACE, pDesc->Pool);
     if (FAILED(hr))
@@ -78,12 +81,9 @@ NineSurface9_ctor( struct NineSurface9 *This,
     user_assert(!(pDesc->Usage & D3DUSAGE_DYNAMIC) ||
                 (pDesc->Pool != D3DPOOL_MANAGED), D3DERR_INVALIDCALL);
 
-    /* Reference the container so the data doesn't get deallocated in case
-     * the user releases the container.
-     */
-    if (pContainer)
-        NineUnknown_AddRef(pContainer);
-    This->container = pContainer;
+    /* Stand-alone surfaces should hold a reference to the device */
+    if (!pContainer)
+        NineUnknown_AddRef(NineUnknown(NineResource9(This)->device));
 
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->screen = NineDevice9_GetScreen(pDevice);
@@ -114,8 +114,8 @@ NineSurface9_dtor( struct NineSurface9 *This )
 
     pipe_surface_reference(&This->surface, NULL);
 
-    if (This->container)
-        NineUnknown_Release(This->container);
+    if (!NineUnknown(This)->container)
+        NineUnknown_Release(NineUnknown(NineResource9(This)->device));
 
     NineResource9_dtor(&This->base);
 }
@@ -142,7 +142,7 @@ NineSurface9_GetContainer( struct NineSurface9 *This,
                            REFIID riid,
                            void **ppContainer )
 {
-    if (!This->container)
+    if (!NineUnknown(This)->container)
         return E_NOINTERFACE;
     return NineUnknown_QueryInterface(This->container, riid, ppContainer);
 }

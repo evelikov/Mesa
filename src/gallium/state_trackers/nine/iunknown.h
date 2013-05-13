@@ -42,6 +42,8 @@ struct NineUnknown
 
     /* reference count */
     ULONG refs;
+    /* for which we can hold a special internal reference */
+    struct NineUnknown *container;
 
     /* for QueryInterface */
     const GUID **guids;
@@ -61,6 +63,7 @@ struct NineUnknownParams
     void *vtable;
     const GUID **guids;
     void (*dtor)(void *data);
+    struct NineUnknown *container;
 };
 
 /* ctor/dtor */

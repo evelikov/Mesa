@@ -26,15 +26,15 @@
 #include "iunknown.h"
 
 /* Sshhh ... */
-#define nine_reference(a, b) _nine_reference((void **)a, b)
+#define nine_reference(a, b) _nine_reference((void **)(a), (b))
 
 static inline void _nine_reference(void **ref, void *ptr)
 {
     if (*ref != ptr) {
         if (*ref)
-            NineUnknown_Release(NineUnknown(*ref));
+            NineUnknown_Release(*ref);
         if (ptr)
-            NineUnknown_AddRef(NineUnknown(ptr));
+            NineUnknown_AddRef(ptr);
         *ref = ptr;
     }
 }
@@ -50,6 +50,7 @@ static inline void _nine_reference(void **ref, void *ptr)
         __params.vtable = &nine##_vtable; \
         __params.guids = nine##_IIDs; \
         __params.dtor = (void *)nine##_dtor; \
+        __params.container = NULL; \
         { \
             HRESULT __hr = nine##_ctor(__data, &__params, ## __VA_ARGS__); \
             if (FAILED(__hr)) { \

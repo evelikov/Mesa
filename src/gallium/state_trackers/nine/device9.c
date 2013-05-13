@@ -177,21 +177,29 @@ NineDevice9_dtor( struct NineDevice9 *This )
 {
     unsigned i;
 
+    util_destroy_gen_mipmap(This->gen_mipmap);
     nine_reference(&This->record, NULL);
 
     for (i = 0; i < This->caps.NumSimultaneousRTs; ++i)
        nine_reference(&This->state.rt[i], NULL);
     nine_reference(&This->state.ds, NULL);
+    nine_reference(&This->state.vs, NULL);
+    nine_reference(&This->state.ps, NULL);
+    nine_reference(&This->state.vdecl, NULL);
+    for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
+        nine_reference(&This->state.stream[i], NULL);
+    for (i = 0; i < NINE_MAX_SAMPLERS; ++i)
+        nine_reference(&This->state.texture[i], NULL);
+
+    nine_reference(&This->ff.vs, NULL);
+    nine_reference(&This->ff.ps, NULL);
 
     pipe_resource_reference(&This->constbuf_vs, NULL);
     pipe_resource_reference(&This->constbuf_ps, NULL);
 
     if (This->swapchains) {
-        for (i = 0; i < This->nswapchains; ++i) {
-            if (This->swapchains[i]) {
-                NineUnknown_Release(NineUnknown(This->swapchains[i]));
-            }
-        }
+        for (i = 0; i < This->nswapchains; ++i)
+            nine_reference(&This->swapchains[i], NULL);
         FREE(This->swapchains);
     }
 

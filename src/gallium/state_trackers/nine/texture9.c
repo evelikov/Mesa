@@ -171,8 +171,7 @@ NineTexture9_dtor( struct NineTexture9 *This )
 
     if (This->surfaces) {
         for (l = 0; l <= This->base.last_level; ++l)
-            if (This->surfaces[l])
-                NineUnknown_Release(NineUnknown(This->surfaces[l]));
+            nine_reference(&This->surfaces[l], NULL);
         FREE(This->surfaces);
     }
 

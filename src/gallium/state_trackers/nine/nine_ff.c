@@ -4,6 +4,7 @@
 #include "pixelshader9.h"
 #include "nine_ff.h"
 #include "nine_defines.h"
+#include "nine_helpers.h"
 
 #include "pipe/p_context.h"
 #include "tgsi/tgsi_ureg.h"
@@ -190,9 +191,9 @@ nine_ff_update(struct NineDevice9 *device)
     DBG("Warning: FF is just a dummy.\n");
 
     if (!device->state.vs)
-        device->state.vs = nine_ff_get_vs(device);
+        nine_reference(&device->state.vs, nine_ff_get_vs(device));
     if (!device->state.ps)
-        device->state.ps = nine_ff_get_ps(device);
+        nine_reference(&device->state.ps, nine_ff_get_ps(device));
 
     if (device->ff.vs &&
         (device->state.ff.changed.transform[0] |

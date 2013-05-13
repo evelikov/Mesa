@@ -30,6 +30,7 @@ NineUnknown_ctor( struct NineUnknown *This,
                   struct NineUnknownParams *pParams )
 {
     This->refs = 1;
+    This->container = pParams->container;
 
     This->vtable = pParams->vtable;
     This->guids = pParams->guids;
@@ -66,15 +67,30 @@ NineUnknown_QueryInterface( struct NineUnknown *This,
 ULONG WINAPI
 NineUnknown_AddRef( struct NineUnknown *This )
 {
-    return ++This->refs;
+    ULONG r = ++This->refs; /* TODO: make atomic */
+
+    if (This->container && r == 2) {
+        /* acquire a reference to the container so it doesn't go away, but only
+         * when a reference is held outside the container itself */
+        NineUnknown_AddRef(This->container);
+    }
+    return r;
 }
 
 ULONG WINAPI
 NineUnknown_Release( struct NineUnknown *This )
 {
-    if (--This->refs == 0) {
+    ULONG r = --This->refs; /* TODO: make atomic */
+
+    /* This would signify implementation error */
+    assert(r >= 0);
+
+    if (r == 0) {
         This->dtor(This);
-        return 0;
+    } else if (r == 1 && This->container) {
+        /* release the container when only the container holds a reference
+         * to this object. This avoids circular referencing */
+        NineUnknown_Release(This->container);
     }
-    return This->refs;
+    return r;
 }

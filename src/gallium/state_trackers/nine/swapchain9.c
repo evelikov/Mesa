@@ -111,11 +111,8 @@ NineSwapChain9_dtor( struct NineSwapChain9 *This )
     unsigned i;
 
     if (This->buffers) {
-        for (i = 0; i <= This->params.BackBufferCount; i++) {
-            if (This->buffers[i]) {
-                NineUnknown_Release(NineUnknown(This->buffers[i]));
-            }
-        }
+        for (i = 0; i <= This->params.BackBufferCount; i++)
+            nine_reference(&This->buffers[i], NULL);
         FREE(This->buffers);
     }
     if (This->present) {
@@ -254,15 +251,12 @@ NineSwapChain9_GetBackBuffer( struct NineSwapChain9 *This,
                               D3DBACKBUFFER_TYPE Type,
                               IDirect3DSurface9 **ppBackBuffer )
 {
-    struct NineSurface9 *surf;
-
     (void)user_error(Type == D3DBACKBUFFER_TYPE_MONO);
     user_assert(iBackBuffer < This->params.BackBufferCount, D3DERR_INVALIDCALL);
     user_assert(ppBackBuffer != NULL, E_POINTER);
 
-    surf = This->buffers[iBackBuffer];
-    NineUnknown_AddRef(NineUnknown(surf));
-    *ppBackBuffer = (IDirect3DSurface9 *)surf;
+    NineUnknown_AddRef(NineUnknown(This->buffers[iBackBuffer]));
+    *ppBackBuffer = (IDirect3DSurface9 *)This->buffers[iBackBuffer];
     return D3D_OK;
 }
 
