@@ -127,6 +127,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
         vs->input_map[1].ndecl = NINE_DECLUSAGE_COLOR(0);
         vs->input_map[2].ndecl = NINE_DECLUSAGE_COLOR(1);
         vs->input_map[3].ndecl = NINE_DECLUSAGE_TEXCOORD(0);
+        vs->num_inputs = 4;
         device->ff.vs = vs;
     }
     return device->ff.vs;
@@ -146,7 +147,7 @@ nine_ff_get_ps(struct NineDevice9 *device)
 
 #define GET_D3DTS(n) nine_state_access_transform(state, D3DTS_##n, FALSE)
 static void
-nine_ff_upload_transforms(struct NineDevice9 *device)
+nine_ff_upload_vs_transforms(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
@@ -186,14 +187,17 @@ nine_ff_upload_transforms(struct NineDevice9 *device)
 void
 nine_ff_update(struct NineDevice9 *device)
 {
-    DBG("Error: FF not implemented.\n");
+    DBG("Warning: FF is just a dummy.\n");
 
-    device->state.vs = nine_ff_get_vs(device);
-    device->state.ps = nine_ff_get_ps(device);
+    if (!device->state.vs)
+        device->state.vs = nine_ff_get_vs(device);
+    if (!device->state.ps)
+        device->state.ps = nine_ff_get_ps(device);
 
-    if (device->state.ff.changed.transform[0] |
-        device->state.ff.changed.transform[256 / 32])
-        nine_ff_upload_transforms(device);
+    if (device->ff.vs &&
+        (device->state.ff.changed.transform[0] |
+         device->state.ff.changed.transform[256 / 32]))
+        nine_ff_upload_vs_transforms(device);
 
     device->state.changed.group |= NINE_STATE_VS | NINE_STATE_PS;
 }
@@ -412,13 +416,13 @@ nine_d3d_matrix_inverse_3x3(D3DMATRIX *D, const D3DMATRIX *M)
     unsigned i, j;
 
     for (i = 0; i < 3; ++i)
-    for (j = 0; i < 3; ++j)
+    for (j = 0; j < 3; ++j)
         T.m[i][j] = M->m[i][j];
     for (i = 0; i < 3; ++i) {
-        T.m[i][4] = 0.0f;
-        T.m[4][i] = 0.0f;
+        T.m[i][3] = 0.0f;
+        T.m[3][i] = 0.0f;
     }
-    T.m[4][4] = 1.0f;
+    T.m[3][3] = 1.0f;
 
     nine_d3d_matrix_inverse(D, &T);
 }

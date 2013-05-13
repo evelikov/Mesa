@@ -31,9 +31,11 @@
 #include "d3dpresent.h"
 
 struct gen_mipmap_state;
+struct util_hash_table;
 struct pipe_screen;
 struct pipe_context;
 struct cso_context;
+
 struct NineSwapChain9;
 struct NineStateBlock9;
 
@@ -70,6 +72,8 @@ struct NineDevice9
     struct gen_mipmap_state *gen_mipmap;
 
     struct {
+        struct u_hash_table *ht_vs;
+        struct u_hash_table *ht_ps;
         struct NineVertexShader9 *vs;
         struct NinePixelShader9 *ps;
     } ff;

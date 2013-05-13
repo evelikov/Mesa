@@ -179,6 +179,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     unsigned x;
 
     if (shader_type == PIPE_SHADER_VERTEX) {
+        DBG("VS\n");
         buf = device->constbuf_vs;
         dirty_f = device->state.changed.vs_const_f;
         const_f = device->state.vs_const_f;
@@ -188,6 +189,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         const_b = device->state.vs_const_b;
         b_true = device->vs_bool_true;
     } else {
+        DBG("PS\n");
         buf = device->constbuf_ps;
         dirty_f = device->state.changed.ps_const_f;
         const_f = device->state.ps_const_f;
@@ -213,6 +215,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
           data_b[n] = const_b[i] ? b_true : 0;
        box.x = x;
        box.width = n * 4;
+       DBG("upload ConstantB [%u .. %u]\n", x, x + n - 1);
        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data_b, 0, 0);
           
     }
@@ -225,6 +228,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
             ++c;
         } else
         if (c) {
+            DBG("upload ConstantI [%u .. %u]\n", x, x + c - 1);
             data = &const_i[x * 4];
             box.x = x * 4 * sizeof(int);
             box.width = c * 4 * sizeof(int);
@@ -233,6 +237,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         }
     }
     if (c) {
+        DBG("upload ConstantI [%u .. %u]\n", x, x + c - 1);
         data = &const_i[x * 4];
         box.x = x * 4 * sizeof(int);
         box.width = c * 4 * sizeof(int);
@@ -250,6 +255,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
                ++c;
             } else
             if (c) {
+                DBG("upload ConstantF [%u .. %u]\n", x, x + c - 1);
                 data = &const_f[x * 4];
                 box.x = x * 4 * sizeof(float);
                 box.width = c * 4 * sizeof(float);
@@ -260,6 +266,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         }
     }
     if (c) {
+        DBG("upload ConstantF [%u .. %u]\n", x, x + c - 1);
         data = &const_f[x * 4];
         box.x = x * 4 * sizeof(float);
         box.width = c * 4 * sizeof(float);
@@ -407,9 +414,9 @@ nine_update_state(struct NineDevice9 *device)
             state->changed.stream_freq & ~1)
             update_vertex_elements(device);
 
-        if (state->changed.group & NINE_STATE_VS_CONST)
+        if ((state->changed.group & NINE_STATE_VS_CONST) && state->vs)
             update_constants(device, PIPE_SHADER_VERTEX);
-        if (state->changed.group & NINE_STATE_PS_CONST)
+        if ((state->changed.group & NINE_STATE_PS_CONST) && state->ps)
             update_constants(device, PIPE_SHADER_FRAGMENT);
     }
     if (state->changed.vtxbuf)
@@ -540,6 +547,9 @@ nine_state_set_defaults(struct nine_state *state, D3DCAPS9 *caps)
     state->rs[D3DRS_POINTSIZE_MAX] = fui(caps->MaxPointSize);
 
     state->changed.group = NINE_STATE_ALL;
+
+    state->ff.changed.transform[0] = ~0;
+    state->ff.changed.transform[D3DTS_WORLD / 32] |= 1 << (D3DTS_WORLD % 32);
 }
 
 /*
