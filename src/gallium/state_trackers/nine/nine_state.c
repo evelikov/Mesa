@@ -22,12 +22,14 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "device9.h"
+#include "basetexture9.h"
 #include "indexbuffer9.h"
 #include "surface9.h"
 #include "vertexdeclaration9.h"
 #include "vertexshader9.h"
 #include "pixelshader9.h"
 #include "nine_pipe.h"
+#include "nine_ff.h"
 #include "pipe/p_context.h"
 #include "pipe/p_state.h"
 #include "cso_cache/cso_context.h"
@@ -301,17 +303,38 @@ update_index_buffer(struct NineDevice9 *device)
 }
 
 static void
-update_samplers()
+update_textures_and_samplers(struct NineDevice9 *device)
 {
-}
+    struct pipe_context *pipe = device->pipe;
+    struct nine_state *state = &device->state;
+    struct pipe_sampler_view *view[NINE_MAX_SAMPLERS];
+    unsigned num_textures = 0;
+    unsigned i;
 
-static void
-update_textures()
-{
-#if 0
-    if (MANAGED)
-        texture->PreLoad();
-#endif
+    /* TODO: Can we reduce iterations here ? */
+    for (i = 0; i < NINE_MAX_SAMPLERS; ++i) {
+        view[i] = state->texture[i] ? state->texture[i]->view : NULL;
+        if (!view[i])
+            continue;
+        if (state->texture[i]->base.pool == D3DPOOL_MANAGED)
+            NineResource9_PreLoad(&state->texture[i]->base);
+        num_textures = i + 1;
+
+        if (state->changed.sampler[i]) {
+            state->changed.sampler[i] = 0;
+            nine_convert_sampler_state(device->cso, i, state->samp[i]);
+        }
+    }
+    if (state->changed.group & NINE_STATE_SAMPLER) {
+        cso_single_sampler_done(device->cso, PIPE_SHADER_VERTEX);
+        cso_single_sampler_done(device->cso, PIPE_SHADER_FRAGMENT);
+    }
+
+    if (state->changed.texture) {
+        state->changed.texture = 0;
+        pipe->set_fragment_sampler_views(pipe, num_textures, view);
+        pipe->set_vertex_sampler_views(pipe, num_textures, view);
+    }
 }
 
 #define NINE_STATE_FREQ_GROUP_0 \
@@ -336,6 +359,9 @@ nine_update_state(struct NineDevice9 *device)
     DBG("changed state groups: %x | %x\n",
         state->changed.group & NINE_STATE_FREQ_GROUP_0,
         state->changed.group & NINE_STATE_FREQ_GROUP_1);
+
+    if (unlikely(!state->vs || !state->ps))
+        nine_ff_update(device);
 
     if (state->changed.group & NINE_STATE_FREQ_GROUP_0) {
         if (state->changed.group & NINE_STATE_FB)
@@ -371,10 +397,8 @@ nine_update_state(struct NineDevice9 *device)
         pipe->set_clip_state(pipe, &state->clip);
 
     if (state->changed.group & NINE_STATE_FREQ_GROUP_1) {
-        if (state->changed.group & NINE_STATE_SAMPLER)
-            update_samplers(device);
-        if (state->changed.group & NINE_STATE_TEXTURE)
-            update_textures(device);
+        if (state->changed.group & (NINE_STATE_TEXTURE | NINE_STATE_SAMPLER))
+            update_textures_and_samplers(device);
 
         if (state->changed.group & NINE_STATE_IDXBUF)
             update_index_buffer(device);

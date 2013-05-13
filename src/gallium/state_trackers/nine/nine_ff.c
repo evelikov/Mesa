@@ -1,13 +1,14 @@
 
+#include "device9.h"
 #include "nine_ff.h"
 
+#define DBG_CHANNEL DBG_FF
 
-
-
-
-
-
-
+void
+nine_ff_update(struct NineDevice9 *device)
+{
+    DBG("Error: FF not implemented.\n");
+}
 
 
 /* ========================================================================== */

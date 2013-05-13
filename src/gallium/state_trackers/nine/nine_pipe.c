@@ -159,32 +159,32 @@ nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
 }
 
 void
-nine_convert_sampler_state(struct cso_context *ctx, const DWORD *rs)
+nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
 {
     struct pipe_sampler_state samp;
 
     memset(&samp, 0, sizeof(samp)); /* memcmp safety */
 
-    samp.wrap_s = d3dtextureaddress_to_pipe_tex_wrap(rs[D3DSAMP_ADDRESSU]);
-    samp.wrap_t = d3dtextureaddress_to_pipe_tex_wrap(rs[D3DSAMP_ADDRESSV]);
-    samp.wrap_r = d3dtextureaddress_to_pipe_tex_wrap(rs[D3DSAMP_ADDRESSW]);
-    samp.min_mip_filter = d3dtexturefiltertype_to_pipe_tex_mipfilter(rs[D3DSAMP_MIPFILTER]);
-    samp.min_img_filter = d3dtexturefiltertype_to_pipe_tex_filter(rs[D3DSAMP_MINFILTER]);
-    samp.mag_img_filter = d3dtexturefiltertype_to_pipe_tex_filter(rs[D3DSAMP_MAGFILTER]);
+    samp.wrap_s = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSU]);
+    samp.wrap_t = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSV]);
+    samp.wrap_r = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSW]);
+    samp.min_mip_filter = d3dtexturefiltertype_to_pipe_tex_mipfilter(ss[D3DSAMP_MIPFILTER]);
+    samp.min_img_filter = d3dtexturefiltertype_to_pipe_tex_filter(ss[D3DSAMP_MINFILTER]);
+    samp.mag_img_filter = d3dtexturefiltertype_to_pipe_tex_filter(ss[D3DSAMP_MAGFILTER]);
     samp.compare_mode = PIPE_TEX_COMPARE_NONE;
     samp.compare_func = PIPE_FUNC_NEVER;
     samp.normalized_coords = 1;
-    samp.max_anisotropy = rs[D3DSAMP_MAXANISOTROPY];
+    samp.max_anisotropy = ss[D3DSAMP_MAXANISOTROPY];
     samp.seamless_cube_map = 1;
-    samp.lod_bias = asfloat(rs[D3DSAMP_MIPMAPLODBIAS]);
+    samp.lod_bias = asfloat(ss[D3DSAMP_MIPMAPLODBIAS]);
     samp.min_lod = 0.0f;
-    samp.max_lod = rs[D3DSAMP_MAXMIPLEVEL];
-    samp.border_color.f[0] = ((rs[D3DSAMP_BORDERCOLOR] >>  0) & 0xff) / 255.0f;
-    samp.border_color.f[1] = ((rs[D3DSAMP_BORDERCOLOR] >>  8) & 0xff) / 255.0f;
-    samp.border_color.f[2] = ((rs[D3DSAMP_BORDERCOLOR] >> 16) & 0xff) / 255.0f;
-    samp.border_color.f[3] = ((rs[D3DSAMP_BORDERCOLOR] >> 24) & 0xff) / 255.0f;
+    samp.max_lod = ss[D3DSAMP_MAXMIPLEVEL];
+    samp.border_color.f[0] = ((ss[D3DSAMP_BORDERCOLOR] >>  0) & 0xff) / 255.0f;
+    samp.border_color.f[1] = ((ss[D3DSAMP_BORDERCOLOR] >>  8) & 0xff) / 255.0f;
+    samp.border_color.f[2] = ((ss[D3DSAMP_BORDERCOLOR] >> 16) & 0xff) / 255.0f;
+    samp.border_color.f[3] = ((ss[D3DSAMP_BORDERCOLOR] >> 24) & 0xff) / 255.0f;
 
-    (void)samp;
+    cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx, &samp);
 }
 
 const enum pipe_format nine_d3d9_to_pipe_format_map[120] =

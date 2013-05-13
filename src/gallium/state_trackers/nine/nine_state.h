@@ -26,9 +26,9 @@
 #include "d3d9.h"
 #include "pipe/p_state.h"
 
-#define NINED3DRS_LAST D3DRS_BLENDOPALPHA
+#define NINED3DRS_LAST D3DRS_BLENDOPALPHA /* 209 */
 
-#define NINED3DSAMP_LAST D3DSAMP_DMAPOFFSET
+#define NINED3DSAMP_LAST D3DSAMP_DMAPOFFSET /* 13 */
 
 #define NINE_STATE_FB          (1 <<  0)
 #define NINE_STATE_VIEWPORT    (1 <<  1)
@@ -133,7 +133,7 @@ struct nine_state
     } ff;
 };
 
-/* map D3DRS -> log2(NINE_STATE_x) (do we need this ?)
+/* map D3DRS -> NINE_STATE_x
  */
 const uint32_t nine_render_state_group[NINED3DRS_LAST + 1];
 

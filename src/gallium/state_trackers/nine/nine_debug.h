@@ -63,7 +63,8 @@ _nine_debug_printf( unsigned long flag,
 #define DBG_VOLUME               (1<<20)
 #define DBG_VOLUMETEXTURE        (1<<21)
 #define DBG_SHADER               (1<<22)
-#define DBG_USER                 (1<<23)
+#define DBG_FF                   (1<<23)
+#define DBG_USER                 (1<<24)
 
 void
 _nine_stub( const char *file,
