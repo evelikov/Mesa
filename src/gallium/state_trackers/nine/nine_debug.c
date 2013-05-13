@@ -48,6 +48,7 @@ static const struct debug_named_value nine_debug_flags[] = {
     { "3dsurf",  DBG_VOLUME,               "IDirect3DVolume9 implementation." },
     { "3dtex",   DBG_VOLUMETEXTURE,        "IDirect3DVolumeTexture9 implementation." },
     { "shader",  DBG_SHADER,               "Shader token stream translator." },
+    { "ff",      DBG_FF,                   "Fixed function emulation." },
     { "user",    DBG_USER,                 "User errors, both fixable and unfixable." },
     DEBUG_NAMED_VALUE_END
 };
