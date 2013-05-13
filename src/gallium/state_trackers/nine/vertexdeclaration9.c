@@ -25,6 +25,8 @@
 #include "nine_helpers.h"
 
 #include "pipe/p_format.h"
+#include "util/u_math.h"
+#include "util/u_format.h"
 
 #define DBG_CHANNEL DBG_VERTEXDECLARATION
 
@@ -105,6 +107,38 @@ nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
     }
 }
 
+static const char *nine_declusage_names[] =
+{
+    [NINE_DECLUSAGE_POSITION]     = "POSITION",
+    [NINE_DECLUSAGE_BLENDWEIGHT]  = "BLENDWEIGHT",
+    [NINE_DECLUSAGE_BLENDINDICES] = "BLENDINDICES",
+    [NINE_DECLUSAGE_NORMAL(0)]    = "NORMAL",
+    [NINE_DECLUSAGE_NORMAL(1)]    = "NORMAL1",
+    [NINE_DECLUSAGE_PSIZE]        = "PSIZE",
+    [NINE_DECLUSAGE_TEXCOORD(0)]  = "TEXCOORD0",
+    [NINE_DECLUSAGE_TEXCOORD(1)]  = "TEXCOORD1",
+    [NINE_DECLUSAGE_TEXCOORD(2)]  = "TEXCOORD2",
+    [NINE_DECLUSAGE_TEXCOORD(3)]  = "TEXCOORD3",
+    [NINE_DECLUSAGE_TEXCOORD(4)]  = "TEXCOORD4",
+    [NINE_DECLUSAGE_TEXCOORD(5)]  = "TEXCOORD5",
+    [NINE_DECLUSAGE_TEXCOORD(6)]  = "TEXCOORD6",
+    [NINE_DECLUSAGE_TEXCOORD(7)]  = "TEXCOORD7",
+    [NINE_DECLUSAGE_TANGENT]      = "TANGENT",
+    [NINE_DECLUSAGE_BINORMAL]     = "BINORMAL",
+    [NINE_DECLUSAGE_TESSFACTOR]   = "TESSFACTOR",
+    [NINE_DECLUSAGE_POSITIONT]    = "POSITIONT",
+    [NINE_DECLUSAGE_COLOR(0)]     = "DIFFUSE",
+    [NINE_DECLUSAGE_COLOR(1)]     = "SPECULAR",
+    [NINE_DECLUSAGE_DEPTH]        = "DEPTH",
+    [NINE_DECLUSAGE_NONE]         = "(NONE)",
+    [NINE_DECLUSAGE_COUNT]        = "(OOB)"
+};
+static INLINE const char *
+nine_declusage_name(unsigned ndcl)
+{
+    return nine_declusage_names[MIN2(ndcl, Elements(nine_declusage_names) - 1)];
+}
+
 HRESULT
 NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
                              struct NineUnknownParams *pParams,
@@ -139,6 +173,12 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
         uint8_t usage = nine_d3d9_to_nine_declusage(This->decls[i].Usage,
                                                     This->decls[i].UsageIndex);
         This->usage_map[usage] = i;
+
+        DBG("VERTEXELEMENT[%u]: Stream=%u Offset=%u Type=%s DeclUsage=%s\n", i,
+            This->decls[i].Stream,
+            This->decls[i].Offset,
+            util_format_name(This->elems[i].src_format),
+            nine_declusage_name(usage));
 
         This->elems[i].src_offset = This->decls[i].Offset;
         This->elems[i].instance_divisor = 0;

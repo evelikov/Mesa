@@ -80,7 +80,7 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
     rast.fill_back = rast.fill_front;
  /* rast.offset_point = 0; */ /* XXX */
  /* rast.offset_line = 0; */ /* XXX */
-    rast.offset_tri = 1;
+    rast.offset_tri = !!(rs[D3DRS_DEPTHBIAS] | rs[D3DRS_SLOPESCALEDEPTHBIAS]);
     rast.scissor = !!rs[D3DRS_SCISSORTESTENABLE];
  /* rast.poly_smooth = 0; */
  /* rast.poly_stipple_enable = 0; */

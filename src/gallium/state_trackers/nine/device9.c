@@ -154,7 +154,15 @@ NineDevice9_ctor( struct NineDevice9 *This,
     if (!This->gen_mipmap)
         return E_OUTOFMEMORY;
 
-    nine_state_set_defaults(&This->state, &This->caps);
+    {
+        struct pipe_poly_stipple stipple;
+
+        nine_state_set_defaults(&This->state, &This->caps);
+
+        memset(&stipple, ~0, sizeof(stipple));
+        pipe->set_polygon_stipple(pipe, &stipple);
+    }
+    This->update = &This->state;
 
     This->state.changed.group = NINE_STATE_FB;
     nine_update_state(This);
@@ -966,8 +974,14 @@ NineDevice9_SetViewport( struct NineDevice9 *This,
                          const D3DVIEWPORT9 *pViewport )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("X=%u Y=%u W=%u H=%u MinZ=%f MaxZ=%f\n",
+        pViewport->X, pViewport->Y, pViewport->Width, pViewport->Height,
+        pViewport->MinZ, pViewport->MaxZ);
+
     state->viewport = *pViewport;
     state->changed.group |= NINE_STATE_VIEWPORT;
+
     return D3D_OK;
 }
 
@@ -1574,6 +1588,8 @@ NineDevice9_SetFVF( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
     struct NineVertexDeclaration9 *vdecl;
     HRESULT hr;
+
+    DBG("FVF = %08x\n", FVF);
 
     if (!FVF) {
         /* XXX: is this correct ? */
