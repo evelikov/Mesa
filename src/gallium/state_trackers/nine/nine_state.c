@@ -752,3 +752,47 @@ const uint32_t nine_render_state_group[NINED3DRS_LAST + 1] =
     [D3DRS_DESTBLENDALPHA] = NINE_STATE_ALL,
     [D3DRS_BLENDOPALPHA] = NINE_STATE_ALL
 };
+
+D3DMATRIX *
+nine_state_access_transform(struct nine_state *state, D3DTRANSFORMSTATETYPE t,
+                            boolean alloc)
+{
+    static D3DMATRIX Identity = { .m[0] = { 1, 0, 0, 0 },
+                                  .m[1] = { 0, 1, 0, 0 },
+                                  .m[2] = { 0, 0, 1, 0 },
+                                  .m[3] = { 0, 0, 0, 1 } };
+    unsigned index;
+
+    switch (t) {
+    case D3DTS_VIEW: index = 0; break;
+    case D3DTS_PROJECTION: index = 1; break;
+    case D3DTS_TEXTURE0: index = 2; break;
+    case D3DTS_TEXTURE1: index = 3; break;
+    case D3DTS_TEXTURE2: index = 4; break;
+    case D3DTS_TEXTURE3: index = 5; break;
+    case D3DTS_TEXTURE4: index = 6; break;
+    case D3DTS_TEXTURE5: index = 7; break;
+    case D3DTS_TEXTURE6: index = 8; break;
+    case D3DTS_TEXTURE7: index = 9; break;
+    default:
+        if (!(t >= D3DTS_WORLDMATRIX(0) && t <= D3DTS_WORLDMATRIX(255)))
+            return NULL;
+        index = 10 + (t - D3DTS_WORLDMATRIX(0));
+        break;
+    }
+
+    if (index >= state->ff.num_transforms) {
+        unsigned N = index + 1;
+        unsigned n = state->ff.num_transforms;
+
+        if (!alloc)
+            return &Identity;
+        state->ff.transform = REALLOC(state->ff.transform,
+                                      n * sizeof(D3DMATRIX),
+                                      N * sizeof(D3DMATRIX));
+        for (; n < N; ++n)
+            state->ff.transform[n] = Identity;
+        state->ff.num_transforms = N;
+    }
+    return &state->ff.transform[index];
+}

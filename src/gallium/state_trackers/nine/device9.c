@@ -32,6 +32,7 @@
 #include "texture9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "nine_ff.h"
 
 #include "pipe/p_screen.h"
 #include "pipe/p_context.h"
@@ -923,7 +924,15 @@ NineDevice9_SetTransform( struct NineDevice9 *This,
                           D3DTRANSFORMSTATETYPE State,
                           const D3DMATRIX *pMatrix )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    D3DMATRIX *M = nine_state_access_transform(state, State, TRUE);
+    user_assert(M, D3DERR_INVALIDCALL);
+
+    *M = *pMatrix;
+    state->ff.changed.transform[State / 32] |= 1 << (State % 32);
+    state->changed.group |= NINE_STATE_FF;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -931,7 +940,11 @@ NineDevice9_GetTransform( struct NineDevice9 *This,
                           D3DTRANSFORMSTATETYPE State,
                           D3DMATRIX *pMatrix )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    D3DMATRIX *M = nine_state_access_transform(state, State, FALSE);
+    user_assert(M, D3DERR_INVALIDCALL);
+    *pMatrix = *M;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -939,7 +952,13 @@ NineDevice9_MultiplyTransform( struct NineDevice9 *This,
                                D3DTRANSFORMSTATETYPE State,
                                const D3DMATRIX *pMatrix )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    D3DMATRIX T;
+    D3DMATRIX *M = nine_state_access_transform(state, State, TRUE);
+    user_assert(M, D3DERR_INVALIDCALL);
+
+    nine_d3d_matrix_matrix_mul(&T, pMatrix, M);
+    return NineDevice9_SetTransform(This, State, &T);
 }
 
 HRESULT WINAPI

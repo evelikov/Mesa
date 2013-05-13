@@ -80,7 +80,6 @@ struct nine_state
         uint16_t vs_const_b; /* NINE_MAX_CONST_B == 16 */
         uint16_t ps_const_b;
         uint8_t ucp;
-        uint32_t texenv[NINE_MAX_TEXTURES]; /* FF */
     } changed;
 
     struct NineSurface9 *rt[NINE_MAX_SIMULTANEOUS_RENDERTARGETS];
@@ -124,6 +123,14 @@ struct nine_state
     struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS];
 
     DWORD samp[NINE_MAX_SAMPLERS][NINED3DSAMP_LAST + 1];
+
+    struct {
+        struct {
+            uint32_t transform[(D3DTS_WORLDMATRIX(255) + 1 + 31) / 32];
+        } changed;
+        D3DMATRIX *transform; /* access only via nine_state_access_transform */
+        unsigned num_transforms;
+    } ff;
 };
 
 /* map D3DRS -> log2(NINE_STATE_x) (do we need this ?)
@@ -141,5 +148,11 @@ boolean nine_update_state(struct NineDevice9 *);
 
 void nine_state_set_defaults(struct nine_state *, D3DCAPS9 *);
 
+/* If @alloc is FALSE, the return value may be a const identity matrix.
+ * Therefore, do not modify if you set alloc to FALSE !
+ */
+D3DMATRIX *
+nine_state_access_transform(struct nine_state *, D3DTRANSFORMSTATETYPE,
+                            boolean alloc);
 
 #endif /* _NINE_STATE_H_ */
