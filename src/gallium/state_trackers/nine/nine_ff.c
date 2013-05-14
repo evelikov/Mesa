@@ -1,5 +1,6 @@
 
 #include "device9.h"
+#include "vertexdeclaration9.h"
 #include "vertexshader9.h"
 #include "pixelshader9.h"
 #include "nine_ff.h"
@@ -17,7 +18,7 @@ struct nine_ff_vs_key
 {
     union {
         struct {
-            uint32_t aaa : 1;
+            uint32_t position_t : 1;
         };
         uint64_t value; /* if u64 isn't enough, resize VertexShader9.ff_key */
     };
@@ -93,11 +94,15 @@ nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
     }
 
     /* HPOS */
-    ureg_MUL(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_X), c[0]);
-    ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_Y), c[1], r_src[0]);
-    ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_Z), c[2], r_src[0]);
-    ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_W), c[3], r_src[0]);
-    ureg_MOV(ureg, oPos, r_src[0]);
+    if (key->position_t) {
+        ureg_MOV(ureg, oPos, a[0]);
+    } else {
+        ureg_MUL(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_X), c[0]);
+        ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_Y), c[1], r_src[0]);
+        ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_Z), c[2], r_src[0]);
+        ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_W), c[3], r_src[0]);
+        ureg_MOV(ureg, oPos, r_src[0]);
+    }
 
     /* COLOR */
     ureg_MOV(ureg, oCol[0], a[1]);
@@ -163,11 +168,17 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
 static struct NineVertexShader9 *
 nine_ff_get_vs(struct NineDevice9 *device)
 {
+    const struct nine_state *state = &device->state;
     struct NineVertexShader9 *vs;
     enum pipe_error err;
     struct nine_ff_vs_key key;
 
     key.value = 0;
+
+    /* FIXME: this shouldn't be NULL, but it is on init */
+    if (state->vdecl &&
+        state->vdecl->usage_map[NINE_DECLUSAGE_POSITIONT] != 0xff)
+        key.position_t = 1;
 
     vs = util_hash_table_get(device->ff.ht_vs, &key);
     if (vs)
@@ -185,6 +196,9 @@ nine_ff_get_vs(struct NineDevice9 *device)
         vs->input_map[2].ndecl = NINE_DECLUSAGE_COLOR(1);
         vs->input_map[3].ndecl = NINE_DECLUSAGE_TEXCOORD(0);
         vs->num_inputs = 4;
+
+        if (key.position_t)
+            vs->input_map[0].ndecl = NINE_DECLUSAGE_POSITIONT;
     }
     return vs;
 }
