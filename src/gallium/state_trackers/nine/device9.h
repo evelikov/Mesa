@@ -72,8 +72,8 @@ struct NineDevice9
     struct gen_mipmap_state *gen_mipmap;
 
     struct {
-        struct u_hash_table *ht_vs;
-        struct u_hash_table *ht_ps;
+        struct util_hash_table *ht_vs;
+        struct util_hash_table *ht_ps;
         struct NineVertexShader9 *vs;
         struct NinePixelShader9 *ps;
     } ff;

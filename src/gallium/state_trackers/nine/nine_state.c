@@ -386,9 +386,11 @@ nine_update_state(struct NineDevice9 *device)
             update_rasterizer(device);
 
         if (state->changed.group & NINE_STATE_VS)
-            pipe->bind_vs_state(pipe, device->state.vs->cso);
+            pipe->bind_vs_state(pipe, device->state.vs ? device->state.vs->cso :
+                                                         device->ff.vs->cso);
         if (state->changed.group & NINE_STATE_PS)
-            pipe->bind_fs_state(pipe, device->state.ps->cso);
+            pipe->bind_fs_state(pipe, device->state.ps ? device->state.ps->cso :
+                                                         device->ff.ps->cso);
 
         if (state->changed.group & NINE_STATE_BLEND_COLOR) {
             struct pipe_blend_color color;

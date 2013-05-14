@@ -9,8 +9,51 @@
 #include "pipe/p_context.h"
 #include "tgsi/tgsi_ureg.h"
 #include "util/u_box.h"
+#include "util/u_hash_table.h"
 
 #define DBG_CHANNEL DBG_FF
+
+struct nine_ff_vs_key
+{
+    union {
+        struct {
+            uint32_t aaa : 1;
+        };
+        uint32_t value;
+    };
+};
+struct nine_ff_ps_key
+{
+    union {
+        struct {
+            uint32_t aaa : 1;
+        };
+        uint32_t value;
+    };
+};
+
+static unsigned nine_ff_vs_key_hash(void *key)
+{
+    return ((struct nine_ff_vs_key *)key)->value;
+}
+static int nine_ff_vs_key_comp(void *key1, void *key2)
+{
+    struct nine_ff_vs_key *a = (struct nine_ff_vs_key *)key1;
+    struct nine_ff_vs_key *b = (struct nine_ff_vs_key *)key2;
+
+    return a->value != b->value;
+}
+static unsigned nine_ff_ps_key_hash(void *key)
+{
+    return ((struct nine_ff_ps_key *)key)->value;
+}
+static int nine_ff_ps_key_comp(void *key1, void *key2)
+{
+    struct nine_ff_ps_key *a = (struct nine_ff_ps_key *)key1;
+    struct nine_ff_ps_key *b = (struct nine_ff_ps_key *)key2;
+
+    return a->value != b->value;
+}
 
 /* VS FF constants layout:
  *
@@ -21,7 +64,7 @@
  * CONST[16..19] Normal matrix
  */
 static void *
-nine_ff_build_vs(struct NineDevice9 *device)
+nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
 {
     struct nine_state *state = &device->state;
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_VERTEX);
@@ -75,7 +118,7 @@ nine_ff_build_vs(struct NineDevice9 *device)
  * CONST[28..31] D3DTS_TEXTURE7
  */
 static void *
-nine_ff_build_ps(struct NineDevice9 *device)
+nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
 {
     struct nine_state *state = &device->state;
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_FRAGMENT);
@@ -121,29 +164,48 @@ static struct NineVertexShader9 *
 nine_ff_get_vs(struct NineDevice9 *device)
 {
     struct NineVertexShader9 *vs;
+    enum pipe_error err;
+    struct nine_ff_vs_key key;
 
-    if (!device->ff.vs) {
-        NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device));
+    key.value = 0;
+
+    vs = util_hash_table_get(device->ff.ht_vs, &key);
+    if (vs)
+        return vs;
+    NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device, &key));
+
+    if (vs) {
+        err = util_hash_table_set(device->ff.ht_vs, &key, vs);
+        assert(err == PIPE_OK);
+
         vs->input_map[0].ndecl = NINE_DECLUSAGE_POSITION;
         vs->input_map[1].ndecl = NINE_DECLUSAGE_COLOR(0);
         vs->input_map[2].ndecl = NINE_DECLUSAGE_COLOR(1);
         vs->input_map[3].ndecl = NINE_DECLUSAGE_TEXCOORD(0);
         vs->num_inputs = 4;
-        device->ff.vs = vs;
     }
-    return device->ff.vs;
+    return vs;
 }
 
 static struct NinePixelShader9 *
 nine_ff_get_ps(struct NineDevice9 *device)
 {
     struct NinePixelShader9 *ps;
+    enum pipe_error err;
+    struct nine_ff_ps_key key;
 
-    if (!device->ff.ps) {
-        NinePixelShader9_new(device, &ps, NULL, nine_ff_build_ps(device));
-        device->ff.ps = ps;
+    key.value = 0;
+
+    ps = util_hash_table_get(device->ff.ht_ps, &key);
+    if (ps)
+        return ps;
+    NinePixelShader9_new(device, &ps, NULL, nine_ff_build_ps(device, &key));
+
+    if (ps) {
+        err = util_hash_table_set(device->ff.ht_ps, &key, ps);
+        assert(err == PIPE_OK);
     }
-    return device->ff.ps;
+    return ps;
 }
 
 #define GET_D3DTS(n) nine_state_access_transform(state, D3DTS_##n, FALSE)
@@ -190,12 +252,13 @@ nine_ff_update(struct NineDevice9 *device)
 {
     DBG("Warning: FF is just a dummy.\n");
 
-    if (!device->state.vs)
-        nine_reference(&device->state.vs, nine_ff_get_vs(device));
-    if (!device->state.ps)
-        nine_reference(&device->state.ps, nine_ff_get_ps(device));
 
-    if (device->ff.vs &&
+    if (!device->state.vs)
+        nine_reference(&device->ff.vs, nine_ff_get_vs(device));
+    if (!device->state.ps)
+        nine_reference(&device->ff.ps, nine_ff_get_ps(device));
+
+    if (!device->state.vs &&
         (device->state.ff.changed.transform[0] |
          device->state.ff.changed.transform[256 / 32]))
         nine_ff_upload_vs_transforms(device);
@@ -203,6 +266,36 @@ nine_ff_update(struct NineDevice9 *device)
     device->state.changed.group |= NINE_STATE_VS | NINE_STATE_PS;
 }
 
+
+boolean
+nine_ff_init(struct NineDevice9 *device)
+{
+    device->ff.ht_vs = util_hash_table_create(nine_ff_vs_key_hash,
+                                              nine_ff_vs_key_comp);
+    device->ff.ht_ps = util_hash_table_create(nine_ff_ps_key_hash,
+                                              nine_ff_ps_key_comp);
+
+    return device->ff.ht_vs && device->ff.ht_ps;
+}
+
+static enum pipe_error nine_ff_ht_delete_cb(void *key, void *value, void *data)
+{
+    NineUnknown_Release(NineUnknown(value));
+    return PIPE_OK;
+}
+
+void
+nine_ff_fini(struct NineDevice9 *device)
+{
+    if (device->ff.ht_vs) {
+        util_hash_table_foreach(device->ff.ht_vs, nine_ff_ht_delete_cb, NULL);
+        util_hash_table_destroy(device->ff.ht_vs);
+    }
+    if (device->ff.ht_ps) {
+        util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
+        util_hash_table_destroy(device->ff.ht_ps);
+    }
+}
 
 /* ========================================================================== */
 
@@ -348,65 +441,66 @@ nine_d3d_matrix_det(const D3DMATRIX *M)
     return pos + neg;
 }
 
-#define _M_ADD3_PROD3(a,b,c,d,e,f,g,h,i,j,k,l,m,n,o,p,q,r) \
-    M->_##a##b * M->_##c##d * M->_##e##f +                 \
-    M->_##g##h * M->_##i##j * M->_##k##l +                 \
-    M->_##m##n * M->_##o##p * M->_##q##r
+/* XXX: Probably better to just use src/mesa/math/m_matrix.c because
+ * I have no idea where this code came from.
+ */
 void
 nine_d3d_matrix_inverse(D3DMATRIX *D, const D3DMATRIX *M)
 {
-    float s = nine_d3d_matrix_det(M);
+    float v0 = M->m[0][2] * M->m[1][3] - M->m[1][2] * M->m[0][3];
+    float v1 = M->m[0][2] * M->m[2][3] - M->m[2][2] * M->m[0][3];
+    float v2 = M->m[0][2] * M->m[3][3] - M->m[3][2] * M->m[0][3];
+    float v3 = M->m[1][2] * M->m[2][3] - M->m[2][2] * M->m[1][3];
+    float v4 = M->m[1][2] * M->m[3][3] - M->m[3][2] * M->m[1][3];
+    float v5 = M->m[2][2] * M->m[3][3] - M->m[3][2] * M->m[2][3];
 
-    D->_11 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
+    float t00 = +(v5 * M->m[1][1] - v4 * M->m[2][1] + v3 * M->m[3][1]);
+    float t10 = -(v5 * M->m[0][1] - v2 * M->m[2][1] + v1 * M->m[3][1]);
+    float t20 = +(v4 * M->m[0][1] - v2 * M->m[1][1] + v0 * M->m[3][1]);
+    float t30 = -(v3 * M->m[0][1] - v1 * M->m[1][1] + v0 * M->m[2][1]);
 
-    D->_12 = (_M_ADD3_PROD3(1,2, 3,4, 4,3,  1,3, 3,2, 4,4,  1,4, 3,3, 4,2) -
-              _M_ADD3_PROD3(1,2, 3,3, 4,4,  1,3, 3,4, 4,2,  1,4, 3,2, 4,3)) / s;
+    float det = t00 * M->m[0][0] + t10 * M->m[1][0] + t20 * M->m[2][3] + t30 * M->m[3][0];
 
-    D->_13 = (_M_ADD3_PROD3(1,2, 2,3, 4,4,  1,3, 2,4, 4,2,  1,4, 2,2, 4,3) -
-              _M_ADD3_PROD3(1,2, 2,4, 4,3,  1,3, 2,2, 4,4,  1,4, 2,3, 4,2)) / s;
+    float inv_det = 1 / det;
 
-    D->_14 = (_M_ADD3_PROD3(1,2, 2,4, 3,3,  1,3, 2,2, 3,4,  1,4, 2,3, 3,2) -
-              _M_ADD3_PROD3(1,2, 2,3, 3,4,  1,3, 2,4, 3,2,  1,4, 2,2, 3,3)) / s;
+    float d00 = t00 * inv_det;
+    float d01 = t10 * inv_det;
+    float d02 = t20 * inv_det;
+    float d03 = t30 * inv_det;
 
-    /* TODO ... */
-    D->_21 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
+    float d10 = -(v5 * M->m[1][0] - v4 * M->m[2][0] + v3 * M->m[3][0]) * inv_det;
+    float d11 = +(v5 * M->m[0][0] - v2 * M->m[2][0] + v1 * M->m[3][0]) * inv_det;
+    float d12 = -(v4 * M->m[0][0] - v2 * M->m[1][0] + v0 * M->m[3][0]) * inv_det;
+    float d13 = +(v3 * M->m[0][0] - v1 * M->m[1][0] + v0 * M->m[2][0]) * inv_det;
 
-    D->_22 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
+    v0 = M->m[0][1] * M->m[1][3] - M->m[1][1] * M->m[0][3];
+    v1 = M->m[0][1] * M->m[2][3] - M->m[2][1] * M->m[0][3];
+    v2 = M->m[0][1] * M->m[3][3] - M->m[3][1] * M->m[0][3];
+    v3 = M->m[1][1] * M->m[2][3] - M->m[2][1] * M->m[1][3];
+    v4 = M->m[1][1] * M->m[3][3] - M->m[3][3] * M->m[1][3];
+    v5 = M->m[2][1] * M->m[3][3] - M->m[3][1] * M->m[2][3];
 
-    D->_23 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
+    float d20 = +(v5 * M->m[1][0] - v4 * M->m[2][0] + v3 * M->m[3][0]) * inv_det;
+    float d21 = -(v5 * M->m[0][0] - v2 * M->m[2][0] + v1 * M->m[3][0]) * inv_det;
+    float d22 = +(v4 * M->m[0][0] - v2 * M->m[1][0] + v0 * M->m[3][0]) * inv_det;
+    float d23 = -(v3 * M->m[0][0] - v1 * M->m[1][0] + v0 * M->m[2][0]) * inv_det;
 
-    D->_24 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
+    v0 = M->m[1][2] * M->m[0][1] - M->m[0][2] * M->m[1][1];
+    v1 = M->m[2][2] * M->m[0][1] - M->m[0][2] * M->m[2][1];
+    v2 = M->m[3][2] * M->m[0][1] - M->m[0][2] * M->m[3][1];
+    v3 = M->m[2][2] * M->m[1][1] - M->m[1][2] * M->m[2][1];
+    v4 = M->m[3][2] * M->m[1][1] - M->m[1][2] * M->m[3][1];
+    v5 = M->m[3][2] * M->m[2][1] - M->m[2][2] * M->m[3][1];
 
+    float d30 = -(v5 * M->m[1][0] - v4 * M->m[2][0] + v3 * M->m[3][0]) * inv_det;
+    float d31 = +(v5 * M->m[0][0] - v2 * M->m[2][0] + v1 * M->m[3][0]) * inv_det;
+    float d32 = -(v4 * M->m[0][0] - v2 * M->m[1][0] + v0 * M->m[3][0]) * inv_det;
+    float d33 = +(v3 * M->m[0][0] - v1 * M->m[1][0] + v0 * M->m[2][0]) * inv_det;
 
-    D->_31 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-    D->_32 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-    D->_33 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-    D->_34 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-
-    D->_41 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-    D->_42 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-    D->_43 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
-
-    D->_44 = (_M_ADD3_PROD3(2,2, 3,3, 4,4,  2,3, 3,4, 4,2,  2,4, 3,2, 4,3) -
-              _M_ADD3_PROD3(2,2, 3,4, 4,3,  2,3, 3,2, 4,4,  2,4, 3,3, 4,2)) / s;
+    D->m[0][0] = d00; D->m[0][1] = d01; D->m[0][2] = d02; D->m[0][3] = d03;
+    D->m[1][0] = d10; D->m[1][1] = d11; D->m[1][2] = d12; D->m[1][3] = d13;
+    D->m[2][0] = d20; D->m[2][1] = d21; D->m[2][2] = d22; D->m[2][3] = d23;
+    D->m[3][0] = d30; D->m[3][1] = d31; D->m[3][2] = d32; D->m[3][3] = d33;
 }
 
 /* TODO: don't use 4x4 inverse, unless this gets all nicely inlined ? */

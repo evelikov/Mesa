@@ -154,6 +154,8 @@ NineDevice9_ctor( struct NineDevice9 *This,
     if (!This->gen_mipmap)
         return E_OUTOFMEMORY;
 
+    nine_ff_init(This); /* initialize fixed function code */
+
     {
         struct pipe_poly_stipple stipple;
 
@@ -177,7 +179,10 @@ NineDevice9_dtor( struct NineDevice9 *This )
 {
     unsigned i;
 
+    nine_ff_fini(This);
+
     util_destroy_gen_mipmap(This->gen_mipmap);
+
     nine_reference(&This->record, NULL);
 
     for (i = 0; i < This->caps.NumSimultaneousRTs; ++i)
