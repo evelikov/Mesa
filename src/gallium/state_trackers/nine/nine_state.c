@@ -132,13 +132,18 @@ update_rasterizer(struct NineDevice9 *device)
 static void
 update_vertex_elements(struct NineDevice9 *device)
 {
-    const struct NineVertexShader9 *vs = device->state.vs;
-    const struct NineVertexDeclaration9 *vdecl = device->state.vdecl;
     const struct nine_state *state = &device->state;
+    const struct NineVertexDeclaration9 *vdecl = device->state.vdecl;
+    const struct NineVertexShader9 *vs;
     unsigned n, l, b;
     struct pipe_vertex_element ve[PIPE_MAX_ATTRIBS];
 
+    vs = device->state.vs ? device->state.vs : device->ff.vs;
+
     for (n = 0; n < vs->num_inputs; ++n) {
+        DBG("looking up input %u (usage %u) from vdecl(%p)\n",
+            n, vs->input_map[n].ndecl, vdecl);
+
         l = vdecl->usage_map[vs->input_map[n].ndecl];
 
         if (likely(l < vdecl->nelems)) {

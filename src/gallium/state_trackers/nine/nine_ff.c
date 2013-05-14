@@ -19,7 +19,7 @@ struct nine_ff_vs_key
         struct {
             uint32_t aaa : 1;
         };
-        uint32_t value;
+        uint64_t value; /* if u64 isn't enough, resize VertexShader9.ff_key */
     };
 };
 struct nine_ff_ps_key
@@ -28,7 +28,7 @@ struct nine_ff_ps_key
         struct {
             uint32_t aaa : 1;
         };
-        uint32_t value;
+        uint64_t value; /* if u64 isn't enough, resize PixelShader9.ff_key */
     };
 };
 
@@ -175,7 +175,9 @@ nine_ff_get_vs(struct NineDevice9 *device)
     NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device, &key));
 
     if (vs) {
-        err = util_hash_table_set(device->ff.ht_vs, &key, vs);
+        vs->ff_key = key.value;
+
+        err = util_hash_table_set(device->ff.ht_vs, &vs->ff_key, vs);
         assert(err == PIPE_OK);
 
         vs->input_map[0].ndecl = NINE_DECLUSAGE_POSITION;
@@ -202,7 +204,9 @@ nine_ff_get_ps(struct NineDevice9 *device)
     NinePixelShader9_new(device, &ps, NULL, nine_ff_build_ps(device, &key));
 
     if (ps) {
-        err = util_hash_table_set(device->ff.ht_ps, &key, ps);
+        ps->ff_key = key.value;
+
+        err = util_hash_table_set(device->ff.ht_ps, &ps->ff_key, ps);
         assert(err == PIPE_OK);
     }
     return ps;
@@ -251,7 +255,6 @@ void
 nine_ff_update(struct NineDevice9 *device)
 {
     DBG("Warning: FF is just a dummy.\n");
-
 
     if (!device->state.vs)
         nine_reference(&device->ff.vs, nine_ff_get_vs(device));

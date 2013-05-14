@@ -39,6 +39,8 @@ struct NineVertexShader9
         DWORD size;
     } byte_code;
     struct NineDevice9 *device;
+
+    uint64_t ff_key;
 };
 static INLINE struct NineVertexShader9 *
 NineVertexShader9( void *data )

@@ -89,6 +89,9 @@ struct nine_state
 
     struct pipe_scissor_state scissor;
 
+    /* NOTE: vs, ps will be NULL for FF and are set in device->ff.vs,ps instead
+     *  (XXX: or is it better to reference FF shaders here, too ?)
+     */
     struct NineVertexShader9 *vs;
     float *vs_const_f;
     int    vs_const_i[NINE_MAX_CONST_I][4];
