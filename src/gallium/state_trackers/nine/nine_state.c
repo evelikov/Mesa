@@ -88,11 +88,11 @@ update_viewport(struct NineDevice9 *device)
      *  0 .. +1 for Z (use pipe_rasterizer_state.clip_halfz)
      */
     pvport.scale[0] = (float)vport->Width * 0.5f;
-    pvport.scale[1] = (float)vport->Height * 0.5f;
+    pvport.scale[1] = (float)vport->Height * -0.5f;
     pvport.scale[2] = vport->MaxZ - vport->MinZ;
     pvport.scale[3] = 1.0f;
-    pvport.translate[0] = pvport.scale[0] + (float)vport->X;
-    pvport.translate[1] = pvport.scale[1] + (float)vport->Y;
+    pvport.translate[0] = (float)vport->Width * 0.5f + (float)vport->X;
+    pvport.translate[1] = (float)vport->Height * 0.5f + (float)vport->Y;
     pvport.translate[2] = vport->MinZ;
     pvport.translate[3] = 0.0f;
 
