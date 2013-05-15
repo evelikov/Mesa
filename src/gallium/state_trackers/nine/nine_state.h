@@ -137,6 +137,9 @@ struct nine_state
         D3DMATRIX *transform; /* access only via nine_state_access_transform */
         unsigned num_transforms;
 
+        /* XXX: Do state blocks just change the set of active lights or do we
+         * have to store which lights have been disabled, too ?
+         */
         D3DLIGHT9 *light;
         uint16_t active_light[NINE_MAX_LIGHTS_ACTIVE]; /* 8 */
         unsigned num_lights;

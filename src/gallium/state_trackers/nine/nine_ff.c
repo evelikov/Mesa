@@ -228,7 +228,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
         ureg_SEQ(ureg, rCmp, cLKind, ureg_imm1f(ureg, D3DLIGHT_POINT));
         ureg_IF(ureg, _Y(rCmp), &label[l++]);
         {
-            /* POINT light */
+            /* POINT light (finite distance, omidirectional) */
             ureg_SUB(ureg, rDst, ureg_src(rDst), cLPos);
             ureg_DP3(ureg, rTmpW, ureg_src(rDst), ureg_src(rDst));
             ureg_SQRT(ureg, rTmpW, _W(rTmpW));
@@ -243,12 +243,12 @@ nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
         ureg_SEQ(ureg, rCmp, cLKind, ureg_imm1f(ureg, D3DLIGHT_SPOT));
         ureg_IF(ureg, _Y(rCmp), &label[l++]);
         {
-            /* SPOT light */
+            /* SPOT light (finite distance, angular dependence) */
         }
         ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
         ureg_ELSE(ureg, &label[l++]);
         {
-            /* DIRECTIONAL light */
+            /* DIRECTIONAL light (infinite distance, simplest case) */
         }
         ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
         ureg_ENDIF(ureg);
