@@ -1018,14 +1018,23 @@ HRESULT WINAPI
 NineDevice9_SetMaterial( struct NineDevice9 *This,
                          const D3DMATERIAL9 *pMaterial )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    user_assert(pMaterial, E_POINTER);
+
+    state->ff.material = *pMaterial;
+    state->ff.changed.material = 1;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
 NineDevice9_GetMaterial( struct NineDevice9 *This,
                          D3DMATERIAL9 *pMaterial )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    user_assert(pMaterial, E_POINTER);
+    *pMaterial = state->ff.material;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1033,7 +1042,31 @@ NineDevice9_SetLight( struct NineDevice9 *This,
                       DWORD Index,
                       const D3DLIGHT9 *pLight )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+
+    user_assert(pLight, D3DERR_INVALIDCALL);
+    user_assert(pLight->Type < NINELIGHT_INVALID, D3DERR_INVALIDCALL);
+
+    user_assert(Index < NINE_MAX_LIGHTS, D3DERR_INVALIDCALL); /* sanity */
+
+    if (Index >= state->ff.num_lights) {
+        unsigned n = state->ff.num_lights;
+        unsigned N = Index + 1;
+
+        state->ff.light = REALLOC(state->ff.light, n * sizeof(D3DLIGHT9),
+                                                   N * sizeof(D3DLIGHT9));
+        if (!state->ff.light)
+            return E_OUTOFMEMORY;
+        state->ff.num_lights = N;
+
+        for (; n < Index; ++n)
+            state->ff.light[n].Type = (D3DLIGHTTYPE)NINELIGHT_INVALID;
+    }
+    state->ff.light[Index] = *pLight;
+
+    state->ff.changed.lights = TRUE;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1041,7 +1074,15 @@ NineDevice9_GetLight( struct NineDevice9 *This,
                       DWORD Index,
                       D3DLIGHT9 *pLight )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    user_assert(pLight, D3DERR_INVALIDCALL);
+    user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
+    user_assert(state->ff.light[Index].Type < NINELIGHT_INVALID,
+                D3DERR_INVALIDCALL);
+
+    *pLight = state->ff.light[Index];
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1049,7 +1090,30 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
                          DWORD Index,
                          BOOL Enable )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    unsigned i;
+
+    user_assert(state->ff.light[Index].Type < NINELIGHT_INVALID,
+                D3DERR_INVALIDCALL);
+
+    for (i = 0; i < state->ff.num_lights_active; ++i) {
+        if (state->ff.active_light[i] != Index)
+            continue;
+        if (Enable)
+            return D3D_OK;
+    }
+    if (Enable) {
+        user_assert((i + 1) < NINE_MAX_LIGHTS_ACTIVE, D3DERR_INVALIDCALL);
+        state->ff.active_light[i] = Index;
+        state->ff.num_lights_active++;
+    } else {
+        --state->ff.num_lights_active;
+        for (; i < state->ff.num_lights_active; ++i)
+            state->ff.active_light[i] = state->ff.active_light[i + 1];
+    }
+    state->ff.changed.lights = TRUE;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1057,7 +1121,18 @@ NineDevice9_GetLightEnable( struct NineDevice9 *This,
                             DWORD Index,
                             BOOL *pEnable )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_GET(This);
+    unsigned i;
+
+    user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
+    user_assert(state->ff.light[Index].Type < NINELIGHT_INVALID,
+                D3DERR_INVALIDCALL);
+
+    for (i = 0; i < state->ff.num_lights_active; ++i)
+        if (state->ff.active_light[i] == Index)
+            break;
+    *pEnable = i != state->ff.num_lights_active;
+    return D3D_OK;
 }
 
 HRESULT WINAPI

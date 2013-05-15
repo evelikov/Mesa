@@ -23,6 +23,7 @@
 #include "adapter9.h"
 #include "device9.h"
 #include "nine_helpers.h"
+#include "nine_defines.h"
 #include "nine_pipe.h"
 #include "util/u_math.h"
 
@@ -689,7 +690,7 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                                   /*D3DVTXPCAPS_TWEENING |*/
                                   /*D3DVTXPCAPS_NO_TEXGEN_NONLOCALVIEWER*/0;
 
-    pCaps->MaxActiveLights = 8; /* like GL_LIGHTi */
+    pCaps->MaxActiveLights = NINE_MAX_LIGHTS_ACTIVE; /* like GL_LIGHTi */
     pCaps->MaxUserClipPlanes = PIPE_MAX_CLIP_PLANES;
     pCaps->MaxVertexBlendMatrices = 4; /* XXX */
     pCaps->MaxVertexBlendMatrixIndex = 0; /* XXX wine */

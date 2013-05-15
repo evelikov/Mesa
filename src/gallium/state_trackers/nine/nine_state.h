@@ -24,6 +24,7 @@
 #define _NINE_STATE_H_
 
 #include "d3d9.h"
+#include "nine_defines.h"
 #include "pipe/p_state.h"
 
 #define NINED3DRS_LAST D3DRS_BLENDOPALPHA /* 209 */
@@ -130,9 +131,18 @@ struct nine_state
     struct {
         struct {
             uint32_t transform[(D3DTS_WORLDMATRIX(255) + 1 + 31) / 32];
+            uint32_t lights   : 1;
+            uint32_t material : 1;
         } changed;
         D3DMATRIX *transform; /* access only via nine_state_access_transform */
         unsigned num_transforms;
+
+        D3DLIGHT9 *light;
+        uint16_t active_light[NINE_MAX_LIGHTS_ACTIVE]; /* 8 */
+        unsigned num_lights;
+        unsigned num_lights_active;
+
+        D3DMATERIAL9 material;
     } ff;
 };
 

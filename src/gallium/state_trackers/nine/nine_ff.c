@@ -19,6 +19,7 @@ struct nine_ff_vs_key
     union {
         struct {
             uint32_t position_t : 1;
+            uint32_t lighting   : 1;
         };
         uint64_t value; /* if u64 isn't enough, resize VertexShader9.ff_key */
     };
@@ -56,60 +57,224 @@ static int nine_ff_ps_key_comp(void *key1, void *key2)
     return a->value != b->value;
 }
 
+#define _X(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_X)
+#define _Y(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_Y)
+#define _Z(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_Z)
+#define _W(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_W)
+
+#define _XXXX(r) ureg_scalar(r, TGSI_SWIZZLE_X)
+#define _YYYY(r) ureg_scalar(r, TGSI_SWIZZLE_Y)
+#define _ZZZZ(r) ureg_scalar(r, TGSI_SWIZZLE_Z)
+#define _WWWW(r) ureg_scalar(r, TGSI_SWIZZLE_W)
+
+#define _XYZW(r) (r)
+
+#define LIGHT_CONST(i) \
+    ureg_src_indirect(ureg_src_register(TGSI_FILE_CONSTANT, 32 + (i)), _X(AL))
+
+#define MATERIAL_CONST(i)                           \
+    ureg_src_register(TGSI_FILE_CONSTANT, 89 + (i))
+
+#define MISC_CONST(i)                           \
+    ureg_src_register(TGSI_FILE_CONSTANT, (i))
+
 /* VS FF constants layout:
  *
- * CONST[ 0.. 3] D3DTS_VIEW * D3DTS_PROJECTION
+ * CONST[ 0.. 3] D3DTS_WORLD * D3DTS_VIEW * D3DTS_PROJECTION
  * CONST[ 4.. 7] D3DTS_VIEW
  * CONST[ 8..11] D3DTS_PROJECTION
  * CONST[12..15] D3DTS_WORLD
  * CONST[16..19] Normal matrix
+ *
+ * CONST[32].x___ LIGHT[0].Type
+ * CONST[32]._yzw LIGHT[0].Attenuation0,1,2
+ * CONST[33]      LIGHT[0].Diffuse
+ * CONST[34]      LIGHT[0].Specular
+ * CONST[35]      LIGHT[0].Ambient
+ * CONST[36].xyz_ LIGHT[0].Position
+ * CONST[36].___w LIGHT[0].Range
+ * CONST[37].xyz  LIGHT[0].Direction
+ * CONST[37].___w LIGHT[0].Falloff
+ * CONST[38].x___ LIGHT[0].Theta
+ * CONST[38]._y__ LIGHT[0].Phi
+ * CONST[39].x___ light count
+ * CONST[40]      LIGHT[1]
+ * CONST[48]      LIGHT[2]
+ * CONST[56]      LIGHT[3]
+ * CONST[64]      LIGHT[4]
+ * CONST[72]      LIGHT[5]
+ * CONST[80]      LIGHT[6]
+ * CONST[88]      LIGHT[7]
+ *
+ * CONST[95]      MATERIAL.Diffuse
+ * CONST[96]      MATERIAL.Ambient
+ * CONST[97]      MATERIAL.Specular
+ * CONST[98]      MATERIAL.Emissive
+ * CONST[99].x___ MATERIAL.Power
+ *
+ * CONST[224] D3DTS_WORLDMATRIX[0]
+ * CONST[228] D3DTS_WORLDMATRIX[1]
+ * ...
+ * CONST[252] D3DTS_WORLDMATRIX[7]
  */
 static void *
 nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
 {
     struct nine_state *state = &device->state;
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_VERTEX);
-    struct ureg_src a[4];
+    struct ureg_src aVtx, aCol[2], aTex[8], aNrm;
     struct ureg_dst oPos, oCol[2], oTex[8];
     struct ureg_src c[18];
-    struct ureg_dst r[4];
-    struct ureg_src r_src[4];
+    struct ureg_dst r[6];
+    struct ureg_src r_src[6];
+    struct ureg_dst A0;
     unsigned i;
+    unsigned n;
+    unsigned label[32], l = 0;
 
     (void)state;
 
     for (i = 0; i < 18; ++i)
-        c[i] = ureg_DECL_constant(ureg, i);
-    for (i = 0; i < 4; ++i)
-        a[i] = ureg_DECL_vs_input(ureg, i);
+        c[i] = ureg_DECL_constant(ureg, i); /* transforms */
+
+    if (key->lighting) {
+        for (i = 32; i <= 94; ++i)
+            ureg_DECL_constant(ureg, i); /* light properties */
+        for (i = 95; i <= 99; ++i)
+            ureg_DECL_constant(ureg, i); /* material properties */
+    }
+
+    n = 0;
+    aVtx = ureg_DECL_vs_input(ureg, n++);
+    if (key->lighting)
+        aNrm = ureg_DECL_vs_input(ureg, n++);
+    aCol[0] = ureg_DECL_vs_input(ureg, n++);
+    aCol[1] = ureg_DECL_vs_input(ureg, n++);
+    aTex[0] = ureg_DECL_vs_input(ureg, n++);
 
     oPos = ureg_DECL_output(ureg, TGSI_SEMANTIC_POSITION, 0); /* HPOS */
     oCol[0] = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
     oCol[1] = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 1);
     oTex[0] = ureg_DECL_output(ureg, TGSI_SEMANTIC_TEXCOORD, 0);
 
-    for (i = 0; i < 4; ++i) {
+    for (i = 0; i < 6; ++i) {
         r[i] = ureg_DECL_local_temporary(ureg);
         r_src[i] = ureg_src(r[i]);
     }
+    if (key->lighting)
+        A0 = ureg_DECL_address(ureg);
 
     /* HPOS */
     if (key->position_t) {
-        ureg_MOV(ureg, oPos, a[0]);
+        ureg_MOV(ureg, oPos, aVtx);
     } else {
-        ureg_MUL(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_X), c[0]);
-        ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_Y), c[1], r_src[0]);
-        ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_Z), c[2], r_src[0]);
-        ureg_MAD(ureg, r[0], ureg_scalar(a[0], TGSI_SWIZZLE_W), c[3], r_src[0]);
+        ureg_MUL(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_X), c[0]);
+        ureg_MAD(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_Y), c[1], r_src[0]);
+        ureg_MAD(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_Z), c[2], r_src[0]);
+        ureg_MAD(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_W), c[3], r_src[0]);
         ureg_MOV(ureg, oPos, r_src[0]);
     }
+    /* LIGHT */
+    if (key->lighting) {
+#if 0
+        struct ureg_dst rNrm = ureg_writemask(r[0], TGSI_WRITEMASK_XYZ);
+        struct ureg_dst rCtr = ureg_writemask(r[1], TGSI_WRITEMASK_X);
+        struct ureg_dst rCmp = ureg_writemask(r[1], TGSI_WRITEMASK_Y);
+        struct ureg_dst rDst = ureg_writemask(r[2], TGSI_WRITEMASK_XYZ);
+        struct ureg_dst rAtt = ureg_writemask(r[2], TGSI_WRITEMASK_W);
+        struct ureg_dst rTmpW = ureg_writemask(r[0], TGSI_WRITEMASK_W);
+        struct ureg_dst rTmpZ = ureg_writemask(r[1], TGSI_WRITEMASK_Z);
+        struct ureg_dst rColD = r[3];
+        struct ureg_dst rColS = r[4];
+        struct ureg_dst rColA = r[5];
 
-    /* COLOR */
-    ureg_MOV(ureg, oCol[0], a[1]);
-    ureg_MOV(ureg, oCol[1], a[2]);
+        struct ureg_dst AL = ureg_writemask(A0, TGSI_WRITEMASK_X);
+
+        struct ureg_src cMColD = _XYZW(MATERIAL_CONST(0));
+        struct ureg_src cMColA = _XYZW(MATERIAL_CONST(1));
+        struct ureg_src cMColS = _XYZW(MATERIAL_CONST(2));
+        struct ureg_src cMEmit = _XYZW(MATERIAL_CONST(3));
+        struct ureg_src cMPowr = _XXXX(MATERIAL_CONST(4));
+
+        struct ureg_src cLKind = _XXXX(LIGHT_CONST(0));
+        struct ureg_src cLAtt0 = _YYYY(LIGHT_CONST(0));
+        struct ureg_src cLAtt1 = _ZZZZ(LIGHT_CONST(0));
+        struct ureg_src cLAtt2 = _WWWW(LIGHT_CONST(0));
+        struct ureg_src cLColD = _XYZW(LIGHT_CONST(1));
+        struct ureg_src cLColS = _XYZW(LIGHT_CONST(2));
+        struct ureg_src cLColA = _XYZW(LIGHT_CONST(3));
+        struct ureg_src cLPos  = _XYZW(LIGHT_CONST(4));
+        struct ureg_src cLRng  = _WWWW(LIGHT_CONST(4));
+        struct ureg_src cLDir  = _XYZW(LIGHT_CONST(5));
+        struct ureg_src cLFOff = _WWWW(LIGHT_CONST(5));
+        struct ureg_src cLTht  = _XXXX(LIGHT_CONST(6));
+        struct ureg_src cLPhi  = _YYYY(LIGHT_CONST(6));
+
+        struct ureg_src cLCnt  = _XXXX(MISC_CONST(39));
+
+        ureg_MOV(ureg, rCtr, ureg_imm1f(ureg, 0.0f));
+        ureg_NRM(ureg, rNrm, aNrm);
+
+        ureg_BGNLOOP(ureg, &label[l++]);
+        ureg_SGE(ureg, rCmp, _X(rCtr), cLCnt);
+        ureg_ARL(ureg, AL, _X(rCtr));
+        ureg_IF(ureg, _Y(rCmp), &label[l++]);
+        ureg_BRK(ureg);
+        ureg_ENDIF(ureg);
+        ureg_ADD(ureg, rCtr, _X(rCtr), ureg_imm1f(ureg, 1.0f));
+
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+
+        ureg_SEQ(ureg, rCmp, cLKind, ureg_imm1f(ureg, D3DLIGHT_POINT));
+        ureg_IF(ureg, _Y(rCmp), &label[l++]);
+        {
+            /* POINT light */
+            ureg_SUB(ureg, rDst, ureg_src(rDst), cLPos);
+            ureg_DP3(ureg, rTmpW, ureg_src(rDst), ureg_src(rDst));
+            ureg_SQRT(ureg, rTmpW, _W(rTmpW));
+            /* att0 + d * (att1 + d * att2) */
+            ureg_MAD(ureg, rAtt, cLAtt2, _W(rTmpW), cLAtt1);
+            ureg_MAD(ureg, rAtt, _W(rAtt), _W(rTmpW), cLAtt0);
+        }
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+
+        ureg_ELSE(ureg, &label[l++]);
+
+        ureg_SEQ(ureg, rCmp, cLKind, ureg_imm1f(ureg, D3DLIGHT_SPOT));
+        ureg_IF(ureg, _Y(rCmp), &label[l++]);
+        {
+            /* SPOT light */
+        }
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+        ureg_ELSE(ureg, &label[l++]);
+        {
+            /* DIRECTIONAL light */
+        }
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+        ureg_ENDIF(ureg);
+        ureg_fixup_label(ureg, label[l-2], ureg_get_instruction_number(ureg));
+        ureg_ENDIF(ureg);
+
+        ureg_fixup_label(ureg, label[l-6], ureg_get_instruction_number(ureg));
+        ureg_ENDLOOP(ureg, &label[0]);
+
+        /* apply to material */
+        ureg_MUL(ureg, rColD, ureg_src(rColD), cMColD);
+        ureg_MAD(ureg, oCol[0], ureg_src(rColS), cMColS, ureg_src(rColD));
+        /* clamp_vertex_color */
+#endif
+    } else {
+        /* COLOR */
+        ureg_MOV(ureg, oCol[0], aCol[0]);
+        ureg_MOV(ureg, oCol[1], aCol[1]);
+    }
+    (void)l;
+    (void)label;
+    (void)A0;
+    (void)aNrm;
 
     /* TEXCOORD */
-    ureg_MOV(ureg, oTex[0], a[3]);
+    ureg_MOV(ureg, oTex[0], aTex[0]);
 
     ureg_END(ureg);
     return ureg_create_shader_and_destroy(ureg, device->pipe);
@@ -186,16 +351,21 @@ nine_ff_get_vs(struct NineDevice9 *device)
     NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device, &key));
 
     if (vs) {
+        unsigned n;
+
         vs->ff_key = key.value;
 
         err = util_hash_table_set(device->ff.ht_vs, &vs->ff_key, vs);
         assert(err == PIPE_OK);
 
-        vs->input_map[0].ndecl = NINE_DECLUSAGE_POSITION;
-        vs->input_map[1].ndecl = NINE_DECLUSAGE_COLOR(0);
-        vs->input_map[2].ndecl = NINE_DECLUSAGE_COLOR(1);
-        vs->input_map[3].ndecl = NINE_DECLUSAGE_TEXCOORD(0);
-        vs->num_inputs = 4;
+        n = 0;
+        vs->input_map[n++].ndecl = NINE_DECLUSAGE_POSITION;
+        if (key.lighting)
+            vs->input_map[n++].ndecl = NINE_DECLUSAGE_NORMAL(0);
+        vs->input_map[n++].ndecl = NINE_DECLUSAGE_COLOR(0);
+        vs->input_map[n++].ndecl = NINE_DECLUSAGE_COLOR(1);
+        vs->input_map[n++].ndecl = NINE_DECLUSAGE_TEXCOORD(0);
+        vs->num_inputs = n;
 
         if (key.position_t)
             vs->input_map[0].ndecl = NINE_DECLUSAGE_POSITIONT;
@@ -236,7 +406,8 @@ nine_ff_upload_vs_transforms(struct NineDevice9 *device)
     struct pipe_box box;
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
 
-    nine_d3d_matrix_matrix_mul(&M, GET_D3DTS(VIEW), GET_D3DTS(PROJECTION));
+    nine_d3d_matrix_matrix_mul(&T, GET_D3DTS(WORLD), GET_D3DTS(VIEW));
+    nine_d3d_matrix_matrix_mul(&M, &T,               GET_D3DTS(PROJECTION));
     u_box_1d(0, sizeof(M), &box);
     pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
                                 &box,
