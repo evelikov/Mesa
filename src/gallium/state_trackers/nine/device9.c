@@ -24,6 +24,7 @@
 #include "stateblock9.h"
 #include "surface9.h"
 #include "swapchain9.h"
+#include "indexbuffer9.h"
 #include "vertexbuffer9.h"
 #include "vertexdeclaration9.h"
 #include "vertexshader9.h"
@@ -501,11 +502,27 @@ NineDevice9_CreateVertexBuffer( struct NineDevice9 *This,
                                 IDirect3DVertexBuffer9 **ppVertexBuffer,
                                 HANDLE *pSharedHandle )
 {
-    Usage &= D3DUSAGE_DONOTCLIP | D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
-             D3DUSAGE_NPATCHES | D3DUSAGE_POINTS | D3DUSAGE_RTPATCHES |
-             D3DUSAGE_SOFTWAREPROCESSING | D3DUSAGE_TEXTAPI |
-             D3DUSAGE_WRITEONLY;
-    STUB(D3DERR_INVALIDCALL);
+    struct NineVertexBuffer9 *buf;
+    HRESULT hr;
+    D3DVERTEXBUFFER_DESC desc;
+
+    desc.Format = D3DFMT_VERTEXDATA;
+    desc.Type = D3DRTYPE_VERTEXBUFFER;
+    desc.Usage = Usage &
+        (D3DUSAGE_DONOTCLIP | D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
+         D3DUSAGE_NPATCHES | D3DUSAGE_POINTS | D3DUSAGE_RTPATCHES |
+         D3DUSAGE_SOFTWAREPROCESSING | D3DUSAGE_TEXTAPI |
+         D3DUSAGE_WRITEONLY);
+    desc.Pool = Pool;
+    desc.Size = Length;
+    desc.FVF = FVF;
+
+    user_assert(desc.Usage == Usage, D3DERR_INVALIDCALL);
+
+    hr = NineVertexBuffer9_new(This, &desc, &buf);
+    if (SUCCEEDED(hr))
+        *ppVertexBuffer = (IDirect3DVertexBuffer9 *)buf;
+    return hr;
 }
 
 HRESULT WINAPI
@@ -517,10 +534,25 @@ NineDevice9_CreateIndexBuffer( struct NineDevice9 *This,
                                IDirect3DIndexBuffer9 **ppIndexBuffer,
                                HANDLE *pSharedHandle )
 {
-    Usage &= D3DUSAGE_DONOTCLIP | D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
-             D3DUSAGE_NPATCHES | D3DUSAGE_POINTS | D3DUSAGE_RTPATCHES |
-             D3DUSAGE_SOFTWAREPROCESSING | D3DUSAGE_WRITEONLY;
-    STUB(D3DERR_INVALIDCALL);
+    struct NineIndexBuffer9 *buf;
+    HRESULT hr;
+    D3DINDEXBUFFER_DESC desc;
+
+    desc.Format = Format;
+    desc.Type = D3DRTYPE_INDEXBUFFER;
+    desc.Usage = Usage &
+        (D3DUSAGE_DONOTCLIP | D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
+         D3DUSAGE_NPATCHES | D3DUSAGE_POINTS | D3DUSAGE_RTPATCHES |
+         D3DUSAGE_SOFTWAREPROCESSING | D3DUSAGE_WRITEONLY);
+    desc.Pool = Pool;
+    desc.Size = Length;
+
+    user_assert(desc.Usage == Usage, D3DERR_INVALIDCALL);
+
+    hr = NineIndexBuffer9_new(This, &desc, &buf);
+    if (SUCCEEDED(hr))
+        *ppIndexBuffer = (IDirect3DIndexBuffer9 *)buf;
+    return hr;
 }
 
 static HRESULT
