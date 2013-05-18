@@ -27,6 +27,7 @@
 #include "pipe/p_format.h"
 #include "pipe/p_state.h" /* pipe_box */
 #include "util/u_rect.h"
+#include "nine_helpers.h"
 
 struct cso_context;
 
@@ -38,14 +39,30 @@ void nine_convert_rasterizer_state(struct cso_context *, const DWORD *);
 void nine_convert_blend_state(struct cso_context *, const DWORD *);
 void nine_convert_sampler_state(struct cso_context *, int idx, const DWORD *);
 
-static INLINE float asfloat(DWORD value)
+static INLINE unsigned d3dlock_to_pipe_transfer_usage(DWORD Flags)
 {
-    union {
-        float f;
-        DWORD w;
-    } u;
-    u.w = value;
-    return u.f;
+    unsigned usage;
+
+    if (Flags & D3DLOCK_DISCARD)
+        usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    else
+    if (Flags & D3DLOCK_READONLY)
+        usage = PIPE_TRANSFER_READ;
+    else
+        usage = PIPE_TRANSFER_READ_WRITE;
+
+    if (Flags & D3DLOCK_NOOVERWRITE)
+        usage |= PIPE_TRANSFER_UNSYNCHRONIZED;
+    else
+    if (Flags & D3DLOCK_DONOTWAIT)
+        usage |= PIPE_TRANSFER_DONTBLOCK;
+
+    /*
+    if (Flags & D3DLOCK_NO_DIRTY_UPDATE)
+        usage |= PIPE_TRANSFER_FLUSH_EXPLICIT;
+    */
+
+    return usage;
 }
 
 static INLINE void

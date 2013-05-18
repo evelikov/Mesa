@@ -35,7 +35,7 @@ struct NinePixelShader9
     } byte_code;
     struct NineDevice9 *device;
 
-    uint64_t ff_key;
+    uint64_t ff_key[4];
 };
 static INLINE struct NinePixelShader9 *
 NinePixelShader9( void *data )

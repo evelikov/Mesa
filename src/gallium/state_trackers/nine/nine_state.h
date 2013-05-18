@@ -27,9 +27,15 @@
 #include "nine_defines.h"
 #include "pipe/p_state.h"
 
-#define NINED3DRS_LAST D3DRS_BLENDOPALPHA /* 209 */
-
+#define NINED3DRS_LAST   D3DRS_BLENDOPALPHA /* 209 */
 #define NINED3DSAMP_LAST D3DSAMP_DMAPOFFSET /* 13 */
+#define NINED3DTSS_LAST  D3DTSS_CONSTANT
+#define NINED3DTS_LAST   D3DTS_WORLDMATRIX(255)
+
+#define NINED3DRS_COUNT   (NINED3DRS_LAST + 1)
+#define NINED3DSAMP_COUNT (NINED3DSAMP_LAST + 1)
+#define NINED3DTSS_COUNT  (NINED3DTSS_LAST + 1)
+#define NINED3DTS_COUNT   (NINED3DTS_LAST + 1)
 
 #define NINE_STATE_FB          (1 <<  0)
 #define NINE_STATE_VIEWPORT    (1 <<  1)
@@ -49,21 +55,37 @@
 #define NINE_STATE_MATERIAL    (1 << 15)
 #define NINE_STATE_BLEND_COLOR (1 << 16)
 #define NINE_STATE_SAMPLE_MASK (1 << 17)
-#define NINE_STATE_FF          (1 << 18)
-#define NINE_STATE_MISC_CONST  (1 << 19)
-#define NINE_STATE_ALL          0xfffff
+#define NINE_STATE_MISC_CONST  (1 << 18)
+#define NINE_STATE_FF          (0x1f << 19)
+#define NINE_STATE_FF_LIGHTING (1 << 19)
+#define NINE_STATE_FF_MATERIAL (1 << 20)
+#define NINE_STATE_FF_VSTRANSF (1 << 21)
+#define NINE_STATE_FF_PSSTAGES (1 << 22)
+#define NINE_STATE_FF_OTHER    (1 << 23)
+#define NINE_STATE_ALL          0xffffff
+
+#define NINE_FF_STATE_TRANSFORM (1 << 0)
+#define NINE_FF_STATE_LIGHTING  (1 << 1)
+#define NINE_FF_STATE_MATERIAL  (1 << 2)
+#define NINE_FF_STATE_TEXSTAGE  (1 << 3)
+
 
 #define NINE_MAX_SIMULTANEOUS_RENDERTARGETS 4
 #define NINE_MAX_CONST_F 256
 #define NINE_MAX_CONST_I 16
 #define NINE_MAX_CONST_B 16
 
+#define NINE_MAX_LIGHTS        65536
+#define NINE_MAX_LIGHTS_ACTIVE 8
+
+#define NINELIGHT_INVALID (D3DLIGHT_DIRECTIONAL + 1)
+
 #define NINE_CONST_F_BASE_IDX  0
 #define NINE_CONST_I_BASE_IDX  NINE_MAX_CONST_F
 #define NINE_CONST_B_BASE_IDX (NINE_MAX_CONST_F + NINE_MAX_CONST_I)
 
 #define NINE_MAX_SAMPLERS PIPE_MAX_SAMPLERS
-#define NINE_MAX_TEXTURES PIPE_MAX_SAMPLERS
+
 
 struct nine_state
 {
@@ -130,9 +152,9 @@ struct nine_state
 
     struct {
         struct {
-            uint32_t transform[(D3DTS_WORLDMATRIX(255) + 1 + 31) / 32];
-            uint32_t lights   : 1;
-            uint32_t material : 1;
+            uint32_t group;
+            uint32_t tex_stage[NINE_MAX_SAMPLERS][(NINED3DTSS_COUNT + 31) / 32];
+            uint32_t transform[(NINED3DTS_COUNT + 31) / 32];
         } changed;
         D3DMATRIX *transform; /* access only via nine_state_access_transform */
         unsigned num_transforms;
@@ -146,6 +168,8 @@ struct nine_state
         unsigned num_lights_active;
 
         D3DMATERIAL9 material;
+
+        DWORD tex_stage[NINE_MAX_SAMPLERS][NINED3DTSS_COUNT];
     } ff;
 };
 

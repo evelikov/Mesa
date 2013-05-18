@@ -34,13 +34,16 @@ struct NineVertexShader9
         uint8_t ndecl; /* NINE_DECLUSAGE_x */
     } input_map[PIPE_MAX_ATTRIBS];
     unsigned num_inputs;
+    boolean point_size; /* if TRUE, set rasterizer.point_size_per_vertex to 1 */
     struct {
         const DWORD *tokens;
         DWORD size;
     } byte_code;
     struct NineDevice9 *device;
 
-    uint64_t ff_key;
+    const struct pipe_stream_output_info *so;
+
+    uint64_t ff_key[3];
 };
 static INLINE struct NineVertexShader9 *
 NineVertexShader9( void *data )

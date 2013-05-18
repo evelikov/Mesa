@@ -29,11 +29,6 @@
 #define NINE_RESOURCE_FLAG_OWNED_BY_SURFACE (PIPE_RESOURCE_FLAG_ST_PRIV << 1)
 #define NINE_RESOURCE_FLAG_DUMMY            (PIPE_RESOURCE_FLAG_ST_PRIV << 2)
 
-#define NINE_MAX_LIGHTS        65536
-#define NINE_MAX_LIGHTS_ACTIVE 8
-
-#define NINELIGHT_INVALID (D3DLIGHT_DIRECTIONAL + 1)
-
 /* vertexdeclaration9.c */
 unsigned nine_d3d9_to_nine_declusage(unsigned usage, unsigned index);
 

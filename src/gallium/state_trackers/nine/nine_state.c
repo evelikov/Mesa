@@ -547,12 +547,75 @@ static const DWORD nine_render_state_defaults[NINED3DRS_LAST + 1] =
     [D3DRS_DESTBLENDALPHA] = D3DBLEND_ZERO,
     [D3DRS_BLENDOPALPHA] = D3DBLENDOP_ADD,
 };
+static const DWORD nine_tex_stage_state_defaults[NINED3DTSS_LAST + 1] =
+{
+    [D3DTSS_COLOROP] = D3DTOP_DISABLE,
+    [D3DTSS_ALPHAOP] = D3DTOP_DISABLE,
+    [D3DTSS_COLORARG1] = D3DTA_TEXTURE,
+    [D3DTSS_COLORARG2] = D3DTA_CURRENT,
+    [D3DTSS_COLORARG0] = D3DTA_CURRENT,
+    [D3DTSS_ALPHAARG1] = D3DTA_TEXTURE,
+    [D3DTSS_ALPHAARG2] = D3DTA_CURRENT,
+    [D3DTSS_ALPHAARG0] = D3DTA_CURRENT,
+    [D3DTSS_RESULTARG] = D3DTA_CURRENT,
+    [D3DTSS_BUMPENVMAT00] = 0,
+    [D3DTSS_BUMPENVMAT01] = 0,
+    [D3DTSS_BUMPENVMAT10] = 0,
+    [D3DTSS_BUMPENVMAT11] = 0,
+    [D3DTSS_BUMPENVLSCALE] = 0,
+    [D3DTSS_BUMPENVLOFFSET] = 0,
+    [D3DTSS_TEXCOORDINDEX] = 0,
+    [D3DTSS_TEXTURETRANSFORMFLAGS] = D3DTTFF_DISABLE,
+};
+static const DWORD nine_samp_state_defaults[NINED3DSAMP_LAST + 1] =
+{
+    [D3DSAMP_ADDRESSU] = D3DTADDRESS_WRAP,
+    [D3DSAMP_ADDRESSV] = D3DTADDRESS_WRAP,
+    [D3DSAMP_ADDRESSW] = D3DTADDRESS_WRAP,
+    [D3DSAMP_BORDERCOLOR] = 0,
+    [D3DSAMP_MAGFILTER] = D3DTEXF_POINT,
+    [D3DSAMP_MINFILTER] = D3DTEXF_POINT,
+    [D3DSAMP_MIPFILTER] = D3DTEXF_NONE,
+    [D3DSAMP_MIPMAPLODBIAS] = 0,
+    [D3DSAMP_MAXMIPLEVEL] = 0,
+    [D3DSAMP_MAXANISOTROPY] = 1,
+    [D3DSAMP_SRGBTEXTURE] = 0,
+    [D3DSAMP_ELEMENTINDEX] = 0,
+    [D3DSAMP_DMAPOFFSET] = 0
+};
 void
 nine_state_set_defaults(struct nine_state *state, D3DCAPS9 *caps)
 {
+    unsigned s;
+
+    /* Initialize defaults.
+     */
     memcpy(state->rs, nine_render_state_defaults, sizeof(state->rs));
+
+    for (s = 0; s < Elements(state->ff.tex_stage); ++s) {
+        memcpy(&state->ff.tex_stage[s], nine_tex_stage_state_defaults,
+               sizeof(state->ff.tex_stage[s]));
+        state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] = s;
+    }
+    state->ff.tex_stage[0][D3DTSS_COLOROP] = D3DTOP_MODULATE;
+    state->ff.tex_stage[0][D3DTSS_ALPHAOP] = D3DTOP_SELECTARG1;
+
+    for (s = 0; s < Elements(state->samp); ++s) {
+        memcpy(&state->samp[s], nine_samp_state_defaults,
+               sizeof(state->samp[s]));
+    }
+
+    if (state->vs_const_f)
+        memset(state->vs_const_f, 0, NINE_MAX_CONST_F * 4 * sizeof(float));
+    if (state->ps_const_f)
+        memset(state->ps_const_f, 0, NINE_MAX_CONST_F * 4 * sizeof(float));
+
+    /* Cap dependent initial state:
+     */
     state->rs[D3DRS_POINTSIZE_MAX] = fui(caps->MaxPointSize);
 
+    /* Set changed flags to initialize driver.
+     */
     state->changed.group = NINE_STATE_ALL;
 
     state->ff.changed.transform[0] = ~0;

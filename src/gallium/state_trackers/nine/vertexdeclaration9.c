@@ -21,12 +21,16 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "vertexdeclaration9.h"
+#include "vertexbuffer9.h"
 #include "device9.h"
 #include "nine_helpers.h"
 
 #include "pipe/p_format.h"
+#include "pipe/p_context.h"
 #include "util/u_math.h"
 #include "util/u_format.h"
+#include "util/u_box.h"
+#include "translate/translate.h"
 
 #define DBG_CHANNEL DBG_VERTEXDECLARATION
 
@@ -382,4 +386,87 @@ NineVertexDeclaration9_new_from_fvf( struct NineDevice9 *pDevice,
     elems[nelems++] = decl_end;
 
     NINE_NEW(NineVertexDeclaration9, ppOut, /* args */ pDevice, elems);
+}
+
+/* ProcessVertices runs stream output into a temporary buffer to capture
+ * all outputs.
+ * Now we have to convert them to the format and order set by the vertex
+ * declaration, for which we use u_translate.
+ * This is necessary if the vertex declaration contains elements using a
+ * non float32 format, because stream output only supports f32/u32/s32.
+ */
+HRESULT
+NineVertexDeclaration9_ConvertStreamOutput(
+    struct NineVertexDeclaration9 *This,
+    struct NineVertexBuffer9 *pDstBuf,
+    UINT DestIndex,
+    UINT VertexCount,
+    struct pipe_resource *pSrcBuf,
+    const struct pipe_stream_output_info *so )
+{
+    struct pipe_context *pipe = This->device->pipe;
+    struct pipe_transfer *transfer = NULL;
+    struct translate *translate;
+    struct translate_key transkey;
+    struct pipe_box box;
+    HRESULT hr;
+    unsigned i;
+    void *src_map;
+    void *dst_map;
+
+    transkey.output_stride = 0;
+    for (i = 0; i < This->nelems; ++i) {
+        enum pipe_format format;
+
+        switch (so->output[i].num_components) {
+        case 1: format = PIPE_FORMAT_R32_FLOAT; break;
+        case 2: format = PIPE_FORMAT_R32G32_FLOAT; break;
+        case 3: format = PIPE_FORMAT_R32G32B32_FLOAT; break;
+        default:
+            assert(so->output[i].num_components == 4);
+            format = PIPE_FORMAT_R32G32B32A32_FLOAT;
+            break;
+        }
+        transkey.element[i].type = TRANSLATE_ELEMENT_NORMAL;
+        transkey.element[i].input_format = format;
+        transkey.element[i].input_buffer = 0;
+        transkey.element[i].input_offset = so->output[i].dst_offset * 4;
+        transkey.element[i].instance_divisor = 0;
+
+        transkey.element[i].output_format = This->elems[i].src_format;
+        transkey.element[i].output_offset = This->elems[i].src_offset;
+        transkey.output_stride +=
+            util_format_get_blocksize(This->elems[i].src_format);
+
+        assert(!(transkey.output_stride & 3));
+    }
+    transkey.nr_elements = This->nelems;
+
+    translate = translate_create(&transkey);
+    if (!translate)
+        return E_OUTOFMEMORY;
+
+    hr = NineVertexBuffer9_Lock(pDstBuf,
+                                transkey.output_stride * DestIndex,
+                                transkey.output_stride * VertexCount,
+                                &dst_map, D3DLOCK_DISCARD);
+    if (FAILED(hr))
+        goto out;
+
+    src_map = pipe->transfer_map(pipe, pSrcBuf, 0, PIPE_TRANSFER_READ, &box,
+                                 &transfer);
+    if (!src_map) {
+        hr = D3DERR_DRIVERINTERNALERROR;
+        goto out;
+    }
+    translate->set_buffer(translate, 0, src_map, so->stride[0], ~0);
+
+    translate->run(translate, 0, VertexCount, 0, dst_map);
+
+    NineVertexBuffer9_Unlock(pDstBuf);
+out:
+    if (transfer)
+        pipe->transfer_unmap(pipe, transfer);
+    translate->release(translate); /* TODO: cache these */
+    return D3D_OK;
 }

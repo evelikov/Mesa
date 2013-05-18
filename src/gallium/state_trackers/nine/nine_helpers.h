@@ -63,4 +63,14 @@ static inline void _nine_reference(void **ref, void *ptr)
     } \
     return D3D_OK
 
+static INLINE float asfloat(DWORD value)
+{
+    union {
+        float f;
+        DWORD w;
+    } u;
+    u.w = value;
+    return u.f;
+}
+
 #endif /* _NINE_HELPERS_H_ */

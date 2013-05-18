@@ -844,6 +844,7 @@ NineDevice9_SetRenderTarget( struct NineDevice9 *This,
 
     if (This->state.rt[i] != NineSurface9(pRenderTarget)) {
        This->state.changed.group |= NINE_STATE_FB;
+
        nine_reference(&This->state.rt[i], pRenderTarget);
     }
     return D3D_OK;
@@ -869,6 +870,7 @@ NineDevice9_SetDepthStencilSurface( struct NineDevice9 *This,
 {
     if (This->state.ds != NineSurface9(pNewZStencil)) {
         This->state.changed.group |= NINE_STATE_FB;
+
         nine_reference(&This->state.ds, pNewZStencil);
     }
     return D3D_OK;
@@ -1054,7 +1056,7 @@ NineDevice9_SetMaterial( struct NineDevice9 *This,
     user_assert(pMaterial, E_POINTER);
 
     state->ff.material = *pMaterial;
-    state->ff.changed.material = 1;
+    state->changed.group |= NINE_STATE_FF_MATERIAL;
 
     return D3D_OK;
 }
@@ -1096,7 +1098,7 @@ NineDevice9_SetLight( struct NineDevice9 *This,
     }
     state->ff.light[Index] = *pLight;
 
-    state->ff.changed.lights = TRUE;
+    state->changed.group |= NINE_STATE_FF_LIGHTING;
 
     return D3D_OK;
 }
@@ -1143,7 +1145,7 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
         for (; i < state->ff.num_lights_active; ++i)
             state->ff.active_light[i] = state->ff.active_light[i + 1];
     }
-    state->ff.changed.lights = TRUE;
+    state->changed.group |= NINE_STATE_FF_LIGHTING;
 
     return D3D_OK;
 }
@@ -1370,7 +1372,13 @@ NineDevice9_GetTextureStageState( struct NineDevice9 *This,
                                   D3DTEXTURESTAGESTATETYPE Type,
                                   DWORD *pValue )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+    user_assert(Stage < Elements(state->ff.tex_stage), D3DERR_INVALIDCALL);
+    user_assert(Type < Elements(state->ff.tex_stage[0]), D3DERR_INVALIDCALL);
+
+    *pValue = state->ff.tex_stage[Stage][Type];
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1379,7 +1387,19 @@ NineDevice9_SetTextureStageState( struct NineDevice9 *This,
                                   D3DTEXTURESTAGESTATETYPE Type,
                                   DWORD Value )
 {
-    STUB(D3DERR_INVALIDCALL);
+    NINESTATEPOINTER_SET(This);
+
+    DBG("Stage=%u Type=%u Value=%08x\n", Stage, Type, Value);
+
+    user_assert(Stage < Elements(state->ff.tex_stage), D3DERR_INVALIDCALL);
+    user_assert(Type < Elements(state->ff.tex_stage[0]), D3DERR_INVALIDCALL);
+
+    state->ff.tex_stage[Stage][Type] = Value;
+
+    state->changed.group |= NINE_STATE_FF_PSSTAGES;
+    state->ff.changed.tex_stage[Stage][Type / 32] |= 1 << (Type % 32);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -1662,6 +1682,9 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
     return D3D_OK;
 }
 
+/* TODO: Write to pDestBuffer directly if vertex declaration contains
+ * only f32 formats.
+ */
 HRESULT WINAPI
 NineDevice9_ProcessVertices( struct NineDevice9 *This,
                              UINT SrcStartIndex,
@@ -1671,7 +1694,82 @@ NineDevice9_ProcessVertices( struct NineDevice9 *This,
                              IDirect3DVertexDeclaration9 *pVertexDecl,
                              DWORD Flags )
 {
+    struct pipe_screen *screen = This->screen;
+    struct NineVertexBuffer9 *dst = NineVertexBuffer9(pDestBuffer);
+    struct NineVertexDeclaration9 *vdecl = NineVertexDeclaration9(pVertexDecl);
+    struct NineVertexShader9 *vs;
+    struct pipe_resource *resource;
+    struct pipe_stream_output_target *target;
+    struct pipe_draw_info draw;
+    HRESULT hr;
+    unsigned buffer_offset, buffer_size;
+
+    if (!screen->get_param(screen, PIPE_CAP_MAX_STREAM_OUTPUT_BUFFERS))
+        STUB(D3DERR_INVALIDCALL);
+
+    nine_update_state(This);
+
+    /* TODO: Create shader with stream output. */
+    vs = This->state.vs ? This->state.vs : This->ff.vs;
     STUB(D3DERR_INVALIDCALL);
+
+    buffer_size = VertexCount * vs->so->stride[0];
+    if (1) {
+        struct pipe_resource templ;
+
+        templ.target = PIPE_BUFFER;
+        templ.format = PIPE_FORMAT_R8_UNORM;
+        templ.width0 = buffer_size;
+        templ.flags = 0;
+        templ.bind = PIPE_BIND_STREAM_OUTPUT;
+        templ.usage = PIPE_USAGE_STREAM;
+        templ.height0 = templ.depth0 = templ.array_size = 1;
+        templ.last_level = templ.nr_samples = 0;
+
+        resource = This->screen->resource_create(This->screen, &templ);
+        if (!resource)
+            return E_OUTOFMEMORY;
+        buffer_offset = 0;
+    } else {
+        /* SO matches vertex declaration */
+        resource = dst->base.resource;
+        buffer_offset = DestIndex * vs->so->stride[0];
+    }
+    target = This->pipe->create_stream_output_target(This->pipe, resource,
+                                                     buffer_offset,
+                                                     buffer_size);
+    if (!target) {
+        pipe_resource_reference(&resource, NULL);
+        return D3DERR_DRIVERINTERNALERROR;
+    }
+
+    if (!vdecl) {
+        hr = NineVertexDeclaration9_new_from_fvf(This, dst->desc.FVF, &vdecl);
+        if (FAILED(hr))
+            goto out;
+    }
+
+    init_draw_info(&draw, This, D3DPT_POINTLIST, VertexCount);
+    draw.instance_count = 1;
+    draw.indexed = FALSE;
+    draw.start = SrcStartIndex;
+    draw.index_bias = 0;
+    draw.min_index = SrcStartIndex;
+    draw.max_index = SrcStartIndex + VertexCount - 1;
+
+    This->pipe->set_stream_output_targets(This->pipe, 1, &target, 0);
+    This->pipe->draw_vbo(This->pipe, &draw);
+    This->pipe->set_stream_output_targets(This->pipe, 0, NULL, 0);
+    This->pipe->stream_output_target_destroy(This->pipe, target);
+
+    hr = NineVertexDeclaration9_ConvertStreamOutput(vdecl,
+                                                    dst, DestIndex, VertexCount,
+                                                    resource, vs->so);
+out:
+    pipe_resource_reference(&resource, NULL);
+    if (!pVertexDecl)
+        NineUnknown_Release(NineUnknown(vdecl));
+    return hr;
 }
 
 HRESULT WINAPI

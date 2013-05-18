@@ -87,7 +87,7 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
  /* rast.point_smooth = 0; */
     rast.sprite_coord_mode = PIPE_SPRITE_COORD_UPPER_LEFT;
     rast.point_quad_rasterization = !!rs[D3DRS_POINTSPRITEENABLE];
-    rast.point_size_per_vertex = 1; /* XXX */
+    rast.point_size_per_vertex = 1; /* XXX depends on shader */
     rast.multisample = !!rs[D3DRS_MULTISAMPLEANTIALIAS];
     rast.line_smooth = !!rs[D3DRS_ANTIALIASEDLINEENABLE];
  /* rast.line_stipple_enable = 0; */
@@ -102,7 +102,7 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
     rast.clip_plane_enable = rs[D3DRS_CLIPPLANEENABLE];
  /* rast.line_stipple_factor = 0; */
  /* rast.line_stipple_pattern = 0; */
- /* rast.sprite_coord_enable = 0x00; */
+    rast.sprite_coord_enable = rs[D3DRS_POINTSPRITEENABLE] ? 0xff : 0x00;
     rast.line_width = 1.0f;
     rast.point_size = asfloat(rs[D3DRS_POINTSIZE]); /* XXX: D3DRS_POINTSIZE_MIN/MAX */
     rast.offset_units = asfloat(rs[D3DRS_DEPTHBIAS]);

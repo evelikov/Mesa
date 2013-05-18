@@ -27,7 +27,9 @@
 #include "iunknown.h"
 
 struct pipe_vertex_element;
+struct pipe_stream_output_info;
 struct NineDevice9;
+struct NineVertexBuffer9;
 
 struct NineVertexDeclaration9
 {
@@ -78,5 +80,15 @@ HRESULT WINAPI
 NineVertexDeclaration9_GetDeclaration( struct NineVertexDeclaration9 *This,
                                        D3DVERTEXELEMENT9 *pElement,
                                        UINT *pNumElements );
+
+/* Convert stream output data to the vertex declaration's format. */
+HRESULT
+NineVertexDeclaration9_ConvertStreamOutput(
+    struct NineVertexDeclaration9 *This,
+    struct NineVertexBuffer9 *pDstBuf,
+    UINT DestIndex,
+    UINT VertexCount,
+    struct pipe_resource *pSrcBuf,
+    const struct pipe_stream_output_info *so );
 
 #endif /* _NINE_VERTEXDECLARATION9_H_ */

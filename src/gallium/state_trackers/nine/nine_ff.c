@@ -1,11 +1,20 @@
 
+/* FF is big and ugly so feel free to write lines as long as you like.
+ * Aieeeeeeeee !
+ *
+ * Let me make that clearer:
+ * Aieeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee ! !! !!!
+ */
+
 #include "device9.h"
+#include "basetexture9.h"
 #include "vertexdeclaration9.h"
 #include "vertexshader9.h"
 #include "pixelshader9.h"
 #include "nine_ff.h"
 #include "nine_defines.h"
 #include "nine_helpers.h"
+#include "nine_pipe.h"
 
 #include "pipe/p_context.h"
 #include "tgsi/tgsi_ureg.h"
@@ -14,48 +23,117 @@
 
 #define DBG_CHANNEL DBG_FF
 
+#define NINED3DTSS_TCI_DISABLE                       0
+#define NINED3DTSS_TCI_PASSTHRU                      1
+#define NINED3DTSS_TCI_CAMERASPACENORMAL             2
+#define NINED3DTSS_TCI_CAMERASPACEPOSITION           3
+#define NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR   4
+#define NINED3DTSS_TCI_SPHEREMAP                     5
+
 struct nine_ff_vs_key
 {
     union {
         struct {
             uint32_t position_t : 1;
             uint32_t lighting   : 1;
+            uint32_t darkness   : 1; /* lighting enabled but no active lights */
+            uint32_t localviewer : 1;
+            uint32_t vertexpointsize : 1;
+            uint32_t pointscale : 1;
+            uint32_t vertexblend : 3;
+            uint32_t vertexblend_indexed : 1;
+            uint32_t vertextween : 1;
+            uint32_t mtl_diffuse : 2; /* 0 = material, 1 = color1, 2 = color2 */
+            uint32_t mtl_ambient : 2;
+            uint32_t mtl_specular : 2;
+            uint32_t mtl_emissive : 2;
+            uint32_t fog_mode : 2;
+            uint32_t pad1 : 12;
+            uint32_t tc_gen   : 24; /* 8 * 3 */
+            uint32_t pad2 : 8;
+            uint32_t tc_idx : 24;
         };
-        uint64_t value; /* if u64 isn't enough, resize VertexShader9.ff_key */
+        uint64_t value64[3]; /* if u64 isn't enough, resize VertexShader9.ff_key */
+        uint32_t value32[6];
     };
 };
+
+/* Texture stage state:
+ *
+ * COLOROP       D3DTOP 5 bit
+ * ALPHAOP       D3DTOP 5 bit
+ * COLORARG0     D3DTA  3 bit
+ * COLORARG1     D3DTA  3 bit
+ * COLORARG2     D3DTA  3 bit
+ * ALPHAARG0     D3DTA  3 bit
+ * ALPHAARG1     D3DTA  3 bit
+ * ALPHAARG2     D3DTA  3 bit
+ * RESULTARG     D3DTA  1 bit (CURRENT:0 or TEMP:1)
+ * TEXCOORDINDEX 0 - 7  3 bit
+ * ===========================
+ *                     32 bit per stage
+ */
 struct nine_ff_ps_key
 {
     union {
         struct {
-            uint32_t aaa : 1;
+            struct {
+                uint32_t colorop   : 5;
+                uint32_t alphaop   : 5;
+                uint32_t colorarg0 : 3;
+                uint32_t colorarg1 : 3;
+                uint32_t colorarg2 : 3;
+                uint32_t alphaarg0 : 3;
+                uint32_t alphaarg1 : 3;
+                uint32_t alphaarg2 : 3;
+                uint32_t resultarg : 1;
+                uint32_t textarget : 2; /* 1D/2D/3D/CUBE */
+                uint32_t projected : 1;
+                /* that's 32 bit exactly */
+            } ts[8];
+            uint32_t fog      : 1;
+            uint32_t fog_mode : 2;
+            uint32_t specular : 1;
         };
-        uint64_t value; /* if u64 isn't enough, resize PixelShader9.ff_key */
+        uint64_t value64[5]; /* if u64 isn't enough, resize PixelShader9.ff_key */
+        uint32_t value32[10];
     };
 };
 
 static unsigned nine_ff_vs_key_hash(void *key)
 {
-    return ((struct nine_ff_vs_key *)key)->value;
+    struct nine_ff_vs_key *vs = key;
+    unsigned i;
+    uint32_t hash = vs->value32[0];
+    for (i = 1; i < Elements(vs->value32); ++i)
+        hash ^= vs->value32[i];
+    return hash;
 }
 static int nine_ff_vs_key_comp(void *key1, void *key2)
 {
     struct nine_ff_vs_key *a = (struct nine_ff_vs_key *)key1;
     struct nine_ff_vs_key *b = (struct nine_ff_vs_key *)key2;
 
-    return a->value != b->value;
+    return memcmp(a->value64, b->value64, sizeof(a->value64));
 }
 static unsigned nine_ff_ps_key_hash(void *key)
 {
-    return ((struct nine_ff_ps_key *)key)->value;
+    struct nine_ff_ps_key *ps = key;
+    unsigned i;
+    uint32_t hash = ps->value32[0];
+    for (i = 1; i < Elements(ps->value32); ++i)
+        hash ^= ps->value32[i];
+    return hash;
 }
 static int nine_ff_ps_key_comp(void *key1, void *key2)
 {
     struct nine_ff_ps_key *a = (struct nine_ff_ps_key *)key1;
     struct nine_ff_ps_key *b = (struct nine_ff_ps_key *)key2;
 
-    return a->value != b->value;
+    return memcmp(a->value64, b->value64, sizeof(a->value64));
 }
+
+static void nine_ff_prune(struct NineDevice9 *device);
 
 #define _X(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_X)
 #define _Y(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_Y)
@@ -73,18 +151,39 @@ static int nine_ff_ps_key_comp(void *key1, void *key2)
     ureg_src_indirect(ureg_src_register(TGSI_FILE_CONSTANT, 32 + (i)), _X(AL))
 
 #define MATERIAL_CONST(i)                           \
-    ureg_src_register(TGSI_FILE_CONSTANT, 89 + (i))
+    ureg_src_register(TGSI_FILE_CONSTANT, 19 + (i))
 
 #define MISC_CONST(i)                           \
     ureg_src_register(TGSI_FILE_CONSTANT, (i))
 
+#define _CONST(n) ureg_DECL_constant(ureg, n)
+
 /* VS FF constants layout:
  *
  * CONST[ 0.. 3] D3DTS_WORLD * D3DTS_VIEW * D3DTS_PROJECTION
- * CONST[ 4.. 7] D3DTS_VIEW
- * CONST[ 8..11] D3DTS_PROJECTION
- * CONST[12..15] D3DTS_WORLD
- * CONST[16..19] Normal matrix
+ * CONST[ 4.. 7] D3DTS_WORLD * D3DTS_VIEW
+ * CONST[ 8..11] D3DTS_VIEW * D3DTS_PROJECTION
+ * CONST[12..15] D3DTS_VIEW
+ * CONST[16..18] Normal matrix
+ *
+ * CONST[19]      MATERIAL.Emissive + Material.Ambient * RS.Ambient
+ * CONST[20]      MATERIAL.Diffuse
+ * CONST[21]      MATERIAL.Ambient
+ * CONST[22]      MATERIAL.Specular
+ * CONST[23].x___ MATERIAL.Power
+ * CONST[24]      MATERIAL.Emissive
+ * CONST[25]      RS.Ambient
+ *
+ * CONST[26].x___ RS.PointSizeMin
+ * CONST[26]._y__ RS.PointSizeMax
+ * CONST[26].__z_ RS.PointSize
+ * CONST[26].___w RS.PointScaleA
+ * CONST[27].x___ RS.PointScaleB
+ * CONST[27]._y__ RS.PointScaleC
+ *
+ * CONST[28].x___ RS.FogEnd
+ * CONST[28]._y__ 1.0f / (RS.FogEnd - RS.FogStart)
+ * CONST[28].__z_ RS.FogDensity
  *
  * CONST[32].x___ LIGHT[0].Type
  * CONST[32]._yzw LIGHT[0].Attenuation0,1,2
@@ -93,11 +192,13 @@ static int nine_ff_ps_key_comp(void *key1, void *key2)
  * CONST[35]      LIGHT[0].Ambient
  * CONST[36].xyz_ LIGHT[0].Position
  * CONST[36].___w LIGHT[0].Range
- * CONST[37].xyz  LIGHT[0].Direction
+ * CONST[37].xyz_ LIGHT[0].Direction
  * CONST[37].___w LIGHT[0].Falloff
- * CONST[38].x___ LIGHT[0].Theta
- * CONST[38]._y__ LIGHT[0].Phi
- * CONST[39].x___ light count
+ * CONST[38].x___ cos(LIGHT[0].Theta / 2)
+ * CONST[38]._y__ cos(LIGHT[0].Phi / 2)
+ * CONST[38].__z_ 1.0f / (cos(LIGHT[0].Theta / 2) - cos(Light[0].Phi / 2))
+ * CONST[39].xyz_ LIGHT[0].HalfVector (for directional lights)
+ * CONST[39].___w 1 if this is the last active light, 0 if not
  * CONST[40]      LIGHT[1]
  * CONST[48]      LIGHT[2]
  * CONST[56]      LIGHT[3]
@@ -105,96 +206,333 @@ static int nine_ff_ps_key_comp(void *key1, void *key2)
  * CONST[72]      LIGHT[5]
  * CONST[80]      LIGHT[6]
  * CONST[88]      LIGHT[7]
+ * NOTE: no lighting code is generated if there are no active lights
  *
- * CONST[95]      MATERIAL.Diffuse
- * CONST[96]      MATERIAL.Ambient
- * CONST[97]      MATERIAL.Specular
- * CONST[98]      MATERIAL.Emissive
- * CONST[99].x___ MATERIAL.Power
+ * CONST[128..131] D3DTS_TEXTURE0
+ * CONST[132..135] D3DTS_TEXTURE1
+ * CONST[136..139] D3DTS_TEXTURE2
+ * CONST[140..143] D3DTS_TEXTURE3
+ * CONST[144..147] D3DTS_TEXTURE4
+ * CONST[148..151] D3DTS_TEXTURE5
+ * CONST[152..155] D3DTS_TEXTURE6
+ * CONST[156..159] D3DTS_TEXTURE7
  *
  * CONST[224] D3DTS_WORLDMATRIX[0]
  * CONST[228] D3DTS_WORLDMATRIX[1]
  * ...
  * CONST[252] D3DTS_WORLDMATRIX[7]
  */
-static void *
-nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
+struct vs_build_ctx
 {
-    struct nine_state *state = &device->state;
+    struct ureg_program *ureg;
+    const struct nine_ff_vs_key *key;
+
+    unsigned input[PIPE_MAX_ATTRIBS];
+    unsigned num_inputs;
+
+    struct ureg_src aVtx;
+    struct ureg_src aNrm;
+    struct ureg_src aCol[2];
+    struct ureg_src aTex[8];
+    struct ureg_src aPsz;
+    struct ureg_src aInd;
+    struct ureg_src aWgt;
+};
+
+static INLINE struct ureg_src
+build_vs_add_input(struct vs_build_ctx *vs, unsigned ndecl)
+{
+    const unsigned i = vs->num_inputs++;
+    assert(i < PIPE_MAX_ATTRIBS);
+    vs->input[i] = ndecl;
+    return ureg_DECL_vs_input(vs->ureg, i);
+}
+
+static void *
+nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
+{
+    const struct nine_ff_vs_key *key = vs->key;
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_VERTEX);
-    struct ureg_src aVtx, aCol[2], aTex[8], aNrm;
-    struct ureg_dst oPos, oCol[2], oTex[8];
-    struct ureg_src c[18];
-    struct ureg_dst r[6];
-    struct ureg_src r_src[6];
-    struct ureg_dst A0;
+    struct ureg_dst oPos, oCol[2], oTex[8], oPsz, oFog;
+    struct ureg_dst rVtx, rNrm;
+    struct ureg_dst r[8];
+    struct ureg_dst AR;
+    struct ureg_dst tmp, tmp_x;
     unsigned i;
-    unsigned n;
     unsigned label[32], l = 0;
+    unsigned num_r = 8;
+    boolean need_rNrm = key->lighting || key->pointscale;
+    boolean need_rVtx = key->lighting || key->fog_mode;
 
-    (void)state;
+    vs->ureg = ureg;
 
-    for (i = 0; i < 18; ++i)
-        c[i] = ureg_DECL_constant(ureg, i); /* transforms */
-
-    if (key->lighting) {
-        for (i = 32; i <= 94; ++i)
-            ureg_DECL_constant(ureg, i); /* light properties */
-        for (i = 95; i <= 99; ++i)
-            ureg_DECL_constant(ureg, i); /* material properties */
+    /* Check which inputs we should transform. */
+    for (i = 0; i < 8 * 3; i += 3) {
+        switch ((key->tc_gen >> i) & 0x3) {
+        case NINED3DTSS_TCI_CAMERASPACENORMAL:
+            need_rNrm = TRUE;
+            break;
+        case NINED3DTSS_TCI_CAMERASPACEPOSITION:
+            need_rVtx = TRUE;
+            break;
+        case NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
+            need_rVtx = need_rNrm = TRUE;
+            break;
+        default:
+            break;
+        }
     }
 
-    n = 0;
-    aVtx = ureg_DECL_vs_input(ureg, n++);
-    if (key->lighting)
-        aNrm = ureg_DECL_vs_input(ureg, n++);
-    aCol[0] = ureg_DECL_vs_input(ureg, n++);
-    aCol[1] = ureg_DECL_vs_input(ureg, n++);
-    aTex[0] = ureg_DECL_vs_input(ureg, n++);
+    /* Declare and record used inputs (needed for linkage with vertex format):
+     * (texture coordinates handled later)
+     */
+    vs->aVtx = build_vs_add_input(vs,
+        key->position_t ? NINE_DECLUSAGE_POSITIONT : NINE_DECLUSAGE_POSITION);
 
+    if (need_rNrm)
+        vs->aNrm = build_vs_add_input(vs, NINE_DECLUSAGE_NORMAL(0));
+
+    if (key->lighting) {
+        const unsigned mask = key->mtl_diffuse | key->mtl_specular |
+                              key->mtl_ambient | key->mtl_emissive;
+        if (mask & 0x1)
+            vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
+        if (mask & 0x2)
+            vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
+    } else {
+        vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
+        vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
+    }
+
+    if (key->vertexpointsize)
+        vs->aPsz = build_vs_add_input(vs, NINE_DECLUSAGE_PSIZE);
+
+    if (key->vertexblend_indexed)
+        vs->aInd = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDINDICES);
+    if (key->vertexblend)
+        vs->aWgt = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDWEIGHT);
+
+    /* Declare outputs:
+     */
     oPos = ureg_DECL_output(ureg, TGSI_SEMANTIC_POSITION, 0); /* HPOS */
     oCol[0] = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
     oCol[1] = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 1);
-    oTex[0] = ureg_DECL_output(ureg, TGSI_SEMANTIC_TEXCOORD, 0);
 
-    for (i = 0; i < 6; ++i) {
+    if (key->vertexpointsize || key->pointscale) {
+        oPsz = ureg_DECL_output_masked(ureg, TGSI_SEMANTIC_PSIZE, 0, TGSI_WRITEMASK_X);
+        oPsz = ureg_writemask(oPsz, TGSI_WRITEMASK_X);
+    }
+    if (key->fog_mode) {
+        oFog = ureg_DECL_output_masked(ureg, TGSI_SEMANTIC_FOG, 0, TGSI_WRITEMASK_X);
+        oFog = ureg_writemask(oFog, TGSI_WRITEMASK_X);
+    }
+
+    /* Declare TEMPs:
+     */
+    for (i = 0; i < num_r; ++i)
         r[i] = ureg_DECL_local_temporary(ureg);
-        r_src[i] = ureg_src(r[i]);
-    }
-    if (key->lighting)
-        A0 = ureg_DECL_address(ureg);
+    tmp = r[0];
+    tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
+    if (key->lighting || key->vertexblend)
+        AR = ureg_DECL_address(ureg);
 
-    /* HPOS */
+    rVtx = ureg_writemask(r[1], TGSI_WRITEMASK_XYZ);
+    rNrm = ureg_writemask(r[2], TGSI_WRITEMASK_XYZ);
+
+    /* === Vertex transformation / vertex blending:
+     */
+    if (key->vertexblend) {
+        struct ureg_src cWM[4];
+        struct ureg_src aInd;
+        struct ureg_src aWgt;
+
+        for (i = 224; i <= 255; ++i)
+            ureg_DECL_constant(ureg, i);
+        for (i = 0; i < 4; ++i)
+            cWM[i] = ureg_src_indirect(ureg_src_register(TGSI_FILE_CONSTANT, i), _X(AR));
+
+        /* translate world matrix index to constant file index */
+        if (key->vertexblend_indexed)
+            ureg_MAD(ureg, tmp, aInd, ureg_imm1f(ureg, 4.0f), ureg_imm1f(ureg, 224.0f));
+        else
+            ureg_MOV(ureg, tmp, ureg_imm4f(ureg, 224.0f, 228.0f, 232.0f, 236.0f));
+        for (i = 0; i < key->vertexblend; ++i) {
+            ureg_ARL(ureg, AR, ureg_scalar(ureg_src(tmp), i));
+
+            /* multiply by WORLD(index) */
+            ureg_MUL(ureg, r[0], _XXXX(vs->aVtx), cWM[0]);
+            ureg_MAD(ureg, r[0], _YYYY(vs->aVtx), cWM[1], ureg_src(r[0]));
+            ureg_MAD(ureg, r[0], _ZZZZ(vs->aVtx), cWM[2], ureg_src(r[0]));
+            ureg_MAD(ureg, r[0], _WWWW(vs->aVtx), cWM[3], ureg_src(r[0]));
+
+            /* accumulate weighted position value */
+            ureg_MAD(ureg, r[1], ureg_src(r[0]), ureg_scalar(aWgt, i), ureg_src(r[1]));
+        }
+        /* multiply by VIEW_PROJ */
+        ureg_MUL(ureg, r[0], _X(r[1]), _CONST(8));
+        ureg_MAD(ureg, r[0], _Y(r[1]), _CONST(9),  ureg_src(r[0]));
+        ureg_MAD(ureg, r[0], _Z(r[1]), _CONST(10), ureg_src(r[0]));
+        ureg_MAD(ureg, oPos, _W(r[1]), _CONST(11), ureg_src(r[0]));
+    } else
     if (key->position_t) {
-        ureg_MOV(ureg, oPos, aVtx);
+        ureg_MOV(ureg, oPos, vs->aVtx);
     } else {
-        ureg_MUL(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_X), c[0]);
-        ureg_MAD(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_Y), c[1], r_src[0]);
-        ureg_MAD(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_Z), c[2], r_src[0]);
-        ureg_MAD(ureg, r[0], ureg_scalar(aVtx, TGSI_SWIZZLE_W), c[3], r_src[0]);
-        ureg_MOV(ureg, oPos, r_src[0]);
+        /* position = vertex * WORLD_VIEW_PROJ */
+        ureg_MUL(ureg, r[0], _XXXX(vs->aVtx), _CONST(0));
+        ureg_MAD(ureg, r[0], _YYYY(vs->aVtx), _CONST(1), ureg_src(r[0]));
+        ureg_MAD(ureg, r[0], _ZZZZ(vs->aVtx), _CONST(2), ureg_src(r[0]));
+        ureg_MAD(ureg, oPos, _WWWW(vs->aVtx), _CONST(3), ureg_src(r[0]));
     }
-    /* LIGHT */
+
+    if (need_rVtx) {
+        ureg_MUL(ureg, rVtx, _XXXX(vs->aVtx), _CONST(4));
+        ureg_MAD(ureg, rVtx, _YYYY(vs->aVtx), _CONST(5), ureg_src(rVtx));
+        ureg_MAD(ureg, rVtx, _ZZZZ(vs->aVtx), _CONST(6), ureg_src(rVtx));
+        ureg_MAD(ureg, rVtx, _WWWW(vs->aVtx), _CONST(7), ureg_src(rVtx));
+    }
+    if (need_rNrm) {
+        ureg_MUL(ureg, rNrm, _XXXX(vs->aNrm), _CONST(16));
+        ureg_MAD(ureg, rNrm, _YYYY(vs->aNrm), _CONST(17), ureg_src(rNrm));
+        ureg_MAD(ureg, rNrm, _ZZZZ(vs->aNrm), _CONST(18), ureg_src(rNrm));
+        ureg_NRM(ureg, rNrm, ureg_src(rNrm));
+    }
+
+    /* === Process point size:
+     */
+    if (key->vertexpointsize) {
+        struct ureg_src cPsz1 = ureg_DECL_constant(ureg, 26);
+        ureg_CLAMP(ureg, oPsz, vs->aPsz, _XXXX(cPsz1), _YYYY(cPsz1));
+    } else
+    if (key->pointscale) {
+        struct ureg_dst tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
+        struct ureg_dst tmp_y = ureg_writemask(tmp, TGSI_WRITEMASK_Y);
+        struct ureg_src cPsz1 = ureg_DECL_constant(ureg, 26);
+        struct ureg_src cPsz2 = ureg_DECL_constant(ureg, 27);
+
+        ureg_DP3(ureg, tmp_x, ureg_src(r[1]), ureg_src(r[1]));
+        ureg_SQRT(ureg, tmp_y, _X(tmp));
+        ureg_MAD(ureg, tmp_x, _Y(tmp), _YYYY(cPsz2), _XXXX(cPsz2));
+        ureg_MAD(ureg, tmp_x, _Y(tmp), _X(tmp), _WWWW(cPsz1));
+        ureg_RCP(ureg, tmp_x, ureg_src(tmp));
+        ureg_MUL(ureg, tmp_x, ureg_src(tmp), _ZZZZ(cPsz1));
+        ureg_CLAMP(ureg, oPsz, _X(tmp), _XXXX(cPsz1), _YYYY(cPsz1));
+    }
+
+    /* === Process fog.
+     *
+     * exp(x) = ex2(log2(e) * x)
+     */
+    if (key->fog_mode == D3DFOG_EXP) {
+        ureg_MUL(ureg, tmp_x, ureg_abs(_Z(rVtx)), _ZZZZ(_CONST(28)));
+        ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
+        ureg_EX2(ureg, oFog, _X(tmp));
+    } else
+    if (key->fog_mode == D3DFOG_EXP2) {
+        ureg_MUL(ureg, tmp_x, _Z(rVtx), _ZZZZ(_CONST(28)));
+        ureg_MUL(ureg, tmp_x, _X(tmp), _X(tmp));
+        ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
+        ureg_EX2(ureg, oFog, _X(tmp));
+    } else
+    if (key->fog_mode == D3DFOG_LINEAR) {
+        ureg_SUB(ureg, tmp_x, _XXXX(_CONST(28)), ureg_abs(_Z(rVtx)));
+        ureg_MUL(ureg, ureg_saturate(oFog), _X(tmp), _YYYY(_CONST(28)));
+    }
+
+    /* Texture coordinate generation:
+     * XXX: D3DTTFF_PROJECTED, transform matrix
+     */
+    for (i = 0; i < 8; ++i) {
+        const unsigned tci = (key->tc_gen >> (i * 3)) & 0x3;
+        const unsigned idx = (key->tc_idx >> (i * 3)) & 0x3;
+
+        if (tci == NINED3DTSS_TCI_DISABLE)
+            continue;
+        oTex[i] = ureg_DECL_output(ureg, TGSI_SEMANTIC_TEXCOORD, i);
+
+        if (tci == NINED3DTSS_TCI_PASSTHRU)
+            vs->aTex[idx] = build_vs_add_input(vs, NINE_DECLUSAGE_TEXCOORD(idx));
+
+        switch (tci) {
+        case D3DTSS_TCI_PASSTHRU:
+            ureg_MOV(ureg, oTex[i], vs->aTex[idx]);
+            break;
+        case D3DTSS_TCI_CAMERASPACENORMAL:
+            ureg_MOV(ureg, oTex[i], ureg_src(rNrm));
+            break;
+        case D3DTSS_TCI_CAMERASPACEPOSITION:
+            ureg_MOV(ureg, oTex[i], ureg_src(rVtx));
+            break;
+        case D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
+        case D3DTSS_TCI_SPHEREMAP:
+            assert(!"TODO");
+            break;
+        default:
+            break;
+        }
+    }
+
+    /* === Lighting:
+     *
+     * DIRECTIONAL:  Light at infinite distance, parallel rays, no attenuation.
+     * POINT: Finite distance to scene, divergent rays, isotropic, attenuation.
+     * SPOT: Finite distance, divergent rays, angular dependence, attenuation.
+     *
+     * vec3 normal = normalize(in.Normal * NormalMatrix);
+     * vec3 hitDir = light.direction;
+     * float atten = 1.0;
+     *
+     * if (light.type != DIRECTIONAL)
+     * {
+     *     vec3 hitVec = light.position - eyeVertex;
+     *     float d = length(hitVec);
+     *     hitDir = hitVec / d;
+     *     atten = 1 / ((light.atten2 * d + light.atten1) * d + light.atten0);
+     * }
+     *
+     * if (light.type == SPOTLIGHT)
+     * {
+     *     float rho = dp3(-hitVec, light.direction);
+     *     if (rho < cos(light.phi / 2))
+     *         atten = 0;
+     *     if (rho < cos(light.theta / 2))
+     *         atten *= pow(some_func(rho), light.falloff);
+     * }
+     *
+     * float nDotHit = dp3_sat(normal, hitVec);
+     * float powFact = 0.0;
+     *
+     * if (nDotHit > 0.0)
+     * {
+     *     vec3 midVec = normalize(hitDir + eye);
+     *     float nDotMid = dp3_sat(normal, midVec);
+     *     pFact = pow(nDotMid, material.power);
+     * }
+     *
+     * ambient += light.ambient * atten;
+     * diffuse += light.diffuse * atten * nDotHit;
+     * specular += light.specular * atten * powFact;
+     */
     if (key->lighting) {
-#if 0
-        struct ureg_dst rNrm = ureg_writemask(r[0], TGSI_WRITEMASK_XYZ);
-        struct ureg_dst rCtr = ureg_writemask(r[1], TGSI_WRITEMASK_X);
-        struct ureg_dst rCmp = ureg_writemask(r[1], TGSI_WRITEMASK_Y);
-        struct ureg_dst rDst = ureg_writemask(r[2], TGSI_WRITEMASK_XYZ);
-        struct ureg_dst rAtt = ureg_writemask(r[2], TGSI_WRITEMASK_W);
-        struct ureg_dst rTmpW = ureg_writemask(r[0], TGSI_WRITEMASK_W);
-        struct ureg_dst rTmpZ = ureg_writemask(r[1], TGSI_WRITEMASK_Z);
-        struct ureg_dst rColD = r[3];
-        struct ureg_dst rColS = r[4];
-        struct ureg_dst rColA = r[5];
+        struct ureg_dst tmp_y = ureg_writemask(tmp, TGSI_WRITEMASK_Y);
+        struct ureg_dst tmp_z = ureg_writemask(tmp, TGSI_WRITEMASK_Z);
 
-        struct ureg_dst AL = ureg_writemask(A0, TGSI_WRITEMASK_X);
+        struct ureg_dst rAtt = ureg_writemask(r[1], TGSI_WRITEMASK_W);
+        struct ureg_dst rHit = ureg_writemask(r[3], TGSI_WRITEMASK_XYZ);
+        struct ureg_dst rMid = ureg_writemask(r[4], TGSI_WRITEMASK_XYZ);
 
-        struct ureg_src cMColD = _XYZW(MATERIAL_CONST(0));
-        struct ureg_src cMColA = _XYZW(MATERIAL_CONST(1));
-        struct ureg_src cMColS = _XYZW(MATERIAL_CONST(2));
-        struct ureg_src cMEmit = _XYZW(MATERIAL_CONST(3));
-        struct ureg_src cMPowr = _XXXX(MATERIAL_CONST(4));
+        struct ureg_dst rCtr = ureg_writemask(r[2], TGSI_WRITEMASK_W);
+
+        struct ureg_dst AL = ureg_writemask(AR, TGSI_WRITEMASK_X);
+
+        struct ureg_dst rD = r[5];
+        struct ureg_dst rA = r[6];
+        struct ureg_dst rS = r[7];
+
+        struct ureg_src mD = _XYZW(MATERIAL_CONST(1));
+        struct ureg_src mA = _XYZW(MATERIAL_CONST(2));
+        struct ureg_src mS = _XYZW(MATERIAL_CONST(3));
+        struct ureg_src mE = _XYZW(MATERIAL_CONST(5));
+        struct ureg_src mP = _XXXX(MATERIAL_CONST(4));
 
         struct ureg_src cLKind = _XXXX(LIGHT_CONST(0));
         struct ureg_src cLAtt0 = _YYYY(LIGHT_CONST(0));
@@ -209,72 +547,148 @@ nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
         struct ureg_src cLFOff = _WWWW(LIGHT_CONST(5));
         struct ureg_src cLTht  = _XXXX(LIGHT_CONST(6));
         struct ureg_src cLPhi  = _YYYY(LIGHT_CONST(6));
+        struct ureg_src cLSDiv = _ZZZZ(LIGHT_CONST(6));
+        struct ureg_src cLLast = _WWWW(LIGHT_CONST(7));
 
-        struct ureg_src cLCnt  = _XXXX(MISC_CONST(39));
+        const unsigned loop_label = l++;
 
-        ureg_MOV(ureg, rCtr, ureg_imm1f(ureg, 0.0f));
-        ureg_NRM(ureg, rNrm, aNrm);
+        if (key->mtl_diffuse  == 1) mD = vs->aCol[0]; else
+        if (key->mtl_diffuse  == 2) mD = vs->aCol[1];
+        if (key->mtl_ambient  == 1) mA = vs->aCol[0]; else
+        if (key->mtl_ambient  == 2) mA = vs->aCol[1];
+        if (key->mtl_specular == 1) mS = vs->aCol[0]; else
+        if (key->mtl_specular == 2) mS = vs->aCol[1];
+        if (key->mtl_emissive == 1) mE = vs->aCol[0]; else
+        if (key->mtl_emissive == 2) mE = vs->aCol[1];
 
-        ureg_BGNLOOP(ureg, &label[l++]);
-        ureg_SGE(ureg, rCmp, _X(rCtr), cLCnt);
-        ureg_ARL(ureg, AL, _X(rCtr));
-        ureg_IF(ureg, _Y(rCmp), &label[l++]);
+        ureg_MOV(ureg, rCtr, ureg_imm1f(ureg, 32.0f)); /* &lightconst(0) */
+        ureg_MOV(ureg, rD, ureg_imm1f(ureg, 0.0f));
+        ureg_MOV(ureg, rA, ureg_imm1f(ureg, 0.0f));
+        ureg_MOV(ureg, rS, ureg_imm1f(ureg, 0.0f));
+        rD = ureg_saturate(rD);
+        rA = ureg_saturate(rA);
+        rS = ureg_saturate(rS);
+
+
+        /* loop management */
+        ureg_BGNLOOP(ureg, &label[loop_label]);
+        ureg_ARL(ureg, AL, _W(rCtr));
+
+        /* if (not DIRECTIONAL light): */
+        ureg_SNE(ureg, tmp_x, cLKind, ureg_imm1f(ureg, D3DLIGHT_DIRECTIONAL));
+        ureg_MOV(ureg, rHit, cLDir);
+        ureg_IF(ureg, _X(tmp), &label[l++]);
+        {
+            /* hitDir = light.position - eyeVtx
+             * d = length(hitDir)
+             * hitDir /= d
+             */
+            ureg_SUB(ureg, rHit, cLPos, ureg_src(rVtx));
+            ureg_DP3(ureg, tmp_x, ureg_src(rHit), ureg_src(rHit));
+            ureg_RSQ(ureg, tmp_y, _X(tmp));
+            ureg_MUL(ureg, rHit, ureg_src(rHit), _Y(tmp)); /* normalize */
+            ureg_MUL(ureg, tmp_x, _X(tmp), _Y(tmp)); /* length */
+
+            /* att = 1.0 / (light.att0 + (light.att1 + light.att2 * d) * d) */
+            ureg_MAD(ureg, rAtt, _X(tmp), cLAtt2, cLAtt1);
+            ureg_MAD(ureg, rAtt, _X(tmp), _W(rAtt), cLAtt0);
+            ureg_RCP(ureg, rAtt, _W(rAtt));
+            /* cut-off if distance exceeds Light.Range */
+            ureg_SLT(ureg, tmp_x, _X(tmp), cLRng);
+            ureg_MUL(ureg, rAtt, _W(rAtt), _X(tmp));
+        }
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+        ureg_ENDIF(ureg);
+
+        /* if (SPOT light) */
+        ureg_SEQ(ureg, tmp_x, cLKind, ureg_imm1f(ureg, D3DLIGHT_SPOT));
+        ureg_IF(ureg, _X(tmp), &label[l++]);
+        {
+            /* rho = dp3(-hitDir, light.spotDir)
+             *
+             * if (rho  > light.ctht2) NOTE: 0 <= phi <= pi, 0 <= theta <= phi
+             *     spotAtt = 1
+             * else
+             * if (rho <= light.cphi2)
+             *     spotAtt = 0
+             * else
+             *     spotAtt = (rho - light.cphi2) / (light.ctht2 - light.cphi2) ^ light.falloff
+             */
+            ureg_DP3(ureg, tmp_y, ureg_negate(ureg_src(rHit)), cLDir); /* rho */
+            ureg_SUB(ureg, tmp_x, _Y(tmp), cLPhi);
+            ureg_MUL(ureg, tmp_x, _X(tmp), cLSDiv);
+            ureg_POW(ureg, tmp_x, _X(tmp), cLFOff); /* spotAtten */
+            ureg_SGE(ureg, tmp_z, _Y(tmp), cLTht); /* if inside theta && phi */
+            ureg_SGE(ureg, tmp_y, _Y(tmp), cLPhi); /* if inside phi */
+            ureg_MAD(ureg, ureg_saturate(tmp_x), _X(tmp), _Y(tmp), _Z(tmp));
+            ureg_MUL(ureg, rAtt, _W(rAtt), _X(tmp));
+        }
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+        ureg_ENDIF(ureg);
+
+
+        /* directional factors, let's not use LIT because of clarity */
+        ureg_DP3(ureg, ureg_saturate(tmp_x), ureg_src(rNrm), ureg_src(rHit));
+        ureg_MOV(ureg, tmp_y, ureg_imm1f(ureg, 0.0f));
+        ureg_IF(ureg, _X(tmp), &label[l++]);
+        {
+            /* midVec = normalize(hitDir + eyeDir) */
+            if (key->localviewer) {
+                ureg_NRM(ureg, rMid, ureg_src(rVtx));
+                ureg_ADD(ureg, rMid, ureg_src(rHit), ureg_negate(ureg_src(rMid)));
+            } else {
+                ureg_ADD(ureg, rMid, ureg_src(rHit), ureg_imm3f(ureg, 0.0f, 0.0f, 1.0f));
+            }
+            ureg_NRM(ureg, rMid, ureg_src(rMid));
+            ureg_DP3(ureg, ureg_saturate(tmp_y), ureg_src(rNrm), ureg_src(rMid));
+            ureg_POW(ureg, tmp_y, _Y(tmp), mP);
+
+            ureg_MUL(ureg, tmp_x, _W(rAtt), _X(tmp)); /* dp3(normal,hitDir) * att */
+            ureg_MUL(ureg, tmp_y, _W(rAtt), _Y(tmp)); /* power factor * att */
+            ureg_MAD(ureg, rD, cLColD, _X(tmp), ureg_src(rD)); /* accumulate diffuse */
+            ureg_MAD(ureg, rS, cLColS, _Y(tmp), ureg_src(rS)); /* accumulate specular */
+        }
+        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
+        ureg_ENDIF(ureg);
+
+        ureg_MAD(ureg, rA, cLColA, _W(rAtt), ureg_src(rA)); /* accumulate ambient */
+
+        /* break if this was the last light */
+        ureg_IF(ureg, cLLast, &label[l++]);
         ureg_BRK(ureg);
         ureg_ENDIF(ureg);
-        ureg_ADD(ureg, rCtr, _X(rCtr), ureg_imm1f(ureg, 1.0f));
-
         ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
 
-        ureg_SEQ(ureg, rCmp, cLKind, ureg_imm1f(ureg, D3DLIGHT_POINT));
-        ureg_IF(ureg, _Y(rCmp), &label[l++]);
-        {
-            /* POINT light (finite distance, omidirectional) */
-            ureg_SUB(ureg, rDst, ureg_src(rDst), cLPos);
-            ureg_DP3(ureg, rTmpW, ureg_src(rDst), ureg_src(rDst));
-            ureg_SQRT(ureg, rTmpW, _W(rTmpW));
-            /* att0 + d * (att1 + d * att2) */
-            ureg_MAD(ureg, rAtt, cLAtt2, _W(rTmpW), cLAtt1);
-            ureg_MAD(ureg, rAtt, _W(rAtt), _W(rTmpW), cLAtt0);
+        ureg_ADD(ureg, rCtr, _W(rCtr), ureg_imm1f(ureg, 8.0f));
+        ureg_fixup_label(ureg, label[loop_label], ureg_get_instruction_number(ureg));
+        ureg_ENDLOOP(ureg, &label[loop_label]);
+
+
+        /* Apply to material:
+         *
+         * oCol[0] = (material.emissive + material.ambient * rs.ambient) +
+         *           material.ambient * ambient +
+         *           material.diffuse * diffuse +
+         * oCol[1] = material.specular * specular;
+         */
+        if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
+            ureg_MAD(ureg, tmp, ureg_src(rA), mA, _CONST(19));
+        } else {
+            ureg_ADD(ureg, tmp, ureg_src(rA), _CONST(25));
+            ureg_MAD(ureg, tmp, mA, ureg_src(tmp), mE);
         }
-        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
-
-        ureg_ELSE(ureg, &label[l++]);
-
-        ureg_SEQ(ureg, rCmp, cLKind, ureg_imm1f(ureg, D3DLIGHT_SPOT));
-        ureg_IF(ureg, _Y(rCmp), &label[l++]);
-        {
-            /* SPOT light (finite distance, angular dependence) */
-        }
-        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
-        ureg_ELSE(ureg, &label[l++]);
-        {
-            /* DIRECTIONAL light (infinite distance, simplest case) */
-        }
-        ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
-        ureg_ENDIF(ureg);
-        ureg_fixup_label(ureg, label[l-2], ureg_get_instruction_number(ureg));
-        ureg_ENDIF(ureg);
-
-        ureg_fixup_label(ureg, label[l-6], ureg_get_instruction_number(ureg));
-        ureg_ENDLOOP(ureg, &label[0]);
-
-        /* apply to material */
-        ureg_MUL(ureg, rColD, ureg_src(rColD), cMColD);
-        ureg_MAD(ureg, oCol[0], ureg_src(rColS), cMColS, ureg_src(rColD));
-        /* clamp_vertex_color */
-#endif
+        ureg_MAD(ureg, oCol[0], ureg_src(rD), mD, ureg_src(tmp));
+        ureg_MUL(ureg, oCol[1], ureg_src(rS), mS);
+    } else
+    /* COLOR */
+    if (key->darkness) {
+        ureg_MOV(ureg, oCol[0], ureg_imm1f(ureg, 0.0f));
+        ureg_MOV(ureg, oCol[1], ureg_imm1f(ureg, 0.0f));
     } else {
-        /* COLOR */
-        ureg_MOV(ureg, oCol[0], aCol[0]);
-        ureg_MOV(ureg, oCol[1], aCol[1]);
+        ureg_MOV(ureg, oCol[0], vs->aCol[0]);
+        ureg_MOV(ureg, oCol[1], vs->aCol[1]);
     }
-    (void)l;
-    (void)label;
-    (void)A0;
-    (void)aNrm;
-
-    /* TEXCOORD */
-    ureg_MOV(ureg, oTex[0], aTex[0]);
+    /* clamp_vertex_color: done by hardware */
 
     ureg_END(ureg);
     return ureg_create_shader_and_destroy(ureg, device->pipe);
@@ -282,48 +696,364 @@ nine_ff_build_vs(struct NineDevice9 *device, struct nine_ff_vs_key *key)
 
 /* PS FF constants layout:
  *
- * CONST[ 0.. 3] D3DTS_TEXTURE0
- * CONST[ 4.. 7] D3DTS_TEXTURE1
- * ...
- * CONST[28..31] D3DTS_TEXTURE7
+ * CONST[ 0.. 7]      stage[i].D3DTSS_CONSTANT
+ * CONST[ 8..15].x___ stage[i].D3DTSS_BUMPENVMAT00
+ * CONST[ 8..15]._y__ stage[i].D3DTSS_BUMPENVMAT01
+ * CONST[ 8..15].__z_ stage[i].D3DTSS_BUMPENVMAT10
+ * CONST[ 8..15].___w stage[i].D3DTSS_BUMPENVMAT11
+ * CONST[16..19].x_z_ stage[i].D3DTSS_BUMPENVLSCALE
+ * CONST[17..19]._y_w stage[i].D3DTSS_BUMPENVLOFFSET
+ *
+ * CONST[20] D3DRS_TEXTUREFACTOR
+ * CONST[21] D3DRS_FOGCOLOR
+ * CONST[22].x___ RS.FogEnd
+ * CONST[22]._y__ 1.0f / (RS.FogEnd - RS.FogStart)
+ * CONST[22].__z_ RS.FogDensity
  */
+struct ps_build_ctx
+{
+    struct ureg_program *ureg;
+
+    struct ureg_src vC[2]; /* DIFFUSE, SPECULAR */
+    struct ureg_src vT[8]; /* TEXCOORD[i] */
+    struct ureg_dst r[6];  /* TEMPs */
+    struct ureg_dst rCur; /* D3DTA_CURRENT */
+    struct ureg_dst rMod;
+    struct ureg_src rCurSrc;
+    struct ureg_dst rTmp; /* D3DTA_TEMP */
+    struct ureg_src rTmpSrc;
+    struct ureg_dst rTex;
+    struct ureg_src rTexSrc;
+    struct ureg_src cBEM[8];
+    struct ureg_src s[8];
+
+    struct {
+        unsigned index;
+        unsigned index_pre_mod;
+        unsigned num_regs;
+    } stage;
+};
+
+static struct ureg_src
+ps_get_ts_arg(struct ps_build_ctx *ps, unsigned ta)
+{
+    struct ureg_src reg;
+
+    switch (ta & D3DTA_SELECTMASK) {
+    case D3DTA_CONSTANT:
+        reg = ureg_DECL_constant(ps->ureg, ps->stage.index);
+        break;
+    case D3DTA_CURRENT:
+        reg = (ps->stage.index == ps->stage.index_pre_mod) ? ureg_src(ps->rMod) : ps->rCurSrc;
+        break;
+    case D3DTA_DIFFUSE:
+        reg = ureg_DECL_fs_input(ps->ureg, TGSI_SEMANTIC_COLOR, 0, TGSI_INTERPOLATE_PERSPECTIVE);
+        break;
+    case D3DTA_SPECULAR:
+        reg = ureg_DECL_fs_input(ps->ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
+        break;
+    case D3DTA_TEMP:
+        reg = ps->rTmpSrc;
+        break;
+    case D3DTA_TEXTURE:
+        reg = ps->rTexSrc;
+        break;
+    case D3DTA_TFACTOR:
+        reg = ureg_DECL_constant(ps->ureg, 20);
+        break;
+    default:
+        assert(0);
+        reg = ureg_src_undef();
+        break;
+    }
+    if (ta & D3DTA_COMPLEMENT) {
+        struct ureg_dst dst = ps->r[ps->stage.num_regs++];
+        ureg_SUB(ps->ureg, dst, ureg_imm1f(ps->ureg, 1.0f), reg);
+        reg = ureg_src(dst);
+    }
+    if (ta & D3DTA_ALPHAREPLICATE)
+        reg = _WWWW(reg);
+    return reg;
+}
+
+static struct ureg_dst
+ps_get_ts_dst(struct ps_build_ctx *ps, unsigned ta)
+{
+    assert(!(ta & (D3DTA_COMPLEMENT | D3DTA_ALPHAREPLICATE)));
+
+    switch (ta & D3DTA_SELECTMASK) {
+    case D3DTA_CURRENT:
+        return ps->rCur;
+    case D3DTA_TEMP:
+        return ps->rTmp;
+    default:
+        assert(0);
+        return ureg_dst_undef();
+    }
+}
+
+static void
+ps_do_ts_op(struct ps_build_ctx *ps, unsigned top, struct ureg_dst dst, struct ureg_src *arg)
+{
+    struct ureg_program *ureg = ps->ureg;
+    struct ureg_dst tmp = ps->r[ps->stage.num_regs];
+    struct ureg_dst tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
+
+    tmp.WriteMask = dst.WriteMask;
+
+    if (top != D3DTOP_SELECTARG1 && top != D3DTOP_SELECTARG2 &&
+        top != D3DTOP_MODULATE && top != D3DTOP_PREMODULATE &&
+        top != D3DTOP_BLENDDIFFUSEALPHA && top != D3DTOP_BLENDTEXTUREALPHA &&
+        top != D3DTOP_BLENDFACTORALPHA && top != D3DTOP_BLENDCURRENTALPHA &&
+        top != D3DTOP_BUMPENVMAP && top != D3DTOP_BUMPENVMAPLUMINANCE &&
+        top != D3DTOP_LERP)
+        dst = ureg_saturate(dst);
+
+    switch (top) {
+    case D3DTOP_SELECTARG1:
+        ureg_MOV(ureg, dst, arg[1]);
+        break;
+    case D3DTOP_SELECTARG2:
+        ureg_MOV(ureg, dst, arg[2]);
+        break;
+    case D3DTOP_MODULATE:
+        ureg_MUL(ureg, dst, arg[1], arg[2]);
+        break;
+    case D3DTOP_MODULATE2X:
+        ureg_MUL(ureg, tmp, arg[1], arg[2]);
+        ureg_ADD(ureg, dst, ureg_src(tmp), ureg_src(tmp));
+        break;
+    case D3DTOP_MODULATE4X:
+        ureg_MUL(ureg, tmp, arg[1], arg[2]);
+        ureg_MUL(ureg, dst, ureg_src(tmp), ureg_imm1f(ureg, 4.0f));
+        break;
+    case D3DTOP_ADD:
+        ureg_ADD(ureg, dst, arg[1], arg[2]);
+        break;
+    case D3DTOP_ADDSIGNED:
+        ureg_ADD(ureg, tmp, arg[1], arg[2]);
+        ureg_SUB(ureg, dst, ureg_src(tmp), ureg_imm1f(ureg, 0.5f));
+        break;
+    case D3DTOP_ADDSIGNED2X:
+        ureg_ADD(ureg, tmp, arg[1], arg[2]);
+        ureg_MAD(ureg, dst, ureg_src(tmp), ureg_imm1f(ureg, 2.0f), ureg_imm1f(ureg, -1.0f));
+        break;
+    case D3DTOP_SUBTRACT:
+        ureg_SUB(ureg, dst, arg[1], arg[2]);
+        break;
+    case D3DTOP_ADDSMOOTH:
+        ureg_SUB(ureg, tmp, ureg_imm1f(ureg, 1.0f), arg[1]);
+        ureg_MAD(ureg, dst, ureg_src(tmp), arg[2], arg[1]);
+        break;
+    case D3DTOP_BLENDDIFFUSEALPHA:
+        ureg_LRP(ureg, dst, _WWWW(ps->vC[0]), arg[1], arg[2]);
+        break;
+    case D3DTOP_BLENDTEXTUREALPHA:
+        /* XXX: alpha taken from previous stage, texture or result ? */
+        ureg_LRP(ureg, dst, _W(ps->rTex), arg[1], arg[2]);
+        break;
+    case D3DTOP_BLENDFACTORALPHA:
+        ureg_LRP(ureg, dst, _WWWW(_CONST(20)), arg[1], arg[2]);
+        break;
+    case D3DTOP_BLENDTEXTUREALPHAPM:
+        ureg_SUB(ureg, tmp_x, ureg_imm1f(ureg, 1.0f), _W(ps->rTex));
+        ureg_MAD(ureg, dst, arg[2], _X(tmp), arg[1]);
+        break;
+    case D3DTOP_BLENDCURRENTALPHA:
+        ureg_LRP(ureg, dst, _WWWW(ps->rCurSrc), arg[1], arg[2]);
+        break;
+    case D3DTOP_PREMODULATE:
+        ureg_MOV(ureg, dst, arg[1]);
+        ps->stage.index_pre_mod = ps->stage.index + 1;
+        break;
+    case D3DTOP_MODULATEALPHA_ADDCOLOR:
+        ureg_MAD(ureg, dst, _WWWW(arg[1]), arg[2], arg[1]);
+        break;
+    case D3DTOP_MODULATECOLOR_ADDALPHA:
+        ureg_MAD(ureg, dst, arg[1], arg[2], _WWWW(arg[1]));
+        break;
+    case D3DTOP_MODULATEINVALPHA_ADDCOLOR:
+        ureg_SUB(ureg, tmp_x, ureg_imm1f(ureg, 1.0f), _WWWW(arg[1]));
+        ureg_MAD(ureg, dst, _X(tmp), arg[2], arg[1]);
+        break;
+    case D3DTOP_MODULATEINVCOLOR_ADDALPHA:
+        ureg_SUB(ureg, tmp, ureg_imm1f(ureg, 1.0f), arg[1]);
+        ureg_MAD(ureg, dst, ureg_src(tmp), arg[2], _WWWW(arg[1]));
+        break;
+    case D3DTOP_BUMPENVMAP:
+        break;
+    case D3DTOP_BUMPENVMAPLUMINANCE:
+        break;
+    case D3DTOP_DOTPRODUCT3:
+        ureg_DP3(ureg, dst, arg[1], arg[2]);
+        break;
+    case D3DTOP_MULTIPLYADD:
+        ureg_MAD(ureg, dst, arg[2], arg[3], arg[1]);
+        break;
+    case D3DTOP_LERP:
+        ureg_LRP(ureg, dst, arg[1], arg[2], arg[3]);
+        break;
+    default:
+        assert(!"invalid D3DTOP");
+        break;
+    }
+}
+
 static void *
 nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
 {
-    struct nine_state *state = &device->state;
+    struct ps_build_ctx ps;
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_FRAGMENT);
-    struct ureg_src vC[2];
-    struct ureg_src vT[8];
-    struct ureg_src s[8];
     struct ureg_dst oCol;
-    struct ureg_src c[8];
-    struct ureg_dst r[4];
-    struct ureg_src r_src[4];
-    unsigned i;
+    unsigned i, s;
 
-    (void)state;
+    ps.ureg = ureg;
 
-    for (i = 0; i < 8; ++i)
-        c[i] = ureg_DECL_constant(ureg, i);
+    ps.vC[0] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 0, TGSI_INTERPOLATE_PERSPECTIVE);
 
-    vC[0] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 0, TGSI_INTERPOLATE_PERSPECTIVE);
-    vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
-    vT[0] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, 0, TGSI_INTERPOLATE_PERSPECTIVE);
+    /* Declare all TEMPs we might need, serious drivers have a register allocator. */
+    for (i = 0; i < Elements(ps.r); ++i)
+        ps.r[i] = ureg_DECL_local_temporary(ureg);
+    ps.rCur = ps.r[0];
+    ps.rTmp = ps.r[1];
+    ps.rTex = ps.r[2];
+    ps.rCurSrc = ureg_src(ps.rCur);
+    ps.rTmpSrc = ureg_src(ps.rTmp);
+    ps.rTexSrc = ureg_src(ps.rTex);
+
+    for (s = 0; s < 8; ++s) {
+        ps.s[s] = ureg_src_undef();
+
+        if (key->ts[s].colorop != D3DTOP_DISABLE) {
+            if (key->ts[s].colorarg0 == D3DTA_SPECULAR ||
+                key->ts[s].colorarg1 == D3DTA_SPECULAR ||
+                key->ts[s].colorarg2 == D3DTA_SPECULAR)
+                ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
+
+            if (key->ts[s].colorarg0 == D3DTA_TEXTURE ||
+                key->ts[s].colorarg1 == D3DTA_TEXTURE ||
+                key->ts[s].colorarg2 == D3DTA_TEXTURE) {
+                ps.s[s] = ureg_DECL_sampler(ureg, s);
+                ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
+            }
+            if (s && (key->ts[s - 1].colorop == D3DTOP_PREMODULATE ||
+                      key->ts[s - 1].alphaop == D3DTOP_PREMODULATE))
+                ps.s[s] = ureg_DECL_sampler(ureg, s);
+        }
+
+        if (key->ts[s].alphaop != D3DTOP_DISABLE) {
+            if (key->ts[s].alphaarg0 == D3DTA_SPECULAR ||
+                key->ts[s].alphaarg1 == D3DTA_SPECULAR ||
+                key->ts[s].alphaarg2 == D3DTA_SPECULAR)
+                ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
+
+            if (key->ts[s].alphaarg0 == D3DTA_TEXTURE ||
+                key->ts[s].alphaarg1 == D3DTA_TEXTURE ||
+                key->ts[s].alphaarg2 == D3DTA_TEXTURE) {
+                ps.s[s] = ureg_DECL_sampler(ureg, s);
+                ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
+            }
+        }
+    }
+    if (key->specular)
+        ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
     oCol = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
 
-    for (i = 0; i < 4; ++i) {
-        r[i] = ureg_DECL_local_temporary(ureg);
-        r_src[i] = ureg_src(r[i]);
+    /* Initialize.
+     */
+    ureg_MOV(ureg, ps.rCur, ps.vC[0]);
+
+    /* Run stages.
+     */
+    for (s = 0; s < 8; ++s) {
+        struct ureg_dst dst;
+        struct ureg_src arg[3];
+
+        if (key->ts[s].colorop == D3DTOP_DISABLE &&
+            key->ts[s].alphaop == D3DTOP_DISABLE)
+            continue;
+        ps.stage.index = s;
+        ps.stage.num_regs = 3;
+
+        if (!ureg_src_is_undef(ps.s[s])) {
+            unsigned target;
+            switch (key->ts[s].textarget) {
+            case 0: target = TGSI_TEXTURE_1D; break;
+            case 1: target = TGSI_TEXTURE_2D; break;
+            case 2: target = TGSI_TEXTURE_3D; break;
+            case 3: target = TGSI_TEXTURE_CUBE; break;
+            /* this is a 2 bit bitfield, do I really need a default case ? */
+            }
+
+            /* sample the texture */
+            if (key->ts[s].colorop == D3DTOP_BUMPENVMAP ||
+                key->ts[s].colorop == D3DTOP_BUMPENVMAPLUMINANCE) {
+            }
+            if (key->ts[s].projected)
+                ureg_TXP(ureg, ps.rTex, target, ps.vT[s], ps.s[s]);
+            else
+                ureg_TEX(ureg, ps.rTex, target, ps.vT[s], ps.s[s]);
+        }
+
+        dst = ps_get_ts_dst(&ps, key->ts[s].resultarg);
+
+        if (ps.stage.index_pre_mod == ps.stage.index) {
+            ps.rMod = ps.r[ps.stage.num_regs++];
+            ureg_MUL(ureg, ps.rMod, ps.rCurSrc, ps.rTexSrc);
+        }
+
+        if (key->ts[s].colorop != key->ts[s].alphaop ||
+            key->ts[s].colorarg0 != key->ts[s].alphaarg0 ||
+            key->ts[s].colorarg1 != key->ts[s].alphaarg1 ||
+            key->ts[s].colorarg2 != key->ts[s].alphaarg2)
+            dst = ureg_writemask(dst, TGSI_WRITEMASK_XYZ);
+
+        arg[0] = ps_get_ts_arg(&ps, key->ts[s].colorarg0);
+        arg[1] = ps_get_ts_arg(&ps, key->ts[s].colorarg1);
+        arg[2] = ps_get_ts_arg(&ps, key->ts[s].colorarg2);
+        ps_do_ts_op(&ps, key->ts[s].colorop, dst, arg);
+
+        if (dst.WriteMask != TGSI_WRITEMASK_XYZW) {
+            dst = ureg_writemask(dst, TGSI_WRITEMASK_W);
+
+            arg[0] = ps_get_ts_arg(&ps, key->ts[s].alphaarg0);
+            arg[1] = ps_get_ts_arg(&ps, key->ts[s].alphaarg1);
+            arg[2] = ps_get_ts_arg(&ps, key->ts[s].alphaarg2);
+            ps_do_ts_op(&ps, key->ts[s].alphaop, dst, arg);
+        }
     }
 
-    if (0) {
-        s[0] = ureg_DECL_sampler(ureg, 0);
-        ureg_TEX(ureg, r[0], PIPE_TEXTURE_2D, vT[0], s[0]);
-        ureg_MAD(ureg, r[0], r_src[0], vC[0], c[0]);
-        ureg_ADD(ureg, oCol, r_src[0], vC[1]);
+    if (key->specular)
+        ureg_ADD(ureg, ps.rCur, ps.rCurSrc, ps.vC[1]);
+
+    /* Fog.
+     */
+    if (key->fog && key->fog_mode) {
+        struct ureg_src vPos = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_POSITION, 0, TGSI_INTERPOLATE_LINEAR);
+        struct ureg_dst rFog = ureg_writemask(ps.rTmp, TGSI_WRITEMASK_X);
+        if (key->fog_mode == D3DFOG_EXP) {
+            ureg_MUL(ureg, rFog, _ZZZZ(vPos), _ZZZZ(_CONST(22)));
+            ureg_MUL(ureg, rFog, _X(rFog), ureg_imm1f(ureg, -1.442695f));
+            ureg_EX2(ureg, rFog, _X(rFog));
+        } else
+        if (key->fog_mode == D3DFOG_EXP2) {
+            ureg_MUL(ureg, rFog, _ZZZZ(vPos), _ZZZZ(_CONST(22)));
+            ureg_MUL(ureg, rFog, _X(rFog), _X(rFog));
+            ureg_MUL(ureg, rFog, _X(rFog), ureg_imm1f(ureg, -1.442695f));
+            ureg_EX2(ureg, rFog, _X(rFog));
+        } else
+        if (key->fog_mode == D3DFOG_LINEAR) {
+            ureg_SUB(ureg, rFog, _XXXX(_CONST(22)), _ZZZZ(vPos));
+            ureg_MUL(ureg, ureg_saturate(rFog), _X(rFog), _YYYY(_CONST(22)));
+        }
+        ureg_LRP(ureg, oCol, _X(rFog), ps.rCurSrc, _CONST(21));
+    } else
+    if (key->fog) {
+        struct ureg_src vFog = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_FOG, 0, TGSI_INTERPOLATE_PERSPECTIVE);
+        ureg_LRP(ureg, oCol, _XXXX(vFog), ps.rCurSrc, _CONST(21));
     } else {
-        ureg_ADD(ureg, oCol, vC[0], vC[1]);
+        ureg_MOV(ureg, oCol, ps.rCurSrc);
     }
 
     ureg_END(ureg);
@@ -336,39 +1066,75 @@ nine_ff_get_vs(struct NineDevice9 *device)
     const struct nine_state *state = &device->state;
     struct NineVertexShader9 *vs;
     enum pipe_error err;
+    struct vs_build_ctx bld;
     struct nine_ff_vs_key key;
+    unsigned s;
 
-    key.value = 0;
+    bld.key = &key;
+    memset(&key, 0, sizeof(key));
 
     /* FIXME: this shouldn't be NULL, but it is on init */
     if (state->vdecl &&
         state->vdecl->usage_map[NINE_DECLUSAGE_POSITIONT] != 0xff)
         key.position_t = 1;
 
+    if (state->vdecl &&
+        state->vdecl->usage_map[NINE_DECLUSAGE_PSIZE] != 0xff)
+        key.vertexpointsize = 1;
+    if (!key.vertexpointsize)
+        key.pointscale = !!state->rs[D3DRS_POINTSCALEENABLE];
+
+    key.lighting = !!state->rs[D3DRS_LIGHTING] &&  state->ff.num_lights_active;
+    key.darkness = !!state->rs[D3DRS_LIGHTING] && !state->ff.num_lights_active;
+    if (key.lighting) {
+        key.mtl_diffuse = state->rs[D3DRS_DIFFUSEMATERIALSOURCE];
+        key.mtl_ambient = state->rs[D3DRS_AMBIENTMATERIALSOURCE];
+        key.mtl_specular = state->rs[D3DRS_SPECULARMATERIALSOURCE];
+        key.mtl_emissive = state->rs[D3DRS_EMISSIVEMATERIALSOURCE];
+    }
+    key.fog_mode = (state->rs[D3DRS_FOGENABLE] && state->rs[D3DRS_RANGEFOGENABLE]) ?
+        state->rs[D3DRS_FOGVERTEXMODE] : 0;
+
+    if (state->rs[D3DRS_VERTEXBLEND] != D3DVBF_DISABLE) {
+        key.vertexblend_indexed = !!state->rs[D3DRS_INDEXEDVERTEXBLENDENABLE];
+
+        switch (state->rs[D3DRS_VERTEXBLEND]) {
+        case D3DVBF_0WEIGHTS: key.vertexblend = key.vertexblend_indexed; break;
+        case D3DVBF_1WEIGHTS: key.vertexblend = 2; break;
+        case D3DVBF_2WEIGHTS: key.vertexblend = 3; break;
+        case D3DVBF_3WEIGHTS: key.vertexblend = 4; break;
+        case D3DVBF_TWEENING: key.vertextween = 1; break;
+        default:
+            assert(!"invalid D3DVBF");
+            break;
+        }
+    }
+
+    for (s = 0; s < 8; ++s) {
+        if (state->ff.tex_stage[s][D3DTSS_COLOROP] == D3DTOP_DISABLE &&
+            state->ff.tex_stage[s][D3DTSS_ALPHAOP] == D3DTOP_DISABLE)
+            continue;
+        key.tc_idx |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >>  0) & 7) << (s * 3);
+        key.tc_gen |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >> 16) + 1) << (s * 3);
+    }
+
     vs = util_hash_table_get(device->ff.ht_vs, &key);
     if (vs)
         return vs;
-    NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device, &key));
+    NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device, &bld));
 
+    nine_ff_prune(device);
     if (vs) {
         unsigned n;
 
-        vs->ff_key = key.value;
+        memcpy(&vs->ff_key, &key, sizeof(vs->ff_key));
 
         err = util_hash_table_set(device->ff.ht_vs, &vs->ff_key, vs);
         assert(err == PIPE_OK);
+        device->ff.num_vs++;
 
-        n = 0;
-        vs->input_map[n++].ndecl = NINE_DECLUSAGE_POSITION;
-        if (key.lighting)
-            vs->input_map[n++].ndecl = NINE_DECLUSAGE_NORMAL(0);
-        vs->input_map[n++].ndecl = NINE_DECLUSAGE_COLOR(0);
-        vs->input_map[n++].ndecl = NINE_DECLUSAGE_COLOR(1);
-        vs->input_map[n++].ndecl = NINE_DECLUSAGE_TEXCOORD(0);
-        vs->num_inputs = n;
-
-        if (key.position_t)
-            vs->input_map[0].ndecl = NINE_DECLUSAGE_POSITIONT;
+        for (n = 0; n < bld.num_inputs; ++n)
+            vs->input_map[n].ndecl = bld.input[n];
     }
     return vs;
 }
@@ -376,22 +1142,65 @@ nine_ff_get_vs(struct NineDevice9 *device)
 static struct NinePixelShader9 *
 nine_ff_get_ps(struct NineDevice9 *device)
 {
+    struct nine_state *state = &device->state;
     struct NinePixelShader9 *ps;
     enum pipe_error err;
     struct nine_ff_ps_key key;
+    unsigned s;
 
-    key.value = 0;
+    memset(&key, 0, sizeof(key));
+    for (s = 0; s < 8; ++s) {
+        key.ts[s].colorop = state->ff.tex_stage[s][D3DTSS_COLOROP];
+        key.ts[s].alphaop = state->ff.tex_stage[s][D3DTSS_ALPHAOP];
+        if (key.ts[s].alphaop == D3DTOP_DISABLE &&
+            key.ts[s].colorop == D3DTOP_DISABLE)
+            continue;
+        if (key.ts[s].colorop != D3DTOP_DISABLE) {
+            key.ts[s].colorarg0 = state->ff.tex_stage[s][D3DTSS_COLORARG0];
+            key.ts[s].colorarg1 = state->ff.tex_stage[s][D3DTSS_COLORARG1];
+            key.ts[s].colorarg2 = state->ff.tex_stage[s][D3DTSS_COLORARG2];
+        }
+        if (key.ts[s].alphaop != D3DTOP_DISABLE) {
+            key.ts[s].alphaarg0 = state->ff.tex_stage[s][D3DTSS_ALPHAARG0];
+            key.ts[s].alphaarg1 = state->ff.tex_stage[s][D3DTSS_ALPHAARG1];
+            key.ts[s].alphaarg2 = state->ff.tex_stage[s][D3DTSS_ALPHAARG2];
+        }
+        key.ts[s].resultarg = state->ff.tex_stage[s][D3DTSS_RESULTARG] == D3DTA_TEMP;
+
+        if (state->texture[s]) {
+            switch (state->texture[s]->base.type) {
+            case D3DRTYPE_TEXTURE:       key.ts[s].textarget = 1; break;
+            case D3DRTYPE_VOLUMETEXTURE: key.ts[s].textarget = 2; break;
+            case D3DRTYPE_CUBETEXTURE:   key.ts[s].textarget = 3; break;
+            default:
+                assert(!"unexpected texture type");
+                break;
+            }
+        } else {
+            key.ts[s].textarget = 1;
+        }
+    }
+    if (state->rs[D3DRS_FOGENABLE]) {
+        if (state->rs[D3DRS_RANGEFOGENABLE]) {
+            key.fog = !!state->rs[D3DRS_FOGVERTEXMODE];
+        } else {
+            key.fog = !!state->rs[D3DRS_FOGTABLEMODE];
+            key.fog_mode = state->rs[D3DRS_FOGTABLEMODE];
+        }
+    }
 
     ps = util_hash_table_get(device->ff.ht_ps, &key);
     if (ps)
         return ps;
     NinePixelShader9_new(device, &ps, NULL, nine_ff_build_ps(device, &key));
 
+    nine_ff_prune(device);
     if (ps) {
-        ps->ff_key = key.value;
+        memcpy(&ps->ff_key, &key, sizeof(ps->ff_key));
 
         err = util_hash_table_set(device->ff.ht_ps, &ps->ff_key, ps);
         assert(err == PIPE_OK);
+        device->ff.num_ps++;
     }
     return ps;
 }
@@ -402,38 +1211,189 @@ nine_ff_upload_vs_transforms(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    D3DMATRIX M, T;
+    D3DMATRIX M[8];
     struct pipe_box box;
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    unsigned i;
 
-    nine_d3d_matrix_matrix_mul(&T, GET_D3DTS(WORLD), GET_D3DTS(VIEW));
-    nine_d3d_matrix_matrix_mul(&M, &T,               GET_D3DTS(PROJECTION));
-    u_box_1d(0, sizeof(M), &box);
+    nine_d3d_matrix_matrix_mul(&M[1], GET_D3DTS(WORLD), GET_D3DTS(VIEW));
+    nine_d3d_matrix_matrix_mul(&M[0], &M[1], GET_D3DTS(PROJECTION));
+    u_box_1d(0, 2 * sizeof(M[0]) - sizeof(M[0].m[3]), &box);
     pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
                                 &box,
-                                &M.m[0][0], 0, 0);
+                                &M[0], 0, 0);
 
-    nine_d3d_matrix_inverse_3x3(&T, &M);
-    nine_d3d_matrix_transpose(&M, &T);
-    box.x = 4 * sizeof(M);
+    nine_d3d_matrix_inverse_3x3(&M[0], &M[1]);
+    nine_d3d_matrix_transpose(&M[1], &M[0]);
+    box.width = sizeof(M[0]);
+    box.x = 4 * sizeof(M[0]);
     pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
                                 &box,
-                                &M.m[0][0], 0, 0);
+                                &M[1].m[0][0], 0, 0);
 
-    box.x = 1 * sizeof(M);
+    nine_d3d_matrix_matrix_mul(&M[0], GET_D3DTS(VIEW), GET_D3DTS(PROJECTION));
+    box.x = 2 * sizeof(M);
+    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
+                                &box,
+                                &M[0], 0, 0);
+    box.x = 3 * sizeof(M);
     pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
                                 &box,
                                 GET_D3DTS(VIEW), 0, 0);
 
-    box.x = 2 * sizeof(M);
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                &box,
-                                GET_D3DTS(PROJECTION), 0, 0);
+    if (state->rs[D3DRS_VERTEXBLEND]) {
+        box.x = (224 / 4) * sizeof(M[0]);
+        box.width = 8 * sizeof(M[0]);
+        for (i = 0; i < 8; ++i)
+            M[i] = *GET_D3DTS(WORLDMATRIX(i));
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, &M[0], 0, 0);
+    }
+}
 
-    box.x = 3 * sizeof(M);
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                &box,
-                                GET_D3DTS(WORLD), 0, 0);
+static void
+nine_ff_upload_lights(struct NineDevice9 *device)
+{
+    struct pipe_context *pipe = device->pipe;
+    struct nine_state *state = &device->state;
+    float data[7][4];
+    union pipe_color_union color;
+    unsigned l;
+    struct pipe_box box;
+    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+
+    u_box_1d(0, sizeof(data), &box);
+    memset(data, 0, sizeof(data));
+
+    for (l = 0; l < state->ff.num_lights_active; ++l) {
+        const D3DLIGHT9 *light = &state->ff.light[state->ff.active_light[l]];
+
+        data[0][0] = light->Type;
+        data[0][1] = light->Attenuation0;
+        data[0][2] = light->Attenuation1;
+        data[0][3] = light->Attenuation2;
+        memcpy(&data[1], &light->Diffuse, sizeof(data[1]));
+        memcpy(&data[2], &light->Specular, sizeof(data[2]));
+        memcpy(&data[3], &light->Ambient, sizeof(data[3]));
+        nine_d3d_vector_matrix_mul((D3DVECTOR *)data[4], &light->Position, GET_D3DTS(VIEW));
+        nine_d3d_vector_matrix_mul((D3DVECTOR *)data[5], &light->Direction, GET_D3DTS(VIEW));
+        data[4][3] = light->Type == D3DLIGHT_DIRECTIONAL ? 1e15f : light->Range;
+        data[5][3] = light->Falloff;
+        data[6][0] = cosf(light->Theta * 0.5f);
+        data[6][1] = cosf(light->Phi * 0.5f);
+        data[6][2] = 1.0f / (data[6][0] - data[6][1]);
+        data[7][3] = (l + 1) == state->ff.num_lights_active;
+
+        box.x = (32 + l * 8) * 4 * sizeof(float);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, data, 0, 0);
+    }
+
+    if (1) {
+        const D3DMATERIAL9 *mtl = &state->ff.material;
+
+        memcpy(data[1], &mtl->Diffuse, sizeof(data[1]));
+        memcpy(data[2], &mtl->Ambient, sizeof(data[2]));
+        memcpy(data[3], &mtl->Specular, sizeof(data[3]));
+        memcpy(data[4], &mtl->Emissive, sizeof(data[4]));
+
+        data[5][0] = mtl->Power;
+
+        d3dcolor_to_rgba(&color.f[0], state->rs[D3DRS_AMBIENT]);
+        data[0][0] = color.f[0] * mtl->Ambient.r + mtl->Emissive.r;
+        data[0][1] = color.f[1] * mtl->Ambient.g + mtl->Emissive.g;
+        data[0][2] = color.f[2] * mtl->Ambient.b + mtl->Emissive.b;
+        data[0][3] = color.f[3] * mtl->Ambient.a + mtl->Emissive.a;
+
+        box.width = 6 * 4 * sizeof(float);
+        box.x = 19 * 4 * sizeof(float);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
+                                    data, 0, 0);
+    }
+}
+
+static void
+nine_ff_upload_point_and_fog_params(struct NineDevice9 *device)
+{
+    struct pipe_context *pipe = device->pipe;
+    struct nine_state *state = &device->state;
+    struct pipe_box box;
+    float data[11];
+    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+
+    u_box_1d(26 * 4 * sizeof(float), sizeof(data), &box);
+
+    data[0] = asfloat(state->rs[D3DRS_POINTSIZE_MIN]);
+    data[1] = asfloat(state->rs[D3DRS_POINTSIZE_MAX]);
+    data[2] = asfloat(state->rs[D3DRS_POINTSIZE]);
+    data[3] = asfloat(state->rs[D3DRS_POINTSCALE_A]);
+    data[4] = asfloat(state->rs[D3DRS_POINTSCALE_B]);
+    data[5] = asfloat(state->rs[D3DRS_POINTSCALE_C]);
+    data[6] = 0;
+    data[7] = 0;
+    data[8] = asfloat(state->rs[D3DRS_FOGEND]);
+    data[9] = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
+    data[10] = asfloat(state->rs[D3DRS_FOGDENSITY]);
+
+    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
+                                data, 0, 0);
+}
+
+static void
+nine_ff_upload_tex_matrices(struct NineDevice9 *device)
+{
+    struct pipe_context *pipe = device->pipe;
+    struct nine_state *state = &device->state;
+    struct pipe_box box;
+    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    unsigned s;
+
+    u_box_1d(128 * 4 * sizeof(float), 16 * sizeof(float), &box);
+
+    for (s = 0; s < 8; ++s, box.x += 16 * sizeof(float))
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
+                                    nine_state_access_transform(state, D3DTS_TEXTURE0 + s, FALSE),
+                                    0, 0);
+}
+
+static void
+nine_ff_upload_ps_params(struct NineDevice9 *device)
+{
+    struct pipe_context *pipe = device->pipe;
+    struct nine_state *state = &device->state;
+    struct pipe_box box;
+    unsigned s;
+    float data[12][4];
+    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+
+    u_box_1d(0, 8 * 4 * sizeof(float), &box);
+
+    for (s = 0; s < 8; ++s)
+        d3dcolor_to_rgba(data[s], state->ff.tex_stage[s][D3DTSS_CONSTANT]);
+    pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
+                                data, 0, 0);
+
+    for (s = 0; s < 8; ++s) {
+        data[s][0] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT00]);
+        data[s][1] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT01]);
+        data[s][2] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT10]);
+        data[s][3] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT11]);
+        data[8 + s/2][2*(s%2) + 0] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLSCALE]);
+        data[8 + s/2][2*(s%2) + 1] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLOFFSET]);
+    }
+    box.width = 12 * 4 * sizeof(float);
+    box.x = 8 * 4 * sizeof(float);
+    pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
+                                data, 0, 0);
+    
+    d3dcolor_to_rgba(data[0], state->rs[D3DRS_TEXTUREFACTOR]);
+    d3dcolor_to_rgba(data[1], state->rs[D3DRS_FOGCOLOR]);
+    data[2][0] = asfloat(state->rs[D3DRS_FOGEND]);
+    data[2][1] = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
+    data[2][2] = asfloat(state->rs[D3DRS_FOGDENSITY]);
+    data[2][3] = 0.0f;
+    box.width = 3 * 4 * sizeof(float);
+    box.x = 20 * 4 * sizeof(float);
+    pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
+                                data, 0, 0);
 }
 
 void
@@ -446,10 +1406,17 @@ nine_ff_update(struct NineDevice9 *device)
     if (!device->state.ps)
         nine_reference(&device->ff.ps, nine_ff_get_ps(device));
 
-    if (!device->state.vs &&
-        (device->state.ff.changed.transform[0] |
-         device->state.ff.changed.transform[256 / 32]))
-        nine_ff_upload_vs_transforms(device);
+    if (!device->state.vs) {
+        if (device->state.ff.changed.transform[0] |
+            device->state.ff.changed.transform[256 / 32])
+            nine_ff_upload_vs_transforms(device);
+        nine_ff_upload_tex_matrices(device);
+        nine_ff_upload_lights(device);
+        nine_ff_upload_point_and_fog_params(device);
+    }
+
+    if (!device->state.ps)
+        nine_ff_upload_ps_params(device);
 
     device->state.changed.group |= NINE_STATE_VS | NINE_STATE_PS;
 }
@@ -482,6 +1449,21 @@ nine_ff_fini(struct NineDevice9 *device)
     if (device->ff.ht_ps) {
         util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
         util_hash_table_destroy(device->ff.ht_ps);
+    }
+}
+
+static void
+nine_ff_prune(struct NineDevice9 *device)
+{
+    if ((device->ff.num_vs + device->ff.num_vs) > 200) {
+        if (device->ff.num_ps > device->ff.num_vs) {
+            util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
+            device->ff.num_ps = 0;
+        } else {
+            util_hash_table_foreach(device->ff.ht_vs, nine_ff_ht_delete_cb, NULL);
+            device->ff.num_vs = 0;
+        }
+        nine_ff_prune(device);
     }
 }
 
