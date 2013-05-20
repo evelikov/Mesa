@@ -1087,7 +1087,7 @@ NineDevice9_SetLight( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
 
     user_assert(pLight, D3DERR_INVALIDCALL);
-    user_assert(pLight->Type < NINELIGHT_INVALID, D3DERR_INVALIDCALL);
+    user_assert(pLight->Type < NINED3DLIGHT_INVALID, D3DERR_INVALIDCALL);
 
     user_assert(Index < NINE_MAX_LIGHTS, D3DERR_INVALIDCALL); /* sanity */
 
@@ -1102,9 +1102,20 @@ NineDevice9_SetLight( struct NineDevice9 *This,
         state->ff.num_lights = N;
 
         for (; n < Index; ++n)
-            state->ff.light[n].Type = (D3DLIGHTTYPE)NINELIGHT_INVALID;
+            state->ff.light[n].Type = (D3DLIGHTTYPE)NINED3DLIGHT_INVALID;
     }
     state->ff.light[Index] = *pLight;
+
+    if (pLight->Type == D3DLIGHT_SPOT && pLight->Theta >= pLight->Phi) {
+        DBG("Warning: clamping D3DLIGHT9.Theta\n");
+        state->ff.light[Index].Theta = state->ff.light[Index].Phi;
+    }
+    if (pLight->Type != D3DLIGHT_DIRECTIONAL &&
+        pLight->Attenuation0 == 0.0f &&
+        pLight->Attenuation1 == 0.0f &&
+        pLight->Attenuation2 == 0.0f) {
+        DBG("Warning: all D3DLIGHT9.Attenuation[i] are 0\n");
+    }
 
     state->changed.group |= NINE_STATE_FF_LIGHTING;
 
@@ -1119,7 +1130,7 @@ NineDevice9_GetLight( struct NineDevice9 *This,
     NINESTATEPOINTER_GET(This);
     user_assert(pLight, D3DERR_INVALIDCALL);
     user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
-    user_assert(state->ff.light[Index].Type < NINELIGHT_INVALID,
+    user_assert(state->ff.light[Index].Type < NINED3DLIGHT_INVALID,
                 D3DERR_INVALIDCALL);
 
     *pLight = state->ff.light[Index];
@@ -1135,17 +1146,26 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
     unsigned i;
 
-    user_assert(state->ff.light[Index].Type < NINELIGHT_INVALID,
-                D3DERR_INVALIDCALL);
+    if (Index >= state->ff.num_lights ||
+        state->ff.light[Index].Type == NINED3DLIGHT_INVALID) {
+        /* This should create a default light. */
+        D3DLIGHT9 light;
+        memset(&light, 0, sizeof(light));
+        light.Type = D3DLIGHT_DIRECTIONAL;
+        light.Diffuse.r = 1.0f;
+        light.Diffuse.g = 1.0f;
+        light.Diffuse.b = 1.0f;
+        light.Direction.z = 1.0f;
+        NineDevice9_SetLight(This, Index, &light);
+    }
+    user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
 
     for (i = 0; i < state->ff.num_lights_active; ++i) {
-        if (state->ff.active_light[i] != Index)
-            continue;
-        if (Enable)
+        if (Enable && state->ff.active_light[i] == Index)
             return D3D_OK;
     }
     if (Enable) {
-        user_assert((i + 1) < NINE_MAX_LIGHTS_ACTIVE, D3DERR_INVALIDCALL);
+        user_assert(i < NINE_MAX_LIGHTS_ACTIVE, D3DERR_INVALIDCALL);
         state->ff.active_light[i] = Index;
         state->ff.num_lights_active++;
     } else {
@@ -1167,7 +1187,7 @@ NineDevice9_GetLightEnable( struct NineDevice9 *This,
     unsigned i;
 
     user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
-    user_assert(state->ff.light[Index].Type < NINELIGHT_INVALID,
+    user_assert(state->ff.light[Index].Type < NINED3DLIGHT_INVALID,
                 D3DERR_INVALIDCALL);
 
     for (i = 0; i < state->ff.num_lights_active; ++i)

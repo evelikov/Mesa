@@ -13,7 +13,9 @@ void
 nine_d3d_matrix_matrix_mul(D3DMATRIX *, const D3DMATRIX *, const D3DMATRIX *);
 
 void
-nine_d3d_vector_matrix_mul(D3DVECTOR *, const D3DVECTOR *, const D3DMATRIX *);
+nine_d3d_vector4_matrix_mul(D3DVECTOR *, const D3DVECTOR *, const D3DMATRIX *);
+void
+nine_d3d_vector3_matrix_mul(D3DVECTOR *, const D3DVECTOR *, const D3DMATRIX *);
 
 float
 nine_d3d_matrix_det(const D3DMATRIX *);

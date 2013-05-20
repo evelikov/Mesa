@@ -18,6 +18,7 @@
 
 #include "pipe/p_context.h"
 #include "tgsi/tgsi_ureg.h"
+#include "tgsi/tgsi_dump.h"
 #include "util/u_box.h"
 #include "util/u_hash_table.h"
 
@@ -135,6 +136,16 @@ static int nine_ff_ps_key_comp(void *key1, void *key2)
 
 static void nine_ff_prune(struct NineDevice9 *device);
 
+static void nine_ureg_tgsi_dump(struct ureg_program *ureg)
+{
+    if (debug_get_bool_option("NINE_FF_DUMP", FALSE)) {
+        unsigned count;
+        const struct tgsi_token *toks = ureg_get_tokens(ureg, &count);
+        tgsi_dump(toks, 0);
+        ureg_free_tokens(toks);
+    }
+}
+
 #define _X(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_X)
 #define _Y(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_Y)
 #define _Z(r) ureg_scalar(ureg_src(r), TGSI_SWIZZLE_Z)
@@ -147,13 +158,14 @@ static void nine_ff_prune(struct NineDevice9 *device);
 
 #define _XYZW(r) (r)
 
-#define LIGHT_CONST(i) \
-    ureg_src_indirect(ureg_src_register(TGSI_FILE_CONSTANT, 32 + (i)), _X(AL))
+/* AL should contain base address of lights table. */
+#define LIGHT_CONST(i)                                                \
+    ureg_src_indirect(ureg_src_register(TGSI_FILE_CONSTANT, (i)), _X(AL))
 
-#define MATERIAL_CONST(i)                           \
+#define MATERIAL_CONST(i) \
     ureg_src_register(TGSI_FILE_CONSTANT, 19 + (i))
 
-#define MISC_CONST(i)                           \
+#define MISC_CONST(i) \
     ureg_src_register(TGSI_FILE_CONSTANT, (i))
 
 #define _CONST(n) ureg_DECL_constant(ureg, n)
@@ -237,6 +249,11 @@ struct vs_build_ctx
     struct ureg_src aPsz;
     struct ureg_src aInd;
     struct ureg_src aWgt;
+
+    struct ureg_src mtlA;
+    struct ureg_src mtlD;
+    struct ureg_src mtlS;
+    struct ureg_src mtlE;
 };
 
 static INLINE struct ureg_src
@@ -292,13 +309,26 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     if (need_rNrm)
         vs->aNrm = build_vs_add_input(vs, NINE_DECLUSAGE_NORMAL(0));
 
-    if (key->lighting) {
+    if (key->lighting || key->darkness) {
         const unsigned mask = key->mtl_diffuse | key->mtl_specular |
                               key->mtl_ambient | key->mtl_emissive;
         if (mask & 0x1)
             vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
         if (mask & 0x2)
             vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
+
+        vs->mtlD = MATERIAL_CONST(1);
+        vs->mtlA = MATERIAL_CONST(2);
+        vs->mtlS = MATERIAL_CONST(3);
+        vs->mtlE = MATERIAL_CONST(5);
+        if (key->mtl_diffuse  == 1) vs->mtlD = vs->aCol[0]; else
+        if (key->mtl_diffuse  == 2) vs->mtlD = vs->aCol[1];
+        if (key->mtl_ambient  == 1) vs->mtlA = vs->aCol[0]; else
+        if (key->mtl_ambient  == 2) vs->mtlA = vs->aCol[1];
+        if (key->mtl_specular == 1) vs->mtlS = vs->aCol[0]; else
+        if (key->mtl_specular == 2) vs->mtlS = vs->aCol[1];
+        if (key->mtl_emissive == 1) vs->mtlE = vs->aCol[0]; else
+        if (key->mtl_emissive == 2) vs->mtlE = vs->aCol[1];
     } else {
         vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
         vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
@@ -453,17 +483,17 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             vs->aTex[idx] = build_vs_add_input(vs, NINE_DECLUSAGE_TEXCOORD(idx));
 
         switch (tci) {
-        case D3DTSS_TCI_PASSTHRU:
+        case NINED3DTSS_TCI_PASSTHRU:
             ureg_MOV(ureg, oTex[i], vs->aTex[idx]);
             break;
-        case D3DTSS_TCI_CAMERASPACENORMAL:
+        case NINED3DTSS_TCI_CAMERASPACENORMAL:
             ureg_MOV(ureg, oTex[i], ureg_src(rNrm));
             break;
-        case D3DTSS_TCI_CAMERASPACEPOSITION:
+        case NINED3DTSS_TCI_CAMERASPACEPOSITION:
             ureg_MOV(ureg, oTex[i], ureg_src(rVtx));
             break;
-        case D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
-        case D3DTSS_TCI_SPHEREMAP:
+        case NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
+        case NINED3DTSS_TCI_SPHEREMAP:
             assert(!"TODO");
             break;
         default:
@@ -528,11 +558,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         struct ureg_dst rA = r[6];
         struct ureg_dst rS = r[7];
 
-        struct ureg_src mD = _XYZW(MATERIAL_CONST(1));
-        struct ureg_src mA = _XYZW(MATERIAL_CONST(2));
-        struct ureg_src mS = _XYZW(MATERIAL_CONST(3));
-        struct ureg_src mE = _XYZW(MATERIAL_CONST(5));
-        struct ureg_src mP = _XXXX(MATERIAL_CONST(4));
+        struct ureg_src mtlP = _XXXX(MATERIAL_CONST(4));
 
         struct ureg_src cLKind = _XXXX(LIGHT_CONST(0));
         struct ureg_src cLAtt0 = _YYYY(LIGHT_CONST(0));
@@ -552,15 +578,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 
         const unsigned loop_label = l++;
 
-        if (key->mtl_diffuse  == 1) mD = vs->aCol[0]; else
-        if (key->mtl_diffuse  == 2) mD = vs->aCol[1];
-        if (key->mtl_ambient  == 1) mA = vs->aCol[0]; else
-        if (key->mtl_ambient  == 2) mA = vs->aCol[1];
-        if (key->mtl_specular == 1) mS = vs->aCol[0]; else
-        if (key->mtl_specular == 2) mS = vs->aCol[1];
-        if (key->mtl_emissive == 1) mE = vs->aCol[0]; else
-        if (key->mtl_emissive == 2) mE = vs->aCol[1];
-
         ureg_MOV(ureg, rCtr, ureg_imm1f(ureg, 32.0f)); /* &lightconst(0) */
         ureg_MOV(ureg, rD, ureg_imm1f(ureg, 0.0f));
         ureg_MOV(ureg, rA, ureg_imm1f(ureg, 0.0f));
@@ -576,7 +593,8 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 
         /* if (not DIRECTIONAL light): */
         ureg_SNE(ureg, tmp_x, cLKind, ureg_imm1f(ureg, D3DLIGHT_DIRECTIONAL));
-        ureg_MOV(ureg, rHit, cLDir);
+        ureg_MOV(ureg, rHit, ureg_negate(cLDir));
+        ureg_MOV(ureg, rAtt, ureg_imm1f(ureg, 1.0f));
         ureg_IF(ureg, _X(tmp), &label[l++]);
         {
             /* hitDir = light.position - eyeVtx
@@ -626,7 +644,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_fixup_label(ureg, label[l-1], ureg_get_instruction_number(ureg));
         ureg_ENDIF(ureg);
 
-
         /* directional factors, let's not use LIT because of clarity */
         ureg_DP3(ureg, ureg_saturate(tmp_x), ureg_src(rNrm), ureg_src(rHit));
         ureg_MOV(ureg, tmp_y, ureg_imm1f(ureg, 0.0f));
@@ -641,7 +658,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             }
             ureg_NRM(ureg, rMid, ureg_src(rMid));
             ureg_DP3(ureg, ureg_saturate(tmp_y), ureg_src(rNrm), ureg_src(rMid));
-            ureg_POW(ureg, tmp_y, _Y(tmp), mP);
+            ureg_POW(ureg, tmp_y, _Y(tmp), mtlP);
 
             ureg_MUL(ureg, tmp_x, _W(rAtt), _X(tmp)); /* dp3(normal,hitDir) * att */
             ureg_MUL(ureg, tmp_y, _W(rAtt), _Y(tmp)); /* power factor * att */
@@ -672,17 +689,21 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
          * oCol[1] = material.specular * specular;
          */
         if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
-            ureg_MAD(ureg, tmp, ureg_src(rA), mA, _CONST(19));
+            ureg_MAD(ureg, tmp, ureg_src(rA), vs->mtlA, _CONST(19));
         } else {
             ureg_ADD(ureg, tmp, ureg_src(rA), _CONST(25));
-            ureg_MAD(ureg, tmp, mA, ureg_src(tmp), mE);
+            ureg_MAD(ureg, tmp, vs->mtlA, ureg_src(tmp), vs->mtlE);
         }
-        ureg_MAD(ureg, oCol[0], ureg_src(rD), mD, ureg_src(tmp));
-        ureg_MUL(ureg, oCol[1], ureg_src(rS), mS);
+        ureg_MAD(ureg, oCol[0], ureg_src(rD), vs->mtlD, ureg_src(tmp));
+        ureg_MUL(ureg, oCol[1], ureg_src(rS), vs->mtlS);
     } else
     /* COLOR */
     if (key->darkness) {
-        ureg_MOV(ureg, oCol[0], ureg_imm1f(ureg, 0.0f));
+        if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
+            ureg_MOV(ureg, oCol[0], _CONST(19));
+        } else {
+            ureg_MAD(ureg, oCol[0], vs->mtlA, _CONST(25), vs->mtlE);
+        }
         ureg_MOV(ureg, oCol[1], ureg_imm1f(ureg, 0.0f));
     } else {
         ureg_MOV(ureg, oCol[0], vs->aCol[0]);
@@ -691,6 +712,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     /* clamp_vertex_color: done by hardware */
 
     ureg_END(ureg);
+    nine_ureg_tgsi_dump(ureg);
     return ureg_create_shader_and_destroy(ureg, device->pipe);
 }
 
@@ -893,6 +915,9 @@ ps_do_ts_op(struct ps_build_ctx *ps, unsigned top, struct ureg_dst dst, struct u
     case D3DTOP_LERP:
         ureg_LRP(ureg, dst, arg[1], arg[2], arg[3]);
         break;
+    case D3DTOP_DISABLE:
+        /* no-op ? */
+        break;
     default:
         assert(!"invalid D3DTOP");
         break;
@@ -907,7 +932,9 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
     struct ureg_dst oCol;
     unsigned i, s;
 
+    memset(&ps, 0, sizeof(ps));
     ps.ureg = ureg;
+    ps.stage.index_pre_mod = -1;
 
     ps.vC[0] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 0, TGSI_INTERPOLATE_PERSPECTIVE);
 
@@ -960,9 +987,6 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
 
     oCol = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
 
-    /* Initialize.
-     */
-    ureg_MOV(ureg, ps.rCur, ps.vC[0]);
 
     /* Run stages.
      */
@@ -996,7 +1020,15 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
                 ureg_TEX(ureg, ps.rTex, target, ps.vT[s], ps.s[s]);
         }
 
-        dst = ps_get_ts_dst(&ps, key->ts[s].resultarg);
+        if (s == 0) {
+            /* Initialize D3DTA_CURRENT.
+             * (Yes we can do this before the loop but not until
+             *  NVE4 has an instruction scheduling pass.)
+             */
+            ureg_MOV(ureg, ps.rCur, ps.vC[0]);
+        }
+
+        dst = ps_get_ts_dst(&ps, key->ts[s].resultarg ? D3DTA_TEMP : D3DTA_CURRENT);
 
         if (ps.stage.index_pre_mod == ps.stage.index) {
             ps.rMod = ps.r[ps.stage.num_regs++];
@@ -1007,7 +1039,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
             key->ts[s].colorarg0 != key->ts[s].alphaarg0 ||
             key->ts[s].colorarg1 != key->ts[s].alphaarg1 ||
             key->ts[s].colorarg2 != key->ts[s].alphaarg2)
-            dst = ureg_writemask(dst, TGSI_WRITEMASK_XYZ);
+            dst.WriteMask = TGSI_WRITEMASK_XYZ;
 
         arg[0] = ps_get_ts_arg(&ps, key->ts[s].colorarg0);
         arg[1] = ps_get_ts_arg(&ps, key->ts[s].colorarg1);
@@ -1015,7 +1047,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         ps_do_ts_op(&ps, key->ts[s].colorop, dst, arg);
 
         if (dst.WriteMask != TGSI_WRITEMASK_XYZW) {
-            dst = ureg_writemask(dst, TGSI_WRITEMASK_W);
+            dst.WriteMask = TGSI_WRITEMASK_W;
 
             arg[0] = ps_get_ts_arg(&ps, key->ts[s].alphaarg0);
             arg[1] = ps_get_ts_arg(&ps, key->ts[s].alphaarg1);
@@ -1057,6 +1089,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
     }
 
     ureg_END(ureg);
+    nine_ureg_tgsi_dump(ureg);
     return ureg_create_shader_and_destroy(ureg, device->pipe);
 }
 
@@ -1070,8 +1103,10 @@ nine_ff_get_vs(struct NineDevice9 *device)
     struct nine_ff_vs_key key;
     unsigned s;
 
-    bld.key = &key;
     memset(&key, 0, sizeof(key));
+    memset(&bld, 0, sizeof(bld));
+
+    bld.key = &key;
 
     /* FIXME: this shouldn't be NULL, but it is on init */
     if (state->vdecl &&
@@ -1113,7 +1148,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
     for (s = 0; s < 8; ++s) {
         if (state->ff.tex_stage[s][D3DTSS_COLOROP] == D3DTOP_DISABLE &&
             state->ff.tex_stage[s][D3DTSS_ALPHAOP] == D3DTOP_DISABLE)
-            continue;
+            break; /* XXX continue ? */
         key.tc_idx |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >>  0) & 7) << (s * 3);
         key.tc_gen |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >> 16) + 1) << (s * 3);
     }
@@ -1133,6 +1168,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
         assert(err == PIPE_OK);
         device->ff.num_vs++;
 
+        vs->num_inputs = bld.num_inputs;
         for (n = 0; n < bld.num_inputs; ++n)
             vs->input_map[n].ndecl = bld.input[n];
     }
@@ -1152,9 +1188,10 @@ nine_ff_get_ps(struct NineDevice9 *device)
     for (s = 0; s < 8; ++s) {
         key.ts[s].colorop = state->ff.tex_stage[s][D3DTSS_COLOROP];
         key.ts[s].alphaop = state->ff.tex_stage[s][D3DTSS_ALPHAOP];
+        /* MSDN says D3DTOP_DISABLE disables this and all subsequent stages. */
         if (key.ts[s].alphaop == D3DTOP_DISABLE &&
             key.ts[s].colorop == D3DTOP_DISABLE)
-            continue;
+            continue; /* XXX continue ? */
         if (key.ts[s].colorop != D3DTOP_DISABLE) {
             key.ts[s].colorarg0 = state->ff.tex_stage[s][D3DTSS_COLORARG0];
             key.ts[s].colorarg1 = state->ff.tex_stage[s][D3DTSS_COLORARG1];
@@ -1206,6 +1243,7 @@ nine_ff_get_ps(struct NineDevice9 *device)
 }
 
 #define GET_D3DTS(n) nine_state_access_transform(state, D3DTS_##n, FALSE)
+#define IS_D3DTS_DIRTY(s,n) ((s)->ff.changed.transform[(D3DTS_##n) / 32] & (1 << ((D3DTS_##n) % 32)))
 static void
 nine_ff_upload_vs_transforms(struct NineDevice9 *device)
 {
@@ -1216,36 +1254,53 @@ nine_ff_upload_vs_transforms(struct NineDevice9 *device)
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     unsigned i;
 
-    nine_d3d_matrix_matrix_mul(&M[1], GET_D3DTS(WORLD), GET_D3DTS(VIEW));
-    nine_d3d_matrix_matrix_mul(&M[0], &M[1], GET_D3DTS(PROJECTION));
-    u_box_1d(0, 2 * sizeof(M[0]) - sizeof(M[0].m[3]), &box);
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                &box,
-                                &M[0], 0, 0);
+    /* TODO: make this nicer, and only upload the ones we need */
 
-    nine_d3d_matrix_inverse_3x3(&M[0], &M[1]);
-    nine_d3d_matrix_transpose(&M[1], &M[0]);
-    box.width = sizeof(M[0]);
-    box.x = 4 * sizeof(M[0]);
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                &box,
-                                &M[1].m[0][0], 0, 0);
+    if (IS_D3DTS_DIRTY(state, WORLD) ||
+        IS_D3DTS_DIRTY(state, VIEW) ||
+        IS_D3DTS_DIRTY(state, PROJECTION)) {
+        /* upload MVP, MV matrices */
+        nine_d3d_matrix_matrix_mul(&M[1], GET_D3DTS(WORLD), GET_D3DTS(VIEW));
+        nine_d3d_matrix_matrix_mul(&M[0], &M[1], GET_D3DTS(PROJECTION));
+        u_box_1d(0, 2 * sizeof(M[0]), &box);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
+                                    &box,
+                                    &M[0], 0, 0);
+        /* upload normal matrix == transpose(inverse(MV)) */
+        nine_d3d_matrix_inverse_3x3(&M[0], &M[1]);
+        nine_d3d_matrix_transpose(&M[1], &M[0]);
+        box.width = sizeof(M[0]) - sizeof(M[0].m[3]);
+        box.x = 4 * sizeof(M[0]);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
+                                    &box,
+                                    &M[1].m[0][0], 0, 0);
 
-    nine_d3d_matrix_matrix_mul(&M[0], GET_D3DTS(VIEW), GET_D3DTS(PROJECTION));
-    box.x = 2 * sizeof(M);
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                &box,
-                                &M[0], 0, 0);
-    box.x = 3 * sizeof(M);
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                &box,
-                                GET_D3DTS(VIEW), 0, 0);
+        /* upload VP matrix */
+        nine_d3d_matrix_matrix_mul(&M[0], GET_D3DTS(VIEW), GET_D3DTS(PROJECTION));
+        box.x = 2 * sizeof(M[0]);
+        box.width = sizeof(M[0]);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
+                                    &box,
+                                    &M[0], 0, 0);
+        /* upload V matrix */
+        box.x = 3 * sizeof(M[0]);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
+                                    &box,
+                                    GET_D3DTS(VIEW), 0, 0);
 
-    if (state->rs[D3DRS_VERTEXBLEND]) {
+        /* upload W matrix */
         box.x = (224 / 4) * sizeof(M[0]);
-        box.width = 8 * sizeof(M[0]);
-        for (i = 0; i < 8; ++i)
-            M[i] = *GET_D3DTS(WORLDMATRIX(i));
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
+                                    &box,
+                                    GET_D3DTS(WORLD), 0, 0);
+    }
+
+    if (state->rs[D3DRS_VERTEXBLEND] != D3DVBF_DISABLE) {
+        /* upload other world matrices */
+        box.x = (228 / 4) * sizeof(M[0]);
+        box.width = 7 * sizeof(M[0]);
+        for (i = 1; i <= 7; ++i)
+            M[i - 1] = *GET_D3DTS(WORLDMATRIX(i));
         pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, &M[0], 0, 0);
     }
 }
@@ -1255,39 +1310,15 @@ nine_ff_upload_lights(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    float data[7][4];
+    float data[8][4];
     union pipe_color_union color;
     unsigned l;
     struct pipe_box box;
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
 
     u_box_1d(0, sizeof(data), &box);
-    memset(data, 0, sizeof(data));
 
-    for (l = 0; l < state->ff.num_lights_active; ++l) {
-        const D3DLIGHT9 *light = &state->ff.light[state->ff.active_light[l]];
-
-        data[0][0] = light->Type;
-        data[0][1] = light->Attenuation0;
-        data[0][2] = light->Attenuation1;
-        data[0][3] = light->Attenuation2;
-        memcpy(&data[1], &light->Diffuse, sizeof(data[1]));
-        memcpy(&data[2], &light->Specular, sizeof(data[2]));
-        memcpy(&data[3], &light->Ambient, sizeof(data[3]));
-        nine_d3d_vector_matrix_mul((D3DVECTOR *)data[4], &light->Position, GET_D3DTS(VIEW));
-        nine_d3d_vector_matrix_mul((D3DVECTOR *)data[5], &light->Direction, GET_D3DTS(VIEW));
-        data[4][3] = light->Type == D3DLIGHT_DIRECTIONAL ? 1e15f : light->Range;
-        data[5][3] = light->Falloff;
-        data[6][0] = cosf(light->Theta * 0.5f);
-        data[6][1] = cosf(light->Phi * 0.5f);
-        data[6][2] = 1.0f / (data[6][0] - data[6][1]);
-        data[7][3] = (l + 1) == state->ff.num_lights_active;
-
-        box.x = (32 + l * 8) * 4 * sizeof(float);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, data, 0, 0);
-    }
-
-    if (1) {
+    if (state->changed.group & NINE_FF_STATE_MATERIAL) {
         const D3DMATERIAL9 *mtl = &state->ff.material;
 
         memcpy(data[1], &mtl->Diffuse, sizeof(data[1]));
@@ -1296,6 +1327,9 @@ nine_ff_upload_lights(struct NineDevice9 *device)
         memcpy(data[4], &mtl->Emissive, sizeof(data[4]));
 
         data[5][0] = mtl->Power;
+        data[5][1] = 0.0f;
+        data[5][2] = 0.0f;
+        data[5][3] = 0.0f;
 
         d3dcolor_to_rgba(&color.f[0], state->rs[D3DRS_AMBIENT]);
         data[0][0] = color.f[0] * mtl->Ambient.r + mtl->Emissive.r;
@@ -1308,6 +1342,38 @@ nine_ff_upload_lights(struct NineDevice9 *device)
         pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
                                     data, 0, 0);
     }
+
+    if (!(state->changed.group & NINE_FF_STATE_LIGHTING))
+        return;
+
+    /* initialize unused fields */
+    data[6][3] = 0.0f;
+    data[7][0] = 0.0f;
+    data[7][1] = 0.0f;
+    data[7][2] = 0.0f;
+    for (l = 0; l < state->ff.num_lights_active; ++l) {
+        const D3DLIGHT9 *light = &state->ff.light[state->ff.active_light[l]];
+
+        data[0][0] = light->Type;
+        data[0][1] = light->Attenuation0;
+        data[0][2] = light->Attenuation1;
+        data[0][3] = light->Attenuation2;
+        memcpy(&data[1], &light->Diffuse, sizeof(data[1]));
+        memcpy(&data[2], &light->Specular, sizeof(data[2]));
+        memcpy(&data[3], &light->Ambient, sizeof(data[3]));
+        nine_d3d_vector4_matrix_mul((D3DVECTOR *)data[4], &light->Position, GET_D3DTS(VIEW));
+        nine_d3d_vector3_matrix_mul((D3DVECTOR *)data[5], &light->Direction, GET_D3DTS(VIEW));
+        data[4][3] = light->Type == D3DLIGHT_DIRECTIONAL ? 1e9f : light->Range;
+        data[5][3] = light->Falloff;
+        data[6][0] = cosf(light->Theta * 0.5f);
+        data[6][1] = cosf(light->Phi * 0.5f);
+        data[6][2] = 1.0f / (data[6][0] - data[6][1]);
+        data[7][3] = (l + 1) == state->ff.num_lights_active;
+
+        box.width = 8 * 4 * sizeof(float);
+        box.x = (32 + l * 8) * 4 * sizeof(float);
+        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, data, 0, 0);
+    }
 }
 
 static void
@@ -1318,6 +1384,9 @@ nine_ff_upload_point_and_fog_params(struct NineDevice9 *device)
     struct pipe_box box;
     float data[11];
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+
+    if (!(state->changed.group & NINE_STATE_FF_OTHER))
+        return;
 
     u_box_1d(26 * 4 * sizeof(float), sizeof(data), &box);
 
@@ -1346,12 +1415,18 @@ nine_ff_upload_tex_matrices(struct NineDevice9 *device)
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     unsigned s;
 
+    if (!(state->ff.changed.transform[0] & 0xff0000))
+        return;
+
     u_box_1d(128 * 4 * sizeof(float), 16 * sizeof(float), &box);
 
-    for (s = 0; s < 8; ++s, box.x += 16 * sizeof(float))
+    for (s = 0; s < 8; ++s, box.x += 16 * sizeof(float)) {
+        if (!IS_D3DTS_DIRTY(state, TEXTURE0 + s))
+            continue;
         pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
                                     nine_state_access_transform(state, D3DTS_TEXTURE0 + s, FALSE),
                                     0, 0);
+    }
 }
 
 static void
@@ -1363,6 +1438,9 @@ nine_ff_upload_ps_params(struct NineDevice9 *device)
     unsigned s;
     float data[12][4];
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+
+    if (!(state->changed.group & NINE_STATE_FF_PSSTAGES))
+        return;
 
     u_box_1d(0, 8 * 4 * sizeof(float), &box);
 
@@ -1399,7 +1477,7 @@ nine_ff_upload_ps_params(struct NineDevice9 *device)
 void
 nine_ff_update(struct NineDevice9 *device)
 {
-    DBG("Warning: FF is just a dummy.\n");
+    struct nine_state *state = &device->state;
 
     if (!device->state.vs)
         nine_reference(&device->ff.vs, nine_ff_get_vs(device));
@@ -1407,12 +1485,12 @@ nine_ff_update(struct NineDevice9 *device)
         nine_reference(&device->ff.ps, nine_ff_get_ps(device));
 
     if (!device->state.vs) {
-        if (device->state.ff.changed.transform[0] |
-            device->state.ff.changed.transform[256 / 32])
-            nine_ff_upload_vs_transforms(device);
+        nine_ff_upload_vs_transforms(device);
         nine_ff_upload_tex_matrices(device);
         nine_ff_upload_lights(device);
         nine_ff_upload_point_and_fog_params(device);
+
+        memset(state->ff.changed.transform, 0, sizeof(state->ff.changed.transform));
     }
 
     if (!device->state.ps)
@@ -1504,6 +1582,21 @@ nine_ff_prune(struct NineDevice9 *device)
  * v.w = DP4(v, c[3]) = 1
  */
 
+/*
+static void
+nine_D3DMATRIX_print(const D3DMATRIX *M)
+{
+    DBG("\n(%f %f %f %f)\n"
+        "(%f %f %f %f)\n"
+        "(%f %f %f %f)\n"
+        "(%f %f %f %f)\n",
+        M->m[0][0], M->m[0][1], M->m[0][2], M->m[0][3],
+        M->m[1][0], M->m[1][1], M->m[1][2], M->m[1][3],
+        M->m[2][0], M->m[2][1], M->m[2][2], M->m[2][3],
+        M->m[3][0], M->m[3][1], M->m[3][2], M->m[3][3]);
+}
+*/
+
 static INLINE float
 nine_DP4_row_col(const D3DMATRIX *A, int r, const D3DMATRIX *B, int c)
 {
@@ -1520,6 +1613,14 @@ nine_DP4_vec_col(const D3DVECTOR *v, const D3DMATRIX *M, int c)
            v->y * M->m[1][c] +
            v->z * M->m[2][c] +
            1.0f * M->m[3][c];
+}
+
+static INLINE float
+nine_DP3_vec_col(const D3DVECTOR *v, const D3DMATRIX *M, int c)
+{
+    return v->x * M->m[0][c] +
+           v->y * M->m[1][c] +
+           v->z * M->m[2][c];
 }
 
 void
@@ -1547,11 +1648,19 @@ nine_d3d_matrix_matrix_mul(D3DMATRIX *D, const D3DMATRIX *L, const D3DMATRIX *R)
 }
 
 void
-nine_d3d_vector_matrix_mul(D3DVECTOR *d, const D3DVECTOR *v, const D3DMATRIX *M)
+nine_d3d_vector4_matrix_mul(D3DVECTOR *d, const D3DVECTOR *v, const D3DMATRIX *M)
 {
     d->x = nine_DP4_vec_col(v, M, 0);
-    d->z = nine_DP4_vec_col(v, M, 1);
-    d->y = nine_DP4_vec_col(v, M, 2);
+    d->y = nine_DP4_vec_col(v, M, 1);
+    d->z = nine_DP4_vec_col(v, M, 2);
+}
+
+void
+nine_d3d_vector3_matrix_mul(D3DVECTOR *d, const D3DVECTOR *v, const D3DMATRIX *M)
+{
+    d->x = nine_DP3_vec_col(v, M, 0);
+    d->y = nine_DP3_vec_col(v, M, 1);
+    d->z = nine_DP3_vec_col(v, M, 2);
 }
 
 void
@@ -1617,60 +1726,161 @@ nine_d3d_matrix_det(const D3DMATRIX *M)
 void
 nine_d3d_matrix_inverse(D3DMATRIX *D, const D3DMATRIX *M)
 {
-    float v0 = M->m[0][2] * M->m[1][3] - M->m[1][2] * M->m[0][3];
-    float v1 = M->m[0][2] * M->m[2][3] - M->m[2][2] * M->m[0][3];
-    float v2 = M->m[0][2] * M->m[3][3] - M->m[3][2] * M->m[0][3];
-    float v3 = M->m[1][2] * M->m[2][3] - M->m[2][2] * M->m[1][3];
-    float v4 = M->m[1][2] * M->m[3][3] - M->m[3][2] * M->m[1][3];
-    float v5 = M->m[2][2] * M->m[3][3] - M->m[3][2] * M->m[2][3];
+    int i, k;
+    float det;
 
-    float t00 = +(v5 * M->m[1][1] - v4 * M->m[2][1] + v3 * M->m[3][1]);
-    float t10 = -(v5 * M->m[0][1] - v2 * M->m[2][1] + v1 * M->m[3][1]);
-    float t20 = +(v4 * M->m[0][1] - v2 * M->m[1][1] + v0 * M->m[3][1]);
-    float t30 = -(v3 * M->m[0][1] - v1 * M->m[1][1] + v0 * M->m[2][1]);
+    D->m[0][0] =
+        M->m[1][1] * M->m[2][2] * M->m[3][3] -
+        M->m[1][1] * M->m[3][2] * M->m[2][3] -
+        M->m[1][2] * M->m[2][1] * M->m[3][3] +
+        M->m[1][2] * M->m[3][1] * M->m[2][3] +
+        M->m[1][3] * M->m[2][1] * M->m[3][2] -
+        M->m[1][3] * M->m[3][1] * M->m[2][2];
 
-    float det = t00 * M->m[0][0] + t10 * M->m[1][0] + t20 * M->m[2][3] + t30 * M->m[3][0];
+    D->m[0][1] =
+       -M->m[0][1] * M->m[2][2] * M->m[3][3] +
+        M->m[0][1] * M->m[3][2] * M->m[2][3] +
+        M->m[0][2] * M->m[2][1] * M->m[3][3] -
+        M->m[0][2] * M->m[3][1] * M->m[2][3] -
+        M->m[0][3] * M->m[2][1] * M->m[3][2] +
+        M->m[0][3] * M->m[3][1] * M->m[2][2];
 
-    float inv_det = 1 / det;
+    D->m[0][2] =
+        M->m[0][1] * M->m[1][2] * M->m[3][3] -
+        M->m[0][1] * M->m[3][2] * M->m[1][3] -
+        M->m[0][2] * M->m[1][1] * M->m[3][3] +
+        M->m[0][2] * M->m[3][1] * M->m[1][3] +
+        M->m[0][3] * M->m[1][1] * M->m[3][2] -
+        M->m[0][3] * M->m[3][1] * M->m[1][2];
 
-    float d00 = t00 * inv_det;
-    float d01 = t10 * inv_det;
-    float d02 = t20 * inv_det;
-    float d03 = t30 * inv_det;
+    D->m[0][3] =
+       -M->m[0][1] * M->m[1][2] * M->m[2][3] +
+        M->m[0][1] * M->m[2][2] * M->m[1][3] +
+        M->m[0][2] * M->m[1][1] * M->m[2][3] -
+        M->m[0][2] * M->m[2][1] * M->m[1][3] -
+        M->m[0][3] * M->m[1][1] * M->m[2][2] +
+        M->m[0][3] * M->m[2][1] * M->m[1][2];
 
-    float d10 = -(v5 * M->m[1][0] - v4 * M->m[2][0] + v3 * M->m[3][0]) * inv_det;
-    float d11 = +(v5 * M->m[0][0] - v2 * M->m[2][0] + v1 * M->m[3][0]) * inv_det;
-    float d12 = -(v4 * M->m[0][0] - v2 * M->m[1][0] + v0 * M->m[3][0]) * inv_det;
-    float d13 = +(v3 * M->m[0][0] - v1 * M->m[1][0] + v0 * M->m[2][0]) * inv_det;
+    D->m[1][0] =
+       -M->m[1][0] * M->m[2][2] * M->m[3][3] +
+        M->m[1][0] * M->m[3][2] * M->m[2][3] +
+        M->m[1][2] * M->m[2][0] * M->m[3][3] -
+        M->m[1][2] * M->m[3][0] * M->m[2][3] -
+        M->m[1][3] * M->m[2][0] * M->m[3][2] +
+        M->m[1][3] * M->m[3][0] * M->m[2][2];
 
-    v0 = M->m[0][1] * M->m[1][3] - M->m[1][1] * M->m[0][3];
-    v1 = M->m[0][1] * M->m[2][3] - M->m[2][1] * M->m[0][3];
-    v2 = M->m[0][1] * M->m[3][3] - M->m[3][1] * M->m[0][3];
-    v3 = M->m[1][1] * M->m[2][3] - M->m[2][1] * M->m[1][3];
-    v4 = M->m[1][1] * M->m[3][3] - M->m[3][3] * M->m[1][3];
-    v5 = M->m[2][1] * M->m[3][3] - M->m[3][1] * M->m[2][3];
+    D->m[1][1] =
+        M->m[0][0] * M->m[2][2] * M->m[3][3] -
+        M->m[0][0] * M->m[3][2] * M->m[2][3] -
+        M->m[0][2] * M->m[2][0] * M->m[3][3] +
+        M->m[0][2] * M->m[3][0] * M->m[2][3] +
+        M->m[0][3] * M->m[2][0] * M->m[3][2] -
+        M->m[0][3] * M->m[3][0] * M->m[2][2];
 
-    float d20 = +(v5 * M->m[1][0] - v4 * M->m[2][0] + v3 * M->m[3][0]) * inv_det;
-    float d21 = -(v5 * M->m[0][0] - v2 * M->m[2][0] + v1 * M->m[3][0]) * inv_det;
-    float d22 = +(v4 * M->m[0][0] - v2 * M->m[1][0] + v0 * M->m[3][0]) * inv_det;
-    float d23 = -(v3 * M->m[0][0] - v1 * M->m[1][0] + v0 * M->m[2][0]) * inv_det;
+    D->m[1][2] =
+       -M->m[0][0] * M->m[1][2] * M->m[3][3] +
+        M->m[0][0] * M->m[3][2] * M->m[1][3] +
+        M->m[0][2] * M->m[1][0] * M->m[3][3] -
+        M->m[0][2] * M->m[3][0] * M->m[1][3] -
+        M->m[0][3] * M->m[1][0] * M->m[3][2] +
+        M->m[0][3] * M->m[3][0] * M->m[1][2];
 
-    v0 = M->m[1][2] * M->m[0][1] - M->m[0][2] * M->m[1][1];
-    v1 = M->m[2][2] * M->m[0][1] - M->m[0][2] * M->m[2][1];
-    v2 = M->m[3][2] * M->m[0][1] - M->m[0][2] * M->m[3][1];
-    v3 = M->m[2][2] * M->m[1][1] - M->m[1][2] * M->m[2][1];
-    v4 = M->m[3][2] * M->m[1][1] - M->m[1][2] * M->m[3][1];
-    v5 = M->m[3][2] * M->m[2][1] - M->m[2][2] * M->m[3][1];
+    D->m[1][3] =
+        M->m[0][0] * M->m[1][2] * M->m[2][3] -
+        M->m[0][0] * M->m[2][2] * M->m[1][3] -
+        M->m[0][2] * M->m[1][0] * M->m[2][3] +
+        M->m[0][2] * M->m[2][0] * M->m[1][3] +
+        M->m[0][3] * M->m[1][0] * M->m[2][2] -
+        M->m[0][3] * M->m[2][0] * M->m[1][2];
 
-    float d30 = -(v5 * M->m[1][0] - v4 * M->m[2][0] + v3 * M->m[3][0]) * inv_det;
-    float d31 = +(v5 * M->m[0][0] - v2 * M->m[2][0] + v1 * M->m[3][0]) * inv_det;
-    float d32 = -(v4 * M->m[0][0] - v2 * M->m[1][0] + v0 * M->m[3][0]) * inv_det;
-    float d33 = +(v3 * M->m[0][0] - v1 * M->m[1][0] + v0 * M->m[2][0]) * inv_det;
+    D->m[2][0] =
+        M->m[1][0] * M->m[2][1] * M->m[3][3] -
+        M->m[1][0] * M->m[3][1] * M->m[2][3] -
+        M->m[1][1] * M->m[2][0] * M->m[3][3] +
+        M->m[1][1] * M->m[3][0] * M->m[2][3] +
+        M->m[1][3] * M->m[2][0] * M->m[3][1] -
+        M->m[1][3] * M->m[3][0] * M->m[2][1];
 
-    D->m[0][0] = d00; D->m[0][1] = d01; D->m[0][2] = d02; D->m[0][3] = d03;
-    D->m[1][0] = d10; D->m[1][1] = d11; D->m[1][2] = d12; D->m[1][3] = d13;
-    D->m[2][0] = d20; D->m[2][1] = d21; D->m[2][2] = d22; D->m[2][3] = d23;
-    D->m[3][0] = d30; D->m[3][1] = d31; D->m[3][2] = d32; D->m[3][3] = d33;
+    D->m[2][1] =
+       -M->m[0][0] * M->m[2][1] * M->m[3][3] +
+        M->m[0][0] * M->m[3][1] * M->m[2][3] +
+        M->m[0][1] * M->m[2][0] * M->m[3][3] -
+        M->m[0][1] * M->m[3][0] * M->m[2][3] -
+        M->m[0][3] * M->m[2][0] * M->m[3][1] +
+        M->m[0][3] * M->m[3][0] * M->m[2][1];
+
+    D->m[2][2] =
+        M->m[0][0] * M->m[1][1] * M->m[3][3] -
+        M->m[0][0] * M->m[3][1] * M->m[1][3] -
+        M->m[0][1] * M->m[1][0] * M->m[3][3] +
+        M->m[0][1] * M->m[3][0] * M->m[1][3] +
+        M->m[0][3] * M->m[1][0] * M->m[3][1] -
+        M->m[0][3] * M->m[3][0] * M->m[1][1];
+
+    D->m[2][3] =
+       -M->m[0][0] * M->m[1][1] * M->m[2][3] +
+        M->m[0][0] * M->m[2][1] * M->m[1][3] +
+        M->m[0][1] * M->m[1][0] * M->m[2][3] -
+        M->m[0][1] * M->m[2][0] * M->m[1][3] -
+        M->m[0][3] * M->m[1][0] * M->m[2][1] +
+        M->m[0][3] * M->m[2][0] * M->m[1][1];
+
+    D->m[3][0] =
+       -M->m[1][0] * M->m[2][1] * M->m[3][2] +
+        M->m[1][0] * M->m[3][1] * M->m[2][2] +
+        M->m[1][1] * M->m[2][0] * M->m[3][2] -
+        M->m[1][1] * M->m[3][0] * M->m[2][2] -
+        M->m[1][2] * M->m[2][0] * M->m[3][1] +
+        M->m[1][2] * M->m[3][0] * M->m[2][1];
+
+    D->m[3][1] =
+        M->m[0][0] * M->m[2][1] * M->m[3][2] -
+        M->m[0][0] * M->m[3][1] * M->m[2][2] -
+        M->m[0][1] * M->m[2][0] * M->m[3][2] +
+        M->m[0][1] * M->m[3][0] * M->m[2][2] +
+        M->m[0][2] * M->m[2][0] * M->m[3][1] -
+        M->m[0][2] * M->m[3][0] * M->m[2][1];
+
+    D->m[3][2] =
+       -M->m[0][0] * M->m[1][1] * M->m[3][2] +
+        M->m[0][0] * M->m[3][1] * M->m[1][2] +
+        M->m[0][1] * M->m[1][0] * M->m[3][2] -
+        M->m[0][1] * M->m[3][0] * M->m[1][2] -
+        M->m[0][2] * M->m[1][0] * M->m[3][1] +
+        M->m[0][2] * M->m[3][0] * M->m[1][1];
+
+    D->m[3][3] =
+        M->m[0][0] * M->m[1][1] * M->m[2][2] -
+        M->m[0][0] * M->m[2][1] * M->m[1][2] -
+        M->m[0][1] * M->m[1][0] * M->m[2][2] +
+        M->m[0][1] * M->m[2][0] * M->m[1][2] +
+        M->m[0][2] * M->m[1][0] * M->m[2][1] -
+        M->m[0][2] * M->m[2][0] * M->m[1][1];
+
+    det =
+        M->m[0][0] * D->m[0][0] +
+        M->m[1][0] * D->m[0][1] +
+        M->m[2][0] * D->m[0][2] +
+        M->m[3][0] * D->m[0][3];
+
+    det = 1.0 / det;
+
+    for (i = 0; i < 4; i++)
+    for (k = 0; k < 4; k++)
+        D->m[i][k] *= det;
+
+#ifdef DEBUG
+    {
+        D3DMATRIX I;
+
+        nine_d3d_matrix_matrix_mul(&I, D, M);
+
+        for (i = 0; i < 4; ++i)
+        for (k = 0; k < 4; ++k)
+            if (fabsf(I.m[i][k] - (float)(i == k)) > 1e-3)
+                DBG("Matrix inversion check FAILED !\n");
+    }
+#endif
 }
 
 /* TODO: don't use 4x4 inverse, unless this gets all nicely inlined ? */
