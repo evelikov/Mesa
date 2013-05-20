@@ -29,13 +29,6 @@
 #include "util/u_double_list.h"
 #include "util/u_rect.h"
 
-struct NineDirtyRect
-{
-    struct list_head list;
-    struct u_rect rect;
-    boolean all_levels;
-};
-
 struct NineSurface9
 {
     struct NineResource9 base;
@@ -48,13 +41,17 @@ struct NineSurface9
     struct pipe_screen *screen;
     struct pipe_transfer *transfer;
     struct pipe_surface *surface; /* created on-demand */
+    int lock_count;
 
     /* resource description */
     unsigned level;
     unsigned layer;
     D3DSURFACE_DESC desc;
 
-    struct list_head dirty;
+    unsigned stride; /* for system memory backing */
+
+    /* wine doesn't even use these, 2 will be enough */
+    struct u_rect dirty_rects[2];
 };
 static INLINE struct NineSurface9 *
 NineSurface9( void *data )
@@ -142,42 +139,17 @@ HRESULT WINAPI
 NineSurface9_ReleaseDC( struct NineSurface9 *This,
                         HDC hdc );
 
-
-static INLINE struct NineDirtyRect *
+void
 NineSurface9_AddDirtyRect( struct NineSurface9 *This,
-                           const struct u_rect *rect, boolean all_levels )
-{
-    struct NineDirtyRect *drect;
-
-    LIST_FOR_EACH_ENTRY(drect, &This->dirty, list) {
-        if (drect->all_levels || !all_levels)
-            if (u_rect_contained(rect, &drect->rect))
-                return NULL;
-        if (!drect->all_levels || all_levels) {
-            if (u_rect_contained(&drect->rect, rect)) {
-                drect->rect = *rect;
-                drect->all_levels = all_levels;
-                return drect;
-            }
-        }
-    }
-    drect = CALLOC_STRUCT(NineDirtyRect);
-    if (drect) {
-        list_inithead(&drect->list);
-        list_addtail(&This->dirty, &drect->list);
-        drect->rect = *rect;
-        drect->all_levels = all_levels;
-    }
-    return drect;
-}
+                           const struct pipe_box *box );
 
 static INLINE void
 NineSurface9_ClearDirtyRects( struct NineSurface9 *This )
 {
-    struct NineDirtyRect *r, *s;
-
-    LIST_FOR_EACH_ENTRY_SAFE(r, s, &This->dirty, list)
-        FREE(r);
+    memset(&This->dirty_rects, 0, sizeof(This->dirty_rects));
 }
+
+HRESULT
+NineSurface9_AllocateData( struct NineSurface9 *This );
 
 #endif /* _NINE_SURFACE9_H_ */

@@ -70,18 +70,20 @@ NineSurface9_ctor( struct NineSurface9 *This,
                    unsigned Layer,
                    D3DSURFACE_DESC *pDesc )
 {
-    /* Mark this as a special surface held by another internal resource */
-    pParams->container = pContainer;
+    HRESULT hr;
 
-    HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice, pResource,
-                                    D3DRTYPE_SURFACE, pDesc->Pool);
-    if (FAILED(hr))
-        return hr;
+    /* Mark this as a special surface held by another internal resource. */
+    pParams->container = pContainer;
 
     user_assert(!(pDesc->Usage & D3DUSAGE_DYNAMIC) ||
                 (pDesc->Pool != D3DPOOL_MANAGED), D3DERR_INVALIDCALL);
 
-    /* Stand-alone surfaces should hold a reference to the device */
+    hr = NineResource9_ctor(&This->base, pParams, pDevice, pResource,
+                            D3DRTYPE_SURFACE, pDesc->Pool);
+    if (FAILED(hr))
+        return hr;
+
+    /* Stand-alone surfaces should hold a reference to the device. */
     if (!pContainer)
         NineUnknown_AddRef(NineUnknown(NineResource9(This)->device));
 
@@ -100,7 +102,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
             return D3DERR_DRIVERINTERNALERROR;
     }
 
-    list_inithead(&This->dirty);
+    This->stride = util_format_get_stride(This->base.info.format, pDesc->Width);
 
     return D3D_OK;
 }
@@ -126,6 +128,9 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
     struct pipe_context *pipe = This->pipe;
     struct pipe_resource *resource = This->base.resource;
     struct pipe_surface templ;
+
+    assert(This->desc.Pool == D3DPOOL_DEFAULT ||
+           This->desc.Pool == D3DPOOL_MANAGED);
 
     templ.format = resource->format;
     templ.u.tex.level = This->level;
@@ -154,6 +159,56 @@ NineSurface9_GetDesc( struct NineSurface9 *This,
     user_assert(pDesc != NULL, E_POINTER);
     *pDesc = This->desc;
     return D3D_OK;
+}
+
+/* Wine just keeps a single directy rect and expands it to cover all
+ * the dirty rects ever added.
+ * We'll keep 2, and expand the one that fits better, just for fun.
+ */
+INLINE void
+NineSurface9_AddDirtyRect( struct NineSurface9 *This,
+                           const struct pipe_box *box )
+{
+    float area[2];
+    struct u_rect rect, cover_a, cover_b;
+
+    if (!box) {
+        This->dirty_rects[0].x0 = 0;
+        This->dirty_rects[0].y0 = 0;
+        This->dirty_rects[0].x1 = This->desc.Width;
+        This->dirty_rects[0].y1 = This->desc.Height;
+
+        memset(&This->dirty_rects[1], 0, sizeof(This->dirty_rects[1]));
+        return;
+    }
+    rect.x0 = box->x;
+    rect.y0 = box->y;
+    rect.x1 = box->x + box->width;
+    rect.y1 = box->y + box->height;
+
+    if (This->dirty_rects[0].x1 == 0) {
+        This->dirty_rects[0] = rect;
+        return;
+    }
+
+    u_rect_cover(&cover_a, &This->dirty_rects[0], &rect);
+    area[0] = u_rect_area(&cover_a);
+
+    if (This->dirty_rects[1].x1 == 0) {
+        area[1] = u_rect_area(&This->dirty_rects[0]);
+        if (area[0] > (area[1] * 1.25f))
+            This->dirty_rects[1] = rect;
+        else
+            This->dirty_rects[0] = cover_a;
+    } else {
+        u_rect_cover(&cover_b, &This->dirty_rects[1], &rect);
+        area[1] = u_rect_area(&cover_b);
+
+        if (area[0] > area[1])
+            This->dirty_rects[1] = cover_b;
+        else
+            This->dirty_rects[0] = cover_a;
+    }
 }
 
 HRESULT WINAPI
@@ -198,35 +253,40 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         u_box_origin_2d(This->desc.Width, This->desc.Height, &box);
     }
 
-    pLockedRect->pBits = This->pipe->transfer_map(This->pipe, resource,
-                                                  This->level, usage, &box,
-                                                  &This->transfer);
-    if (!This->transfer) {
-        if (Flags & D3DLOCK_DONOTWAIT)
-            return D3DERR_WASSTILLDRAWING;
-        return D3DERR_INVALIDCALL;
-    }
-    pLockedRect->Pitch = This->transfer->stride;
-
-    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY))) {
-        /* XXX: make this a pipe_box ? */
-        struct u_rect rect;
-        rect.x0 = box.x;
-        rect.x1 = box.x + box.width;
-        rect.y0 = box.y;
-        rect.y1 = box.y + box.height;
-        NineSurface9_AddDirtyRect(This, &rect, FALSE);
+    if (This->base.data) {
+        pLockedRect->Pitch = This->stride;
+        pLockedRect->pBits = This->base.data +
+            box.y * This->stride +
+            util_format_get_stride(This->base.info.format, box.x);
+    } else {
+        pLockedRect->pBits = This->pipe->transfer_map(This->pipe, resource,
+                                                      This->level, usage, &box,
+                                                      &This->transfer);
+        if (!This->transfer) {
+            if (Flags & D3DLOCK_DONOTWAIT)
+                return D3DERR_WASSTILLDRAWING;
+            return D3DERR_INVALIDCALL;
+        }
+        pLockedRect->Pitch = This->transfer->stride;
     }
 
+    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY)))
+        if (This->base.pool == D3DPOOL_MANAGED)
+            NineSurface9_AddDirtyRect(This, &box);
+
+    ++This->lock_count;
     return D3D_OK;
 }
 
 HRESULT WINAPI
 NineSurface9_UnlockRect( struct NineSurface9 *This )
 {
-    user_assert(This->transfer, D3DERR_INVALIDCALL);
-    This->pipe->transfer_unmap(This->pipe, This->transfer);
-    This->transfer = NULL;
+    user_assert(This->lock_count, D3DERR_INVALIDCALL);
+    if (!This->transfer) {
+        This->pipe->transfer_unmap(This->pipe, This->transfer);
+        This->transfer = NULL;
+    }
+    --This->lock_count;
     return D3D_OK;
 }
 
@@ -242,6 +302,61 @@ NineSurface9_ReleaseDC( struct NineSurface9 *This,
                         HDC hdc )
 {
     STUB(D3DERR_INVALIDCALL);
+}
+
+/* nine private */
+
+HRESULT
+NineSurface9_AllocateData( struct NineSurface9 *This )
+{
+    struct pipe_screen *screen = This->base.info.screen;
+
+    if (This->base.pool == D3DPOOL_SYSTEMMEM) {
+        /* Allocate a staging resource to save a copy:
+         * user -> staging resource
+         * staging resource -> (blit) -> video memory
+         *
+         * Instead of:
+         * user -> system memory
+         * system memory -> transfer staging area
+         * transfer -> video memory
+         *
+         * Does this work if we "lose" the device ?
+         */
+        struct pipe_resource *resource;
+        struct pipe_resource templ;
+
+        templ.target = PIPE_TEXTURE_2D;
+        templ.format = This->base.info.format;
+        templ.width0 = This->desc.Width;
+        templ.height0 = This->desc.Height;
+        templ.depth0 = 1;
+        templ.array_size = 1;
+        templ.last_level = 0;
+        templ.nr_samples = 0;
+        templ.usage = PIPE_USAGE_STAGING;
+        templ.bind =
+            PIPE_BIND_SAMPLER_VIEW |
+            PIPE_BIND_TRANSFER_WRITE |
+            PIPE_BIND_TRANSFER_READ;
+        templ.flags = 0;
+
+        resource = screen->resource_create(screen, &templ);
+        if (!resource)
+            DBG("Failed to allocate staging resource.\n");
+
+        /* Also deallocate old staging resource. */
+        pipe_resource_reference(&This->base.resource, resource);
+    }
+    if (!This->base.resource) {
+        const unsigned size = This->stride *
+            util_format_get_nblocksy(This->base.info.format, This->desc.Height);
+
+        This->base.data = (uint8_t *)MALLOC(size);
+        if (!This->base.data)
+            return E_OUTOFMEMORY;
+    }
+    return D3D_OK;
 }
 
 IDirect3DSurface9Vtbl NineSurface9_vtable = {

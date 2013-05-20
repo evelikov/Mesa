@@ -845,7 +845,11 @@ NineDevice9_SetRenderTarget( struct NineDevice9 *This,
     if (This->state.rt[i] != NineSurface9(pRenderTarget)) {
        This->state.changed.group |= NINE_STATE_FB;
 
+       if (This->state.rt[i])
+           This->state.rt[i]->base.bind_count--;
        nine_reference(&This->state.rt[i], pRenderTarget);
+       if (This->state.rt[i])
+           This->state.rt[i]->base.bind_count++;
     }
     return D3D_OK;
 }
@@ -871,7 +875,11 @@ NineDevice9_SetDepthStencilSurface( struct NineDevice9 *This,
     if (This->state.ds != NineSurface9(pNewZStencil)) {
         This->state.changed.group |= NINE_STATE_FB;
 
+        if (This->state.ds)
+            This->state.ds->base.bind_count--;
         nine_reference(&This->state.ds, pNewZStencil);
+        if (This->state.ds)
+            This->state.ds->base.bind_count++;
     }
     return D3D_OK;
 }
@@ -1358,6 +1366,15 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
 {
     NINESTATEPOINTER_SET(This);
     user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+
+    if (!This->record) {
+        if (state->texture[Stage] == NineBaseTexture9(pTexture))
+            return D3D_OK;
+        if (state->texture[Stage])
+            state->texture[Stage]->base.bind_count--;
+        if (pTexture)
+            NineBaseTexture9(pTexture)->base.bind_count++;
+    }
 
     nine_reference(&state->texture[Stage], pTexture);
     state->changed.texture |= 1 << Stage;

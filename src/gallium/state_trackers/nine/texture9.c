@@ -126,10 +126,13 @@ NineTexture9_ctor( struct NineTexture9 *This,
         /* NOTE: Don't return without unreferencing the resource ! */
     }
     This->base.format = Format;
-    This->base.width = Width;
-    This->base.height = Height;
-    This->base.layers = 1;
-    This->base.last_level = templ.last_level;
+    This->base.base.info.format = d3d9_to_pipe_format(Format);
+    This->base.base.info.target = PIPE_TEXTURE_2D;
+    This->base.base.info.width0 = Width;
+    This->base.base.info.height0 = Height;
+    This->base.base.info.depth0 = 1;
+    This->base.base.info.array_size = 1;
+    This->base.base.info.last_level = templ.last_level;
     This->base.base.usage = Usage;
 
     hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
@@ -149,7 +152,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
     sfdesc.Pool = Pool;
     sfdesc.MultiSampleType = D3DMULTISAMPLE_NONE;
     sfdesc.MultiSampleQuality = 0;
-    for (l = 0; l <= This->base.last_level; ++l) {
+    for (l = 0; l <= This->base.base.info.last_level; ++l) {
         sfdesc.Width = u_minify(Width, l);
         sfdesc.Height = u_minify(Height, l);
 
@@ -170,7 +173,7 @@ NineTexture9_dtor( struct NineTexture9 *This )
     unsigned l;
 
     if (This->surfaces) {
-        for (l = 0; l <= This->base.last_level; ++l)
+        for (l = 0; l <= This->base.base.info.last_level; ++l)
             nine_reference(&This->surfaces[l], NULL);
         FREE(This->surfaces);
     }
@@ -183,7 +186,7 @@ NineTexture9_GetLevelDesc( struct NineTexture9 *This,
                            UINT Level,
                            D3DSURFACE_DESC *pDesc )
 {
-    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
 
     *pDesc = This->surfaces[Level]->desc;
 
@@ -195,7 +198,7 @@ NineTexture9_GetSurfaceLevel( struct NineTexture9 *This,
                               UINT Level,
                               IDirect3DSurface9 **ppSurfaceLevel )
 {
-    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
     user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
                 D3DERR_INVALIDCALL);
 
@@ -212,50 +215,19 @@ NineTexture9_LockRect( struct NineTexture9 *This,
                        const RECT *pRect,
                        DWORD Flags )
 {
-    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
     user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
                 D3DERR_INVALIDCALL);
 
     return NineSurface9_LockRect(This->surfaces[Level], pLockedRect,
                                  pRect, Flags);
-
-#if 0
-    struct pipe_context *pipe = This->base.pipe;
-    struct pipe_resource *resource = This->base.base.resource;
-    struct pipe_box box;
-    unsigned usage;
-
-    NineBaseTexture9_GetPipeBox2D(&This->base, &box, Level, 0, pRect);
-
-    usage = (Flags & D3DLOCK_READONLY) ?
-        PIPE_TRANSFER_READ : PIPE_TRANSFER_WRITE;
-    usage |= (Flags & D3DLOCK_DISCARD) ?
-        PIPE_TRANSFER_DISCARD_RANGE : PIPE_TRANSFER_READ;
-
-    if (This->base.base.pool == D3DPOOL_DEFAULT) {
-        pLockedRect->pBits =
-            pipe->transfer_map(pipe, resource, Level, usage, &box,
-                               &This->base.transfer[Level]);
-        pLockedRect->Pitch = This->base.transfer[Level]->stride;
-    } else {
-        /* we should probably remember these ... */
-        unsigned offset = 0;
-        unsigned stride = 0;
-        pLockedRect->pBits = This->base.base.sys.data + offset;
-        pLockedRect->Pitch = stride;
-
-        if (!(Flags & D3DLOCK_NO_DIRTY_UPDATE))
-            NineBaseTexture9_AddDirtyRegion(&This->base, &box);
-    }
-    return D3D_OK;
-#endif
 }
 
 HRESULT WINAPI
 NineTexture9_UnlockRect( struct NineTexture9 *This,
                          UINT Level )
 {
-    user_assert(Level <= This->base.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
 
     return NineSurface9_UnlockRect(This->surfaces[Level]);
 }
@@ -264,13 +236,19 @@ HRESULT WINAPI
 NineTexture9_AddDirtyRect( struct NineTexture9 *This,
                            const RECT *pDirtyRect )
 {
-    struct NineDirtyRect *entry;
-    struct u_rect rect;
-    rect_to_g3d_u_rect(&rect, pDirtyRect);
+    /* Tracking dirty regions on DEFAULT or SYSTEMMEM resources is pointless,
+     * because we always write to the final storage.
+     */
+    if (This->base.base.pool != D3DPOOL_MANAGED)
+        return D3D_OK;
 
-    entry = NineSurface9_AddDirtyRect(This->surfaces[0], &rect, TRUE);
-    if (!entry)
-        return E_OUTOFMEMORY;
+    if (!pDirtyRect) {
+        NineSurface9_AddDirtyRect(This->surfaces[0], NULL);
+    } else {
+        struct pipe_box box;
+        rect_to_pipe_box(&box, pDirtyRect);    
+        NineSurface9_AddDirtyRect(This->surfaces[0], &box);
+    }
     return D3D_OK;
 }
 

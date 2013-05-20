@@ -24,9 +24,9 @@
 #define _NINE_RESOURCE9_H_
 
 #include "iunknown.h"
+#include "pipe/p_state.h"
 
 struct pipe_screen;
-struct pipe_resource;
 struct util_hash_table;
 struct NineDevice9;
 
@@ -34,19 +34,20 @@ struct NineResource9
 {
     struct NineUnknown base;
 
-    /* resource related */
-    struct pipe_screen *screen;
-    struct pipe_resource *resource;
+    struct pipe_resource *resource; /* device resource */
+
+    uint8_t *data; /* system memory backing */
+
     D3DRESOURCETYPE type;
     D3DPOOL pool;
     DWORD priority;
     DWORD usage;
 
-    /* for non-default pool, use MALLOC'd storage: */
-    uint8_t *sysmem;
+    struct pipe_resource info; /* resource configuration */
 
-    /* creator device */
-    struct NineDevice9 *device;
+    unsigned bind_count;
+
+    struct NineDevice9 *device; /* creator device */
 
     /* for [GS]etPrivateData/FreePrivateData */
     struct util_hash_table *pdata;
@@ -75,13 +76,6 @@ NineResource9_GetResource( struct NineResource9 *This );
 
 D3DPOOL
 NineResource9_GetPool( struct NineResource9 *This );
-
-/* Create a state tracker private pipe_resource.
- * XXX: Is this really a good idea ?
- */
-HRESULT
-NineResource9_CreateDummyResource( struct NineResource9 *This,
-                                   const struct pipe_resource *templ );
 
 HRESULT
 NineResource9_AllocateData( struct NineResource9 *This );
@@ -121,5 +115,8 @@ NineResource9_PreLoad( struct NineResource9 *This );
 
 D3DRESOURCETYPE WINAPI
 NineResource9_GetType( struct NineResource9 *This );
+
+HRESULT
+NineResource9_CreatePipeResource( struct NineResource9 *This );
 
 #endif /* _NINE_RESOURCE9_H_ */

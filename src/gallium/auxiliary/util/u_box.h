@@ -104,4 +104,18 @@ int u_box_clip_2d(struct pipe_box *box, int w, int h)
    return res;
 }
 
+/* Return true if @a is contained in or equal to @b.
+ */
+static INLINE
+boolean u_box_contained_2d(const struct pipe_box *a, const struct pipe_box *b)
+{
+   int a_x1 = a->x + a->width;
+   int b_x1 = b->x + b->width;
+   int a_y1 = a->y + a->height;
+   int b_y1 = b->y + b->height;
+   return
+      a->x >= b->x && a_x1 <= b_x1 &&
+      a->y >= b->y && a_y1 <= b_y1;
+}
+
 #endif

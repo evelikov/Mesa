@@ -34,7 +34,6 @@ struct NineVertexBuffer9
     struct NineResource9 base;
 
     /* G3D */
-    struct pipe_screen *screen;
     struct pipe_context *pipe;
     struct pipe_transfer **maps;
     int nmaps, maxmaps;

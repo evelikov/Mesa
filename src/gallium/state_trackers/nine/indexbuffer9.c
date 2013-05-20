@@ -30,6 +30,7 @@
 #include "pipe/p_state.h"
 #include "pipe/p_defines.h"
 #include "pipe/p_format.h"
+#include "util/u_box.h"
 
 #define DBG_CHANNEL DBG_INDEXBUFFER
 
@@ -39,63 +40,46 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
                        struct NineDevice9 *pDevice,
                        D3DINDEXBUFFER_DESC *pDesc )
 {
-    struct pipe_resource *resource;
-    HRESULT hr, reshr;
+    struct pipe_resource *info = &This->base.info;
+    HRESULT hr;
 
-    This->desc = *pDesc;
+    This->pipe = pDevice->pipe;
 
-    {
-        /* create an index buffer */
-        struct pipe_resource tmplt;
+    info->screen = pDevice->screen;
+    info->target = PIPE_BUFFER;
+    info->format = PIPE_FORMAT_R8_UNORM;
+    info->width0 = pDesc->Size;
+    info->flags = 0;
 
-        This->screen = NineDevice9_GetScreen(pDevice);
-        This->pipe = NineDevice9_GetPipe(pDevice);
-        This->transfer = NULL;
+    info->bind = PIPE_BIND_INDEX_BUFFER | PIPE_BIND_TRANSFER_WRITE;
+    if (!(pDesc->Usage & D3DUSAGE_WRITEONLY))
+        info->bind |= PIPE_BIND_TRANSFER_READ;
 
-        tmplt.target = PIPE_BUFFER;
-        tmplt.format = PIPE_FORMAT_R8_UNORM;
-        tmplt.width0 = This->desc.Size;
-        tmplt.height0 = 1;
-        tmplt.depth0 = 1;
-        tmplt.array_size = 1;
-        tmplt.last_level = 0;
-        tmplt.nr_samples = 0;
-        tmplt.usage = PIPE_USAGE_DEFAULT;
+    info->usage = PIPE_USAGE_STATIC;
+    if (pDesc->Usage & D3DUSAGE_DYNAMIC)
+        info->usage = PIPE_USAGE_DYNAMIC;
+    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
+        info->usage = PIPE_USAGE_STREAM;
 
-        if (This->desc.Usage & D3DUSAGE_DYNAMIC) {
-            tmplt.usage = PIPE_USAGE_DYNAMIC;
-        }
-        /*if (This->desc.Usage & D3DUSAGE_DONOTCLIP) { }*/
-        /*if (This->desc.Usage & D3DUSAGE_NONSECURE) { }*/
-        /*if (This->desc.Usage & D3DUSAGE_NPATCHES) { }*/
-        /*if (This->desc.Usage & D3DUSAGE_POINTS) { }*/
-        /*if (This->desc.Usage & D3DUSAGE_RTPATCHES) { }*/
-        /*if (This->desc.Usage & D3DUSAGE_SOFTWAREPROCESSING) { }*/
+    /* if (This->desc.Usage & D3DUSAGE_DONOTCLIP) { } */
+    /* if (This->desc.Usage & D3DUSAGE_NONSECURE) { } */
+    /* if (This->desc.Usage & D3DUSAGE_NPATCHES) { } */
+    /* if (This->desc.Usage & D3DUSAGE_POINTS) { } */
+    /* if (This->desc.Usage & D3DUSAGE_RTPATCHES) { } */
+    /* if (This->desc.Usage & D3DUSAGE_SOFTWAREPROCESSING) { } */
 
-        tmplt.bind = PIPE_BIND_VERTEX_BUFFER | PIPE_BIND_TRANSFER_WRITE;
-        if (!(This->desc.Usage & D3DUSAGE_WRITEONLY)) {
-            tmplt.bind |= PIPE_BIND_TRANSFER_READ;
-        }
-        tmplt.flags = 0;
+    info->height0 = 1;
+    info->depth0 = 1;
+    info->array_size = 1;
+    info->last_level = 0;
+    info->nr_samples = 0;
 
-        resource = This->screen->resource_create(This->screen, &tmplt);
-        if (!resource) {
-            DBG("screen::resource_create failed\n"
-                " format = %u\n"
-                " width0 = %u\n"
-                " usage = %u\n"
-                " bind = %u\n",
-                tmplt.format, tmplt.width0, tmplt.usage, tmplt.bind);
-            /* XXX do we report E_OUTOFMEMORY on Pool==MANAGED? */
-            reshr = D3DERR_OUTOFVIDEOMEMORY;
-        }
-    }
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, resource,
+    hr = NineResource9_ctor(&This->base, pParams, pDevice, NULL,/*TRUE,*/
                             D3DRTYPE_INDEXBUFFER, pDesc->Pool);
     if (FAILED(hr))
-        return FAILED(reshr) ? reshr : hr;
+        return hr;
 
-    This->buffer.buffer = resource;
+    This->buffer.buffer = This->base.resource;
     This->buffer.offset = 0;
     switch (pDesc->Format) {
     case D3DFMT_INDEX16: This->buffer.index_size = 2; break;
@@ -105,6 +89,9 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
         break;
     }
     This->buffer.user_buffer = NULL;
+
+    pDesc->Type = D3DRTYPE_INDEXBUFFER;
+    This->desc = *pDesc;
 
     return D3D_OK;
 }
@@ -131,28 +118,13 @@ NineIndexBuffer9_Lock( struct NineIndexBuffer9 *This,
                        DWORD Flags )
 {
     struct pipe_box box;
-    unsigned usage = 0;
     void *data;
+    const unsigned usage = d3dlock_to_pipe_transfer_usage(Flags);
 
     user_assert(!This->transfer, D3DERR_INVALIDCALL);
     user_assert(ppbData, E_POINTER);
 
-    if (Flags & D3DLOCK_DISCARD) { usage &= PIPE_TRANSFER_DISCARD_RANGE; }
-    /* This flag indicates that no data used in the previous drawing call will
-     * be touched in this update. How do we handle that? XXX
-    if (Flags & D3DLOCK_NO_DIRTY_UPDATE) { }*/
-    /* This should NOT lock the windowing system, which we already can't XXX
-    if (Flags & D3DLOCK_NOSYSLOCK) { }*/
-    usage &= PIPE_TRANSFER_READ;
-    if (!(Flags & D3DLOCK_READONLY)) { usage &= PIPE_TRANSFER_WRITE; }
-    if (Flags & D3DLOCK_NOOVERWRITE) { usage &= PIPE_TRANSFER_UNSYNCHRONIZED; }
-
-    box.x = OffsetToLock;
-    box.y = 0;
-    box.z = 0;
-    box.width = SizeToLock;
-    box.height = 0;
-    box.depth = 0;
+    u_box_1d(OffsetToLock, SizeToLock, &box);
 
     data = This->pipe->transfer_map(This->pipe, This->base.resource, 0,
                                     usage, &box, &This->transfer);
@@ -164,9 +136,8 @@ NineIndexBuffer9_Lock( struct NineIndexBuffer9 *This,
             usage, box.x, box.width);
         /* not sure what to return, msdn suggests this */
         return D3DERR_INVALIDCALL;
-    } else {
-        *ppbData = data;
     }
+    *ppbData = data;
 
     return D3D_OK;
 }

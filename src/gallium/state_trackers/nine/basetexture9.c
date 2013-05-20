@@ -37,7 +37,8 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
 {
     HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice,
                                     pResource, Type, Pool);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr))
+        return hr;
 
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->mipfilter = D3DTEXF_LINEAR;
@@ -61,10 +62,8 @@ NineBaseTexture9_SetLOD( struct NineBaseTexture9 *This,
     DWORD old = This->lod;
 
     user_assert(This->base.pool == D3DPOOL_MANAGED, 0);
-    if (user_error(LODNew < NineBaseTexture9_GetLevelCount(This))) {
-        LODNew = NineBaseTexture9_GetLevelCount(This)-1;
-    }
-    This->lod = LODNew;
+
+    This->lod = MIN2(LODNew, This->base.info.last_level);
 
     return old;
 }
@@ -78,15 +77,17 @@ NineBaseTexture9_GetLOD( struct NineBaseTexture9 *This )
 DWORD WINAPI
 NineBaseTexture9_GetLevelCount( struct NineBaseTexture9 *This )
 {
-    return This->base.resource->last_level;
+    if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
+        return 1;
+    return This->base.info.last_level + 1;
 }
 
 HRESULT WINAPI
 NineBaseTexture9_SetAutoGenFilterType( struct NineBaseTexture9 *This,
                                        D3DTEXTUREFILTERTYPE FilterType )
 {
-    user_assert(FilterType == D3DTEXF_POINT || FilterType == D3DTEXF_LINEAR,
-                D3DERR_INVALIDCALL);
+    user_assert(FilterType == D3DTEXF_POINT ||
+                FilterType == D3DTEXF_LINEAR, D3DERR_INVALIDCALL);
 
     This->mipfilter = FilterType;
 
@@ -102,20 +103,58 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This )
 void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
 {
-    unsigned base_level = 0; /* TODO */
-    unsigned last_level = This->last_level; /* XXX */
-    unsigned faces = 1;
+    unsigned base_level = 0;
+    unsigned last_level = This->base.info.last_level - This->lod;
+    unsigned faces;
     unsigned filter = This->mipfilter == D3DTEXF_POINT ? PIPE_TEX_FILTER_NEAREST
                                                        : PIPE_TEX_FILTER_LINEAR;
     unsigned i;
 
     if (This->base.type == D3DRTYPE_CUBETEXTURE) {
         faces = 6;
-        assert(This->layers == 6);
+        assert(This->base.info.array_size == 6);
+    } else {
+        faces = 1;
     }
 
     for (i = 0; i < faces; ++i)
         util_gen_mipmap(This->base.device->gen_mipmap,
                         This->view,
                         i, base_level, last_level, filter);
+}
+
+HRESULT
+NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This )
+{
+    struct pipe_screen *screen = This->base.device->screen;
+    struct pipe_resource templ;
+
+    templ.target = This->base.info.target;
+    templ.format = This->base.info.format;
+
+    templ.width0 = u_minify(This->base.info.width0, This->lod);
+    templ.height0 = u_minify(This->base.info.height0, This->lod);
+    templ.depth0 = u_minify(This->base.info.depth0, This->lod);
+
+    if (This->base.resource) {
+        /* LOD might have changed. */
+        if (This->base.resource->width0 == templ.width0 &&
+            This->base.resource->height0 == templ.height0 &&
+            This->base.resource->depth0 == templ.depth0)
+            return D3D_OK;
+        pipe_resource_reference(&This->base.resource, NULL);
+    }
+
+    templ.array_size = This->base.info.array_size;
+    templ.last_level = This->base.info.last_level - This->lod;
+    templ.nr_samples = This->base.info.nr_samples;
+
+    templ.usage = This->base.info.usage;
+    templ.bind = This->base.info.bind;
+    templ.flags = This->base.info.flags;
+
+    This->base.resource = screen->resource_create(screen, &templ);
+    if (!This->base.resource)
+        return D3DERR_OUTOFVIDEOMEMORY;
+    return D3D_OK;
 }

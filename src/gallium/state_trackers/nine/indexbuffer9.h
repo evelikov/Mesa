@@ -38,7 +38,6 @@ struct NineIndexBuffer9
     struct NineResource9 base;
 
     /* g3d stuff */
-    struct pipe_screen *screen;
     struct pipe_context *pipe;
     struct pipe_index_buffer buffer;
     struct pipe_transfer *transfer;

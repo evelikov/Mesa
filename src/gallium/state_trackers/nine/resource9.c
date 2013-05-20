@@ -29,7 +29,6 @@
 
 #include "util/u_hash_table.h"
 #include "util/u_inlines.h"
-#include "util/u_resource.h"
 
 #define DBG_CHANNEL DBG_RESOURCE
 
@@ -82,10 +81,10 @@ NineResource9_ctor( struct NineResource9 *This,
                     D3DPOOL Pool )
 {
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr))
+        return hr;
 
     This->device = pDevice;
-    This->screen = NineDevice9_GetScreen(pDevice);
 
     /* NOTE: Take care to unreference the resource in the caller. */
     pipe_resource_reference(&This->resource, pResource);
@@ -94,12 +93,9 @@ NineResource9_ctor( struct NineResource9 *This,
     This->pool = Pool;
     This->priority = 0;
 
-    /* owners like VertexBuffer9 might fail to create the appropriate resource,
-     * in which case we just chain up the ctor and return an error. */
-    if (!This->resource) { return D3DERR_INVALIDCALL; }
-
     This->pdata = util_hash_table_create(ht_guid_hash, ht_guid_compare);
-    if (!This->pdata) { return E_OUTOFMEMORY; }
+    if (!This->pdata)
+        return E_OUTOFMEMORY;
 
     return D3D_OK;
 }
@@ -147,8 +143,8 @@ NineResource9_dtor( struct NineResource9 *This )
     }
 #endif
 
-    if (This->sysmem)
-        FREE(This->sysmem);
+    if (This->data)
+        FREE(This->data);
 
     NineUnknown_dtor(&This->base);
 }
@@ -278,10 +274,12 @@ NineResource9_GetPriority( struct NineResource9 *This )
 void WINAPI
 NineResource9_PreLoad( struct NineResource9 *This )
 {
-    if (This->pool != D3DPOOL_MANAGED) { return; }
-
-    /* XXX can we do anything here? */
-    STUB();
+    if (This->pool != D3DPOOL_MANAGED)
+        return;
+    /* We don't treat managed vertex or index buffers different from
+     * default ones (are managed vertex buffers even allowed ?), and
+     * the PreLoad for textures is overridden by superclass.
+     */
 }
 
 D3DRESOURCETYPE WINAPI
@@ -291,84 +289,17 @@ NineResource9_GetType( struct NineResource9 *This )
 }
 
 HRESULT
-NineResource9_CreateDummyResource( struct NineResource9 *This,
-                                   const struct pipe_resource *templ )
+NineResource9_CreatePipeResource( struct NineResource9 *This )
 {
-    struct pipe_resource *resource = MALLOC_STRUCT(pipe_resource);
-    if (!resource)
-        return E_OUTOFMEMORY;
+    struct pipe_screen *screen = This->info.screen;
 
-    assert(templ->last_level == 0);
-    assert(templ->nr_samples <= 1);
+    assert(This->type == D3DRTYPE_VERTEXBUFFER ||
+           This->type == D3DRTYPE_INDEXBUFFER ||
+           This->type == D3DRTYPE_SURFACE);
 
-    pipe_reference_init(&resource->reference, 1);
-    resource->screen = NULL;
-    resource->target = templ->target;
-    resource->format = templ->format;
-    resource->width0 = templ->width0;
-    resource->height0 = templ->height0;
-    resource->depth0 = templ->depth0;
-    resource->last_level = 0;
-    resource->array_size = 1;
-    resource->nr_samples = 0;
-    resource->usage = PIPE_USAGE_DEFAULT;
-    resource->bind = PIPE_BIND_TRANSFER_READ | PIPE_BIND_TRANSFER_WRITE;
-    resource->flags = NINE_RESOURCE_FLAG_DUMMY;
+    pipe_resource_reference(&This->resource, NULL);
 
-    This->resource = resource;
-    return D3D_OK;
+    This->resource = screen->resource_create(screen, &This->info);
+
+    return This->resource ? D3D_OK : D3DERR_OUTOFVIDEOMEMORY;
 }
-
-HRESULT
-NineResource9_AllocateData( struct NineResource9 *This )
-{
-    struct pipe_screen *screen = This->screen;
-    struct pipe_resource *resource = NULL;
-
-    if (This->pool == D3DPOOL_SYSTEMMEM &&
-        This->type == D3DRTYPE_SURFACE &&
-        This->resource && (This->resource->flags & NINE_RESOURCE_FLAG_DUMMY)) {
-        /* Allocate a staging resource to save a copy:
-         * user -> staging resource
-         * staging resource -> (blit) -> video memory
-         *
-         * Instead of:
-         * user -> system memory
-         * system memory -> transfer staging area
-         * transfer -> video memory
-         *
-         * Does this work if we "lose" the device ?
-         */
-        struct pipe_resource templ;
-        templ.target = PIPE_TEXTURE_2D;
-        templ.format = This->resource->format;
-        templ.width0 = This->resource->width0;
-        templ.height0 = This->resource->height0;
-        templ.depth0 = 1;
-        templ.array_size = 1;
-        templ.last_level = 0;
-        templ.nr_samples = 0;
-        templ.usage = PIPE_USAGE_STAGING;
-        templ.bind = PIPE_BIND_SAMPLER_VIEW;
-        templ.flags = 0;
-        resource = screen->resource_create(screen, &templ);
-        if (resource) {
-            FREE(This->resource);
-            This->resource = resource;
-        } else {
-            DBG("Failed to allocate staging texture.\n");
-        }
-    }
-    if (!resource) {
-        const unsigned size = util_resource_size(This->resource);
-
-        DBG("Allocating %f KiB of system memory.\n", (float)size / 1024.0f);
-        assert(size);
-
-        This->sysmem = MALLOC(size);
-        if (!This->sysmem)
-            return E_OUTOFMEMORY;
-    }
-    return D3D_OK;
-}
-

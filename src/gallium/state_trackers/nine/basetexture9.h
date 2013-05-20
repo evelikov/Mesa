@@ -34,14 +34,7 @@ struct NineBaseTexture9
     struct pipe_context *pipe;
     struct pipe_sampler_view *view;
 
-    /* This group is initialized from the superclass ctor, too lazy to
-     * pack them as args into the NineBaseTexture9_ctor:
-     */
     D3DFORMAT format;
-    UINT width;
-    UINT height;
-    UINT layers;
-    BYTE last_level;
 
     D3DTEXTUREFILTERTYPE mipfilter;
     DWORD lod;
@@ -82,5 +75,8 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This );
 
 void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This );
+
+HRESULT
+NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This );
 
 #endif /* _NINE_BASETEXTURE9_H_ */
