@@ -25,6 +25,8 @@
 
 #include "iunknown.h"
 
+struct pipe_box;
+
 struct NineVolume9
 {
     struct NineUnknown base;
@@ -34,6 +36,19 @@ NineVolume9( void *data )
 {
     return (struct NineVolume9 *)data;
 }
+
+/* nine private */
+
+HRESULT
+NineVolume9_CopyVolume( struct NineVolume9 *This,
+                        struct NineVolume9 *From,
+                        unsigned dstx, unsigned dsty, unsigned dstz,
+                        struct pipe_box *pSrcBox );
+
+HRESULT
+NineVolume9_UpdateSelf( struct NineVolume9 *This );
+
+/* public */
 
 HRESULT WINAPI
 NineVolume9_GetDevice( struct NineVolume9 *This,

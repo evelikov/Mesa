@@ -68,26 +68,43 @@ static INLINE unsigned d3dlock_to_pipe_transfer_usage(DWORD Flags)
 static INLINE void
 rect_to_pipe_box(struct pipe_box *dst, const RECT *src)
 {
+    assert(src->left <= src->right && src->top <= src->bottom);
+
     dst->x = src->left;
     dst->y = src->top;
     dst->z = 0;
     dst->width = src->right - src->left;
-    dst->height = src->top - src->bottom;
+    dst->height = src->bottom - src->top;
+    dst->depth = 1;
+}
+
+static INLINE void
+nine_u_rect_to_pipe_box(struct pipe_box *dst, const struct u_rect *rect, int z)
+{
+    dst->x = rect->x0;
+    dst->y = rect->y0;
+    dst->z = z;
+    dst->width = rect->x1 - rect->x0;
+    dst->height = rect->y1 - rect->y0;
     dst->depth = 1;
 }
 
 static INLINE void
 rect_to_pipe_box_xy_only(struct pipe_box *dst, const RECT *src)
 {
+    assert(src->left <= src->right && src->top <= src->bottom);
+
     dst->x = src->left;
     dst->y = src->top;
     dst->width = src->right - src->left;
-    dst->height = src->top - src->bottom;
+    dst->height = src->bottom - src->top;
 }
 
 static INLINE void
 rect_to_g3d_u_rect(struct u_rect *dst, const RECT *src)
 {
+    assert(src->left <= src->right && src->top <= src->bottom);
+
     dst->x0 = src->left;
     dst->x1 = src->right;
     dst->y0 = src->top;
@@ -97,11 +114,15 @@ rect_to_g3d_u_rect(struct u_rect *dst, const RECT *src)
 static INLINE void
 d3dbox_to_pipe_box(struct pipe_box *dst, const D3DBOX *src)
 {
+    assert(src->Left <= src->Right);
+    assert(src->Top <= src->Bottom);
+    assert(src->Front <= src->Back);
+
     dst->x = src->Left;
     dst->y = src->Top;
     dst->z = src->Front;
     dst->width = src->Right - src->Left;
-    dst->height = src->Top - src->Bottom;
+    dst->height = src->Bottom - src->Top;
     dst->depth = src->Back - src->Front;
 }
 

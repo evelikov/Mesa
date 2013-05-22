@@ -334,11 +334,10 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
     /* TODO: Can we reduce iterations here ? */
     for (i = 0; i < NINE_MAX_SAMPLERS; ++i) {
-        view[i] = state->texture[i] ? state->texture[i]->view : NULL;
-        if (!view[i])
+        if (!state->texture[i])
             continue;
-        if (state->texture[i]->base.pool == D3DPOOL_MANAGED)
-            NineResource9_PreLoad(&state->texture[i]->base);
+        view[i] = NineBaseTexture9_GetSamplerView(state->texture[i]);
+
         num_textures = i + 1;
 
         if (state->changed.sampler[i]) {

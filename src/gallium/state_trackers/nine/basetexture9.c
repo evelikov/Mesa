@@ -23,6 +23,11 @@
 #include "basetexture9.h"
 #include "device9.h"
 
+/* For UpdateSelf: */
+#include "texture9.h"
+#include "cubetexture9.h"
+#include "volumetexture9.h"
+
 #include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
 
@@ -100,6 +105,43 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This )
     return This->mipfilter;
 }
 
+HRESULT
+NineBaseTexture9_UpdateSelf( struct NineBaseTexture9 *This )
+{
+    unsigned last_level = This->base.info.last_level;
+    unsigned l;
+
+    assert(This->base.pool == D3DPOOL_MANAGED);
+
+    if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
+        last_level = 0;
+
+    if (This->base.type == D3DRTYPE_TEXTURE) {
+        struct NineTexture9 *tex = NineTexture9(This);
+
+        for (l = 0; l <= last_level; ++l)
+            NineSurface9_UpdateSelf(tex->surfaces[l]);
+    } else
+    if (This->base.type == D3DRTYPE_CUBETEXTURE) {
+        struct NineCubeTexture9 *tex = NineCubeTexture9(This);
+        unsigned z;
+
+        for (z = 0; z < 6; ++z)
+            for (l = 0; l <= last_level; ++l)
+                NineSurface9_UpdateSelf(tex->surfaces[l * 6 + z]);
+    } else
+    if (This->base.type == D3DRTYPE_VOLUMETEXTURE) {
+        struct NineVolumeTexture9 *tex = NineVolumeTexture9(This);
+
+        for (l = 0; l <= last_level; ++l)
+            NineVolume9_UpdateSelf(tex->volumes[l]);
+    } else {
+        assert(!"invalid texture type");
+    }
+
+    return D3D_OK;
+}
+
 void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
 {
@@ -109,6 +151,9 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
     unsigned filter = This->mipfilter == D3DTEXF_POINT ? PIPE_TEX_FILTER_NEAREST
                                                        : PIPE_TEX_FILTER_LINEAR;
     unsigned i;
+
+    if (This->base.pool == D3DPOOL_MANAGED)
+        NineBaseTexture9_UpdateSelf(This);
 
     if (This->base.type == D3DRTYPE_CUBETEXTURE) {
         faces = 6;

@@ -31,6 +31,8 @@
 #include "pixelshader9.h"
 #include "query9.h"
 #include "texture9.h"
+#include "cubetexture9.h"
+#include "volumetexture9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
 #include "nine_ff.h"
@@ -657,9 +659,11 @@ NineDevice9_UpdateSurface( struct NineDevice9 *This,
 
     user_assert(dst->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
     user_assert(src->base.pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
-    user_assert(dst->desc.Format == src->desc.Format, D3DERR_INVALIDCALL);
 
-    return NineSurface9_UploadFromSurface(dst, src);
+    user_assert(dst->desc.MultiSampleType == D3DMULTISAMPLE_NONE, D3DERR_INVALIDCALL);
+    user_assert(src->desc.MultiSampleType == D3DMULTISAMPLE_NONE, D3DERR_INVALIDCALL);
+
+    return NineSurface9_CopySurface(dst, src, pDestPoint, pSourceRect);
 }
 
 HRESULT WINAPI
@@ -667,20 +671,65 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
                            IDirect3DBaseTexture9 *pSourceTexture,
                            IDirect3DBaseTexture9 *pDestinationTexture )
 {
-    struct NineBaseTexture9 *dst = NineBaseTexture9(pDestinationTexture);
-    struct NineBaseTexture9 *src = NineBaseTexture9(pSourceTexture);
+    struct NineBaseTexture9 *dstb = NineBaseTexture9(pDestinationTexture);
+    struct NineBaseTexture9 *srcb = NineBaseTexture9(pSourceTexture);
+    unsigned l;
+    unsigned last_level = dstb->base.info.last_level;
 
     user_assert(pSourceTexture != pDestinationTexture, D3DERR_INVALIDCALL);
-    user_assert(dst->base.type == src->base.type, D3DERR_INVALIDCALL);
 
-    if (dst->base.usage & D3DUSAGE_AUTOGENMIPMAP) {
-        /* only update 1st level */
-        /* ... */
-        NineBaseTexture9_GenerateMipSubLevels(dst);
+    user_assert(dstb->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(srcb->base.pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+
+    if (dstb->base.usage & D3DUSAGE_AUTOGENMIPMAP) {
+        /* Only the first level is updated, the others regenerated. */
+        last_level = 0;
     } else {
-        /* update all levels */
+        user_assert(!(srcb->base.usage & D3DUSAGE_AUTOGENMIPMAP), D3DERR_INVALIDCALL);
     }
-    STUB(D3DERR_INVALIDCALL);
+
+    user_assert(dstb->base.type == srcb->base.type, D3DERR_INVALIDCALL);
+
+    /* TODO: We can restrict the update to the dirty portions of the source.
+     * Yes, this seems silly, but it's what MSDN says ...
+     */
+
+    if (dstb->base.type == D3DRTYPE_TEXTURE) {
+        struct NineTexture9 *dst = NineTexture9(dstb);
+        struct NineTexture9 *src = NineTexture9(srcb);
+
+        for (l = 0; l <= last_level; ++l)
+            NineSurface9_CopySurface(dst->surfaces[l],
+                                     src->surfaces[l], NULL, NULL);
+    } else
+    if (dstb->base.type == D3DRTYPE_CUBETEXTURE) {
+        struct NineCubeTexture9 *dst = NineCubeTexture9(dstb);
+        struct NineCubeTexture9 *src = NineCubeTexture9(srcb);
+        unsigned z;
+
+        /* GPUs usually have them stored as arrays of mip-mapped 2D textures. */
+        for (z = 0; z < 6; ++z) {
+            for (l = 0; l <= last_level; ++l) {
+                NineSurface9_CopySurface(dst->surfaces[l * 6 + z],
+                                         src->surfaces[l * 6 + z], NULL, NULL);
+            }
+        }
+    } else
+    if (dstb->base.type == D3DRTYPE_VOLUMETEXTURE) {
+        struct NineVolumeTexture9 *dst = NineVolumeTexture9(dstb);
+        struct NineVolumeTexture9 *src = NineVolumeTexture9(srcb);
+
+        for (l = 0; l <= last_level; ++l)
+            NineVolume9_CopyVolume(dst->volumes[l],
+                                   src->volumes[l], 0, 0, 0, NULL);
+    } else{
+        assert(!"invalid texture type");
+    }
+
+    if (dstb->base.usage & D3DUSAGE_AUTOGENMIPMAP)
+        NineBaseTexture9_GenerateMipSubLevels(dstb);
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -691,12 +740,13 @@ NineDevice9_GetRenderTargetData( struct NineDevice9 *This,
     struct NineSurface9 *dst = NineSurface9(pDestSurface);
     struct NineSurface9 *src = NineSurface9(pRenderTarget);
 
-    user_assert(dst->desc.Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
-    user_assert(src->desc.Pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
-    user_assert(src->desc.MultiSampleType < 2, D3DERR_INVALIDCALL);
-    user_assert(dst->desc.Format == src->desc.Format, D3DERR_INVALIDCALL);
+    user_assert(dst->desc.Pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+    user_assert(src->desc.Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
-    return NineSurface9_DownloadFromSurface(dst, src);
+    user_assert(dst->desc.MultiSampleType < 2, D3DERR_INVALIDCALL);
+    user_assert(src->desc.MultiSampleType < 2, D3DERR_INVALIDCALL);
+
+    return NineSurface9_CopySurface(dst, src, NULL, NULL);
 }
 
 HRESULT WINAPI

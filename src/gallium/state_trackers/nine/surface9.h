@@ -96,16 +96,27 @@ NineSurface9_GetResource( struct NineSurface9 *This )
     return This->base.resource;
 }
 
-HRESULT
-NineSurface9_UploadFromSurface( struct NineSurface9 *This,
-                                struct NineSurface9 *From );
+void
+NineSurface9_AddDirtyRect( struct NineSurface9 *This,
+                           const struct pipe_box *box );
+
+static INLINE void
+NineSurface9_ClearDirtyRects( struct NineSurface9 *This )
+{
+    memset(&This->dirty_rects, 0, sizeof(This->dirty_rects));
+}
 
 HRESULT
-NineSurface9_DownloadFromSurface( struct NineSurface9 *This,
-                                  struct NineSurface9 *From );
+NineSurface9_AllocateData( struct NineSurface9 *This );
 
 HRESULT
-NineSurface9_UploadSelf( struct NineSurface9 *This );
+NineSurface9_UpdateSelf( struct NineSurface9 *This );
+
+HRESULT
+NineSurface9_CopySurface( struct NineSurface9 *This,
+                          struct NineSurface9 *From,
+                          const POINT *pDestPoint,
+                          const RECT *pSourceRect );
 
 /*** Direct3D public ***/
 
@@ -134,18 +145,5 @@ NineSurface9_GetDC( struct NineSurface9 *This,
 HRESULT WINAPI
 NineSurface9_ReleaseDC( struct NineSurface9 *This,
                         HDC hdc );
-
-void
-NineSurface9_AddDirtyRect( struct NineSurface9 *This,
-                           const struct pipe_box *box );
-
-static INLINE void
-NineSurface9_ClearDirtyRects( struct NineSurface9 *This )
-{
-    memset(&This->dirty_rects, 0, sizeof(This->dirty_rects));
-}
-
-HRESULT
-NineSurface9_AllocateData( struct NineSurface9 *This );
 
 #endif /* _NINE_SURFACE9_H_ */

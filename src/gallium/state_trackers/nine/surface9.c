@@ -251,6 +251,13 @@ NineSurface9_LockRect( struct NineSurface9 *This,
     struct pipe_box box;
     unsigned usage;
 
+    DBG("This=%p pLockedRect=%p pRect=%p[(%u,%u)-(%u,%u)] Flags=%x\n", This,
+        pLockedRect, pRect,
+        pRect ? pRect->left : 0, pRect ? pRect->top : 0,
+        pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
+
+    user_assert(This->base.pool != D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
                             D3DLOCK_DONOTWAIT |
                             D3DLOCK_NO_DIRTY_UPDATE |
@@ -277,22 +284,31 @@ NineSurface9_LockRect( struct NineSurface9 *This,
 
     if (pRect) {
         rect_to_pipe_box(&box, pRect);
-        if (u_box_clip_2d(&box, This->desc.Width, This->desc.Height) < 0)
+        if (u_box_clip_2d(&box, This->desc.Width, This->desc.Height) < 0) {
+            DBG("pRect clipped by Width=%u Height=%u\n",
+                This->desc.Width, This->desc.Height);
             return D3DERR_INVALIDCALL;
+        }
     } else {
         u_box_origin_2d(This->desc.Width, This->desc.Height, &box);
     }
 
     if (This->base.data) {
+        DBG("returning system memory\n");
+
         pLockedRect->Pitch = This->stride;
         pLockedRect->pBits = This->base.data +
             box.y * This->stride +
             util_format_get_stride(This->base.info.format, box.x);
     } else {
+        DBG("mapping pipe_resource %p (level=%u usage=%x)\n",
+            resource, This->level, usage);
+
         pLockedRect->pBits = This->pipe->transfer_map(This->pipe, resource,
                                                       This->level, usage, &box,
                                                       &This->transfer);
         if (!This->transfer) {
+            DBG("transfer_map failed\n");
             if (Flags & D3DLOCK_DONOTWAIT)
                 return D3DERR_WASSTILLDRAWING;
             return D3DERR_INVALIDCALL;
@@ -312,7 +328,7 @@ HRESULT WINAPI
 NineSurface9_UnlockRect( struct NineSurface9 *This )
 {
     user_assert(This->lock_count, D3DERR_INVALIDCALL);
-    if (!This->transfer) {
+    if (This->transfer) {
         This->pipe->transfer_unmap(This->pipe, This->transfer);
         This->transfer = NULL;
     }
@@ -416,110 +432,166 @@ IDirect3DSurface9Vtbl NineSurface9_vtable = {
 };
 
 
-/* TODO: maybe switch to transfer_inline_write ? */
-HRESULT
-NineSurface9_UploadFromSurface( struct NineSurface9 *This,
-                                struct NineSurface9 *From )
+static INLINE boolean
+NineSurface9_IsDirty(struct NineSurface9 *This)
 {
-#if 0
-    struct NineDirtyRect *dirty;
-    enum pipe_format fmt = This->base.resource->format;
-    HRESULT hr;
-    D3DLOCKED_RECT dst, src;
-    RECT rect;
-    const unsigned width = From->desc.Width;
-    const unsigned height = From->desc.Height;
+    return This->dirty_rects[0].x1 != 0;
+}
 
-    user_assert(This->desc.MultiSampleType == D3DMULTISAMPLE_NONE &&
-                From->desc.MultiSampleType == D3DMULTISAMPLE_NONE,
-                D3DERR_INVALIDCALL);
+static INLINE uint8_t *
+NineSurface9_GetSystemMemPointer(struct NineSurface9 *This, int x, int y)
+{
+    unsigned x_offset = util_format_get_stride(This->base.info.format, x);
 
-    /* What about mip-maps ? */
+    y = util_format_get_nblocksy(This->base.info.format, y);
 
-    LIST_FOR_EACH_ENTRY(rect, &From->dirty, list) {
-        rect.left = dirty->rect.x0;
-        rect.top = dirty->rect.y0;
-        rect.right = dirty->rect.x1;
-        rect.bottom = dirty->rect.y1;
-
-        hr = NineSurface9_Lock(This, &dst, &rect,
-                               D3DLOCK_DISCARD | D3DLOCK_NO_DIRTY_UPDATE);
-        if (FAILED(hr))
-            return hr;
-        hr = NineSurface9_Lock(From, &src, &rect,
-                               D3DLOCK_READONLY);
-        if (FAILED(hr)) {
-            NineSurface9_Unlock(This);
-            return hr;
-        }
-
-        if (dst.Pitch == src.Pitch) {
-            memcpy(dst.pBits, src.pBits, size);
-        } else {
-            const unsigned size = util_format_get_stride(fmt, width);
-            unsigned i;
-            for (i = 0; i < height; ++i) {
-                memcpy(dst.pBits, src.pBits, size);
-                dst.pBits = (uint8_t *)dst.pBits + dst.Pitch;
-                src.pBits = (uint8_t *)src.pBits + src.Pitch;
-            }
-        }
-
-        NineSurface9_Unlock(From);
-        NineSurface9_Unlock(This);
-    }
-    return D3D_OK;
-#else
-    STUB(D3DERR_INVALIDCALL);
-#endif
+    assert(This->base.data);
+    return This->base.data + (y * This->stride + x_offset);
 }
 
 HRESULT
-NineSurface9_DownloadFromSurface( struct NineSurface9 *This,
-                                  struct NineSurface9 *From )
+NineSurface9_CopySurface( struct NineSurface9 *This,
+                          struct NineSurface9 *From,
+                          const POINT *pDestPoint,
+                          const RECT *pSourceRect )
 {
-    /* This works since we use NineSurface9_Lock. */
-    return NineSurface9_UploadFromSurface(This, From);
-}
-
-HRESULT
-NineSurface9_UploadSelf( struct NineSurface9 *This )
-{
-#if 0
     struct pipe_context *pipe = This->pipe;
-    struct pipe_resource *resource = This->base.resource;
-    struct pipe_box box;
-    struct NineDirtyRect *dirty;
-    void *data;
-    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD;
-    unsigned stride;
-    const enum pipe_format fmt = resource->format;
+    struct pipe_resource *r_dst = This->base.resource;
+    struct pipe_resource *r_src = From->base.resource;
+    struct pipe_transfer *transfer;
+    struct pipe_box src_box;
+    struct pipe_box dst_box;
+    uint8_t *p_dst;
+    const uint8_t *p_src;
 
-    assert(This->desc.Pool == D3DPOOL_MANAGED);
+    user_assert(This->desc.Format == From->desc.Format, D3DERR_INVALIDCALL);
 
-    box.z = This->level;
-    box.depth = 1;
+    dst_box.x = pDestPoint ? pDestPoint->x : 0;
+    dst_box.y = pDestPoint ? pDestPoint->y : 0;
 
-    LIST_FOR_EACH_ENTRY(rect, &This->dirty, list) {
-        box.x = dirty->rect.x0;
-        box.y = dirty->rect.y0;
-        box.width = dirty->rect.x1 - dirty->rect.x0;
-        box.height = dirty->rect.y1 - dirty->rect.y0;
+    user_assert(dst_box.x >= 0 &&
+                dst_box.y >= 0, D3DERR_INVALIDCALL);
 
-        data = This->base.data +
-            This->base.sys.stride * box.y + util_format_get_stride(fmt, box.x);
-        stride = This->base.sys.stride;
+    dst_box.z = This->layer;
+    src_box.z = From->layer;
 
-        DBG("Dirty: (%u.%u) (%ux%u) data(%p) stride(%u)\n",
-            box.x, box.y, box.width, box.height, data, stride);
+    dst_box.depth = 1;
+    src_box.depth = 1;
 
-        pipe->transfer_inline_write(pipe, resource, This->level, usage, &box,
-                                    data, stride, 0);
+    if (pSourceRect) {
+        /* make sure it doesn't range outside the source surface */
+        user_assert(pSourceRect->left >= 0 &&
+                    pSourceRect->right <= From->desc.Width &&
+                    pSourceRect->top >= 0 &&
+                    pSourceRect->bottom <= From->desc.Height,
+                    D3DERR_INVALIDCALL);
+        rect_to_pipe_box_xy_only(&src_box, pSourceRect);
+    } else {
+        src_box.x = 0;
+        src_box.y = 0;
+        src_box.width = From->desc.Width;
+        src_box.height = From->desc.Height;
     }
+
+    /* limits */
+    dst_box.width = This->desc.Width - dst_box.x;
+    dst_box.height = This->desc.Height - dst_box.y;
+
+    user_assert(src_box.width <= dst_box.width &&
+                src_box.height <= dst_box.height, D3DERR_INVALIDCALL);
+
+    dst_box.width = src_box.width;
+    dst_box.height = dst_box.height;
+
+    /* Don't copy to device memory of managed resources.
+     * We don't want to download it back again later.
+     */
+    if (This->base.pool == D3DPOOL_MANAGED)
+        r_dst = NULL;
+
+    /* Don't copy from stale device memory of managed resources.
+     * Also, don't copy between system and device if we don't have to.
+     */
+    if (From->base.pool == D3DPOOL_MANAGED) {
+        if (!r_dst || NineSurface9_IsDirty(From))
+            r_src = NULL;
+    }
+
+    if (r_dst && r_src) {
+        pipe->resource_copy_region(pipe,
+                                   r_dst, This->level,
+                                   dst_box.x, dst_box.y, dst_box.z,
+                                   r_src, From->level,
+                                   &src_box);
+    } else
+    if (r_dst) {
+        p_src = NineSurface9_GetSystemMemPointer(From, src_box.x, src_box.y);
+
+        pipe->transfer_inline_write(pipe, r_dst, This->level,
+                                    0, /* WRITE|DISCARD are implicit */
+                                    &dst_box, p_src, From->stride, 0);
+    } else
+    if (r_src) {
+        p_dst = NineSurface9_GetSystemMemPointer(This, 0, 0);
+
+        p_src = pipe->transfer_map(pipe, r_src, From->level,
+                                   PIPE_TRANSFER_READ,
+                                   &src_box, &transfer);
+        if (!p_src)
+            return D3DERR_DRIVERINTERNALERROR;
+
+        util_copy_rect(p_dst, This->base.info.format,
+                       This->stride, dst_box.x, dst_box.y,
+                       dst_box.width, dst_box.height,
+                       p_src,
+                       transfer->stride, src_box.x, src_box.y);
+
+        pipe->transfer_unmap(pipe, transfer);
+    } else {
+        p_dst = NineSurface9_GetSystemMemPointer(This, 0, 0);
+        p_src = NineSurface9_GetSystemMemPointer(From, 0, 0);
+
+        util_copy_rect(p_dst, This->base.info.format,
+                       This->stride, dst_box.x, dst_box.y,
+                       dst_box.width, dst_box.height,
+                       p_src,
+                       From->stride, src_box.x, src_box.y);
+    }
+
+    if (!r_dst && This->base.resource)
+        NineSurface9_AddDirtyRect(This, &dst_box);
+
     return D3D_OK;
-#else
-    STUB(D3DERR_INVALIDCALL);
-#endif
+}
+
+HRESULT
+NineSurface9_UpdateSelf( struct NineSurface9 *This )
+{
+    struct pipe_context *pipe = This->pipe;
+    struct pipe_resource *res = This->base.resource;
+    uint8_t *ptr;
+    unsigned i;
+
+    assert(This->base.pool == D3DPOOL_MANAGED);
+
+    if (!NineSurface9_IsDirty(This))
+        return D3D_OK;
+
+    for (i = 0; i < Elements(This->dirty_rects); ++i) {
+        struct pipe_box box;
+        nine_u_rect_to_pipe_box(&box, &This->dirty_rects[i], This->layer);
+
+        if (box.width == 0)
+            break;
+        ptr = NineSurface9_GetSystemMemPointer(This, box.x, box.y);
+
+        pipe->transfer_inline_write(pipe, res, This->level,
+                                    0,
+                                    &box, ptr, This->stride, 0);
+    }
+    NineSurface9_ClearDirtyRects(This);
+
+    return D3D_OK;
 }
 
 

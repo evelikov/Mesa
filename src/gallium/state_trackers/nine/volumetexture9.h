@@ -24,10 +24,12 @@
 #define _NINE_VOLUMETEXTURE9_H_
 
 #include "basetexture9.h"
+#include "volume9.h"
 
 struct NineVolumeTexture9
 {
     struct NineBaseTexture9 base;
+    struct NineVolume9 **volumes;
 };
 static INLINE struct NineVolumeTexture9 *
 NineVolumeTexture9( void *data )

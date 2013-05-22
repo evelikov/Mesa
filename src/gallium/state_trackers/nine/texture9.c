@@ -211,6 +211,18 @@ NineTexture9_AddDirtyRect( struct NineTexture9 *This,
     return D3D_OK;
 }
 
+static void WINAPI
+NineTexture9_PreLoad( struct NineTexture9 *This )
+{
+    unsigned l;
+
+    if (This->base.base.pool != D3DPOOL_MANAGED)
+        return;
+
+    for (l = 0; l <= This->base.base.info.last_level; ++l)
+        NineSurface9_UpdateSelf(This->surfaces[l]);
+}
+
 IDirect3DTexture9Vtbl NineTexture9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
@@ -221,7 +233,7 @@ IDirect3DTexture9Vtbl NineTexture9_vtable = {
     (void *)NineResource9_FreePrivateData,
     (void *)NineResource9_SetPriority,
     (void *)NineResource9_GetPriority,
-    (void *)NineResource9_PreLoad,
+    (void *)NineTexture9_PreLoad,
     (void *)NineResource9_GetType,
     (void *)NineBaseTexture9_SetLOD,
     (void *)NineBaseTexture9_GetLOD,

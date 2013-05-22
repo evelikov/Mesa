@@ -100,3 +100,19 @@ IDirect3DVolume9Vtbl NineVolume9_vtable = {
     (void *)NineVolume9_LockBox,
     (void *)NineVolume9_UnlockBox
 };
+
+
+HRESULT
+NineVolume9_CopyVolume( struct NineVolume9 *This,
+                        struct NineVolume9 *From,
+                        unsigned dstx, unsigned dsty, unsigned dstz,
+                        struct pipe_box *pSrcBox )
+{
+    STUB(D3DERR_INVALIDCALL);
+}
+
+HRESULT
+NineVolume9_UpdateSelf( struct NineVolume9 *This )
+{
+    STUB(D3DERR_INVALIDCALL);
+}

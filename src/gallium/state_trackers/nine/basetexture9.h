@@ -79,6 +79,10 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This );
 HRESULT
 NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This );
 
+/* For D3DPOOL_MANAGED only: */
+HRESULT
+NineBaseTexture9_UpdateSelf( struct NineBaseTexture9 *This );
+
 HRESULT
 NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This );
 
