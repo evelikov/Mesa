@@ -49,7 +49,6 @@ HRESULT
 NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        struct NineUnknownParams *pParams,
                        struct NineDevice9 *pDevice,
-                       struct pipe_resource *pResource,
                        D3DRESOURCETYPE Type,
                        D3DPOOL Pool );
 
@@ -76,7 +75,19 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This );
 void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This );
 
+/* For D3DPOOL_MANAGED only (after SetLOD change): */
 HRESULT
 NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This );
+
+HRESULT
+NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This );
+
+static INLINE struct pipe_sampler_view *
+NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This )
+{
+    if (!This->view)
+        NineBaseTexture9_UpdateSamplerView(This);
+    return This->view;
+}
 
 #endif /* _NINE_BASETEXTURE9_H_ */

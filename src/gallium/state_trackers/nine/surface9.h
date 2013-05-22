@@ -33,12 +33,8 @@ struct NineSurface9
 {
     struct NineResource9 base;
 
-    /* for GetContainer */
-    struct NineUnknown *container;
-
     /* G3D state */
     struct pipe_context *pipe;
-    struct pipe_screen *screen;
     struct pipe_transfer *transfer;
     struct pipe_surface *surface; /* created on-demand */
     int lock_count;

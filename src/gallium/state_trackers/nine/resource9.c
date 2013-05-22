@@ -76,18 +76,27 @@ HRESULT
 NineResource9_ctor( struct NineResource9 *This,
                     struct NineUnknownParams *pParams,
                     struct NineDevice9 *pDevice,
-                    struct pipe_resource *pResource,
+                    BOOL Allocate,
                     D3DRESOURCETYPE Type,
                     D3DPOOL Pool )
 {
-    HRESULT hr = NineUnknown_ctor(&This->base, pParams);
+    struct pipe_screen *screen = pDevice->screen;
+    HRESULT hr;
+
+    hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
 
     This->device = pDevice;
 
-    /* NOTE: Take care to unreference the resource in the caller. */
-    pipe_resource_reference(&This->resource, pResource);
+    This->info.screen = screen;
+
+    if (Allocate) {
+        DBG("(%p) Creating pipe_resource.\n", This);
+        This->resource = screen->resource_create(screen, &This->info);
+        if (!This->resource)
+            return D3DERR_OUTOFVIDEOMEMORY;
+    }
 
     This->type = Type;
     This->pool = Pool;
@@ -108,41 +117,11 @@ NineResource9_dtor( struct NineResource9 *This )
         util_hash_table_destroy(This->pdata);
     }
 
-    if (This->resource) {
-        if (This->resource->flags & NINE_RESOURCE_FLAG_DUMMY)
-            FREE(This->resource);
-        else
-            /* NOTE: We do have to use refcounting, the driver might
-             * still hold a reference. */
-            pipe_resource_reference(&This->resource, NULL);
-    }
+    /* NOTE: We do have to use refcounting, the driver might
+     * still hold a reference. */
+    pipe_resource_reference(&This->resource, NULL);
 
-#if 0
-    switch (This->type) {
-    case D3DRTYPE_TEXTURE:
-    case D3DRTYPE_VOLUMETEXTURE:
-    case D3DRTYPE_CUBETEXTURE:
-    case D3DRTYPE_VERTEXBUFFER:
-    case D3DRTYPE_INDEXBUFFER:
-        /* This object owns the resource. Note that the ctor might have
-         * been called with a NULL resource because the toplevel failed to
-         * create it. */
-        if (This->resource)
-            This->screen->resource_destroy(This->screen, This->resource);
-        break;
-
-    case D3DRTYPE_SURFACE:
-        if (This->resource &&
-            (This->resource->flags & NINE_RESOURCE_FLAG_OWNED_BY_SURFACE))
-            This->screen->resource_destroy(This->screen, This->resource);
-
-    default:
-        /* This object doesn't own the resource. There's also no point in
-         * reference counting an object that gets destroyed on a whim. */
-        break;
-    }
-#endif
-
+    /* release allocated system memory for non-D3DPOOL_DEFAULT resources */
     if (This->data)
         FREE(This->data);
 
@@ -293,11 +272,12 @@ NineResource9_CreatePipeResource( struct NineResource9 *This )
 {
     struct pipe_screen *screen = This->info.screen;
 
-    assert(This->type == D3DRTYPE_VERTEXBUFFER ||
-           This->type == D3DRTYPE_INDEXBUFFER ||
-           This->type == D3DRTYPE_SURFACE);
+    assert(!"Don't use this (yet)");
 
-    pipe_resource_reference(&This->resource, NULL);
+    if (This->resource) {
+        DBG("releasing old resource\n");
+        pipe_resource_reference(&This->resource, NULL);
+    }
 
     This->resource = screen->resource_create(screen, &This->info);
 

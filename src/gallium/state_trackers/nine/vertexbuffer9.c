@@ -43,6 +43,9 @@ NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
     struct pipe_resource *info = &This->base.info;
     HRESULT hr;
 
+    DBG("This=%p Size=0x%x Usage=%x Pool=%u\n", This,
+        pDesc->Size, pDesc->Usage, pDesc->Pool);
+
     user_assert(pDesc->Pool != D3DPOOL_SCRATCH, D3DERR_INVALIDCALL);
 
     This->maps = MALLOC(sizeof(struct pipe_transfer *));
@@ -83,7 +86,7 @@ NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
     info->last_level = 0;
     info->nr_samples = 0;
 
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, NULL,/*TRUE,*/
+    hr = NineResource9_ctor(&This->base, pParams, pDevice, TRUE,
                             D3DRTYPE_VERTEXBUFFER, pDesc->Pool);
     if (FAILED(hr))
         return hr;
@@ -119,6 +122,9 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
     void *data;
     const unsigned usage = d3dlock_to_pipe_transfer_usage(Flags);
 
+    DBG("This=%p(pipe=%p) OffsetToLock=0x%x, SizeToLock=0x%x, Flags=0x%x\n",
+        This, This->base.resource,
+        OffsetToLock, SizeToLock, Flags);
 
     user_assert(ppbData, E_POINTER);
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
@@ -144,7 +150,7 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
                                     usage, &box, &This->maps[This->nmaps]);
     if (!data) {
         DBG("pipe::transfer_map failed\n"
-            " usage = %u\n"
+            " usage = %x\n"
             " box.x = %u\n"
             " box.width = %u\n",
             usage, box.x, box.width);
@@ -161,6 +167,8 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
 HRESULT WINAPI
 NineVertexBuffer9_Unlock( struct NineVertexBuffer9 *This )
 {
+    DBG("This=%p\n", This);
+
     user_assert(This->nmaps > 0, D3DERR_INVALIDCALL);
     This->pipe->transfer_unmap(This->pipe, This->maps[--(This->nmaps)]);
     return D3D_OK;

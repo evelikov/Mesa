@@ -34,30 +34,6 @@
 
 #define DBG_CHANNEL DBG_TEXTURE
 
-static void
-NineTexture9_UpdateSamplerView( struct NineTexture9 *This )
-{
-    struct pipe_context *pipe = This->base.pipe;
-    struct pipe_resource *resource = This->base.base.resource;
-    struct pipe_sampler_view templ;
-
-    assert(resource);
-
-    pipe_sampler_view_reference(&This->base.view, NULL);
-
-    templ.format = resource->format;
-    templ.u.tex.first_layer = 0;
-    templ.u.tex.last_layer = 0;
-    templ.u.tex.first_level = 0;
-    templ.u.tex.last_level = resource->last_level;
-    templ.swizzle_r = PIPE_SWIZZLE_RED;
-    templ.swizzle_g = PIPE_SWIZZLE_GREEN;
-    templ.swizzle_b = PIPE_SWIZZLE_BLUE;
-    templ.swizzle_a = PIPE_SWIZZLE_ALPHA;
-
-    This->base.view = pipe->create_sampler_view(pipe, resource, &templ);
-}
-
 static HRESULT
 NineTexture9_ctor( struct NineTexture9 *This,
                    struct NineUnknownParams *pParams,
@@ -68,83 +44,67 @@ NineTexture9_ctor( struct NineTexture9 *This,
                    D3DPOOL Pool,
                    HANDLE *pSharedHandle )
 {
-    struct pipe_screen *screen = pDevice->screen;
-    struct pipe_resource *resource = NULL;
-    HRESULT hr;
-    D3DSURFACE_DESC sfdesc;
+    struct pipe_resource *info = &This->base.base.info;
     unsigned l;
-    struct pipe_resource templ;
+    D3DSURFACE_DESC sfdesc;
+    HRESULT hr;
+
+    DBG("(%p) Width=%u Height=%u Levels=%u Usage=%x Format=%s Pool=%u\n",
+        This,
+        Width, Height, Levels, Usage, d3dformat_to_string(Format), Pool);
 
     user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
                 Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
+                Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
 
     assert(!pSharedHandle); /* TODO */
 
-    templ.target = PIPE_TEXTURE_2D;
-    templ.format = d3d9_to_pipe_format(Format);
-    templ.width0 = Width;
-    templ.height0 = Height;
-    templ.depth0 = 1;
-    if (Levels)
-        templ.last_level = Levels - 1;
-    else
-        templ.last_level = util_logbase2(MAX2(Width, Height));
-    templ.array_size = 1;
-    templ.nr_samples = 0;
-    templ.flags = 0;
+    This->base.format = Format;
 
-    This->surfaces = CALLOC(templ.last_level + 1, sizeof(*This->surfaces));
+    info->screen = pDevice->screen;
+    info->target = PIPE_TEXTURE_2D;
+    info->format = d3d9_to_pipe_format(Format);
+    info->width0 = Width;
+    info->height0 = Height;
+    info->depth0 = 1;
+    if (Levels)
+        info->last_level = Levels - 1;
+    else
+        info->last_level = util_logbase2(MAX2(Width, Height));
+    info->array_size = 1;
+    info->nr_samples = 0;
+    info->bind = PIPE_BIND_SAMPLER_VIEW;
+    info->usage = PIPE_USAGE_DEFAULT;
+    info->flags = 0;
+
+    if (Usage & D3DUSAGE_RENDERTARGET)
+        info->bind |= PIPE_BIND_RENDER_TARGET;
+    if (Usage & D3DUSAGE_DEPTHSTENCIL)
+        info->bind |= PIPE_BIND_DEPTH_STENCIL;
+
+    if (Usage & D3DUSAGE_DYNAMIC) {
+        info->usage = PIPE_USAGE_DYNAMIC;
+        info->bind |=
+            PIPE_BIND_TRANSFER_READ |
+            PIPE_BIND_TRANSFER_WRITE;
+    }
+
+    if (Pool == D3DPOOL_SYSTEMMEM)
+        info->usage = PIPE_USAGE_STAGING;
+
+    This->surfaces = CALLOC(info->last_level + 1, sizeof(*This->surfaces));
     if (!This->surfaces)
         return E_OUTOFMEMORY;
 
-    if (Pool != D3DPOOL_SYSTEMMEM && Pool != D3DPOOL_SCRATCH) {
-        /* create device-accessible texture */
-        unsigned bind =
-            PIPE_BIND_SAMPLER_VIEW |
-            PIPE_BIND_TRANSFER_WRITE |
-            PIPE_BIND_TRANSFER_READ;
-        unsigned usage = PIPE_USAGE_STATIC;
-
-        if (Usage & D3DUSAGE_RENDERTARGET)
-            bind |= PIPE_BIND_RENDER_TARGET;
-        if (Usage & D3DUSAGE_DEPTHSTENCIL)
-            bind |= PIPE_BIND_DEPTH_STENCIL;
-
-        if (Usage & D3DUSAGE_DYNAMIC)
-            usage = PIPE_USAGE_DYNAMIC;
-
-        templ.usage = usage;
-        templ.bind = bind;
-
-        if (!screen->is_format_supported(screen, templ.format, PIPE_TEXTURE_2D,
-                                         0, bind))
-            return D3DERR_WRONGTEXTUREFORMAT;
-
-        resource = screen->resource_create(screen, &templ);
-        if (!resource)
-            return D3DERR_OUTOFVIDEOMEMORY;
-        /* NOTE: Don't return without unreferencing the resource ! */
-    }
-    This->base.format = Format;
-    This->base.base.info.format = d3d9_to_pipe_format(Format);
-    This->base.base.info.target = PIPE_TEXTURE_2D;
-    This->base.base.info.width0 = Width;
-    This->base.base.info.height0 = Height;
-    This->base.base.info.depth0 = 1;
-    This->base.base.info.array_size = 1;
-    This->base.base.info.last_level = templ.last_level;
-    This->base.base.usage = Usage;
-
     hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
-                               resource,
                                D3DRTYPE_TEXTURE, Pool);
-    /* BaseTexture9::Resource9 will hold the reference from here on. */
-    pipe_resource_reference(&resource, NULL);
     if (FAILED(hr))
         return hr;
 
-    /* Create all the surfaces right away, they manage backing storage
-     * and transfers (LockRect) are deferred to them.
+    /* Create all the surfaces right away.
+     * They manage backing storage, and transfers (LockRect) are deferred
+     * to them.
      */
     sfdesc.Format = Format;
     sfdesc.Type = D3DRTYPE_TEXTURE;
@@ -152,17 +112,16 @@ NineTexture9_ctor( struct NineTexture9 *This,
     sfdesc.Pool = Pool;
     sfdesc.MultiSampleType = D3DMULTISAMPLE_NONE;
     sfdesc.MultiSampleQuality = 0;
-    for (l = 0; l <= This->base.base.info.last_level; ++l) {
+    for (l = 0; l <= info->last_level; ++l) {
         sfdesc.Width = u_minify(Width, l);
         sfdesc.Height = u_minify(Height, l);
 
-        hr = NineSurface9_new(pDevice, NineUnknown(This), resource, l, 0,
+        hr = NineSurface9_new(pDevice, NineUnknown(This),
+                              This->base.base.resource, l, 0,
                               &sfdesc, &This->surfaces[l]);
         if (FAILED(hr))
             return hr;
     }
-
-    NineTexture9_UpdateSamplerView(This);
 
     return D3D_OK;
 }

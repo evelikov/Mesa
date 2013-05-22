@@ -23,6 +23,7 @@
 #include "basetexture9.h"
 #include "device9.h"
 
+#include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
 
 #define DBG_CHANNEL DBG_BASETEXTURE
@@ -31,12 +32,11 @@ HRESULT
 NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        struct NineUnknownParams *pParams,
                        struct NineDevice9 *pDevice,
-                       struct pipe_resource *pResource,
                        D3DRESOURCETYPE Type,
                        D3DPOOL Pool )
 {
     HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice,
-                                    pResource, Type, Pool);
+                                    Pool == D3DPOOL_DEFAULT, Type, Pool);
     if (FAILED(hr))
         return hr;
 
@@ -126,15 +126,19 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
 HRESULT
 NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This )
 {
-    struct pipe_screen *screen = This->base.device->screen;
+    struct pipe_screen *screen = This->base.info.screen;
     struct pipe_resource templ;
 
-    templ.target = This->base.info.target;
-    templ.format = This->base.info.format;
+    assert(This->base.pool == D3DPOOL_MANAGED);
 
-    templ.width0 = u_minify(This->base.info.width0, This->lod);
-    templ.height0 = u_minify(This->base.info.height0, This->lod);
-    templ.depth0 = u_minify(This->base.info.depth0, This->lod);
+    templ = This->base.info;
+
+    if (This->lod) {
+        templ.width0 = u_minify(templ.width0, This->lod);
+        templ.height0 = u_minify(templ.height0, This->lod);
+        templ.depth0 = u_minify(templ.depth0, This->lod);
+    }
+    templ.last_level = This->base.info.last_level - This->lod;
 
     if (This->base.resource) {
         /* LOD might have changed. */
@@ -145,16 +149,45 @@ NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This )
         pipe_resource_reference(&This->base.resource, NULL);
     }
 
-    templ.array_size = This->base.info.array_size;
-    templ.last_level = This->base.info.last_level - This->lod;
-    templ.nr_samples = This->base.info.nr_samples;
-
-    templ.usage = This->base.info.usage;
-    templ.bind = This->base.info.bind;
-    templ.flags = This->base.info.flags;
-
     This->base.resource = screen->resource_create(screen, &templ);
     if (!This->base.resource)
         return D3DERR_OUTOFVIDEOMEMORY;
     return D3D_OK;
+}
+
+HRESULT
+NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
+{
+    struct pipe_context *pipe = This->pipe;
+    struct pipe_resource *resource = This->base.resource;
+    struct pipe_sampler_view templ;
+    uint8_t swizzle[4];
+    unsigned i;
+
+    assert(resource);
+
+    pipe_sampler_view_reference(&This->view, NULL);
+
+    /* docs/source/tgsi.rst suggests D3D9 has unused components equal 1 */
+    swizzle[0] = PIPE_SWIZZLE_RED;
+    swizzle[1] = PIPE_SWIZZLE_GREEN;
+    swizzle[2] = PIPE_SWIZZLE_BLUE;
+    swizzle[3] = PIPE_SWIZZLE_ALPHA;
+    for (i = util_format_get_nr_components(templ.format); i < 4; ++i)
+        swizzle[i] = PIPE_SWIZZLE_ONE;
+
+    templ.format = resource->format;
+    templ.u.tex.first_layer = 0;
+    templ.u.tex.last_layer = (resource->target == PIPE_TEXTURE_CUBE) ?
+        6 : (This->base.info.depth0 - 1);
+    templ.u.tex.first_level = 0;
+    templ.u.tex.last_level = resource->last_level;
+    templ.swizzle_r = swizzle[0];
+    templ.swizzle_g = swizzle[1];
+    templ.swizzle_b = swizzle[2];
+    templ.swizzle_a = swizzle[3];
+
+    This->view = pipe->create_sampler_view(pipe, resource, &templ);
+
+    return This->view ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }

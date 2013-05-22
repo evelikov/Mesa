@@ -78,7 +78,32 @@ NineSurface9_ctor( struct NineSurface9 *This,
     user_assert(!(pDesc->Usage & D3DUSAGE_DYNAMIC) ||
                 (pDesc->Pool != D3DPOOL_MANAGED), D3DERR_INVALIDCALL);
 
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, pResource,
+    assert(pResource || pDesc->Pool != D3DPOOL_DEFAULT);
+
+    This->base.info.screen = pDevice->screen;
+    This->base.info.target = PIPE_TEXTURE_2D;
+    This->base.info.format = d3d9_to_pipe_format(pDesc->Format);
+    This->base.info.width0 = pDesc->Width;
+    This->base.info.height0 = pDesc->Height;
+    This->base.info.depth0 = 1;
+    This->base.info.last_level = 0;
+    This->base.info.array_size = 1;
+    This->base.info.nr_samples = pDesc->MultiSampleType;
+    This->base.info.usage = PIPE_USAGE_DEFAULT;
+    This->base.info.bind = PIPE_BIND_SAMPLER_VIEW;
+    This->base.info.flags = 0;
+
+    if (pDesc->Usage & D3DUSAGE_RENDERTARGET)
+        This->base.info.bind |= PIPE_BIND_RENDER_TARGET;
+    if (pDesc->Usage & D3DUSAGE_DEPTHSTENCIL)
+        This->base.info.bind |= PIPE_BIND_DEPTH_STENCIL;
+
+    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
+        This->base.info.usage = PIPE_USAGE_STAGING;
+
+    pipe_resource_reference(&This->base.resource, pResource);
+
+    hr = NineResource9_ctor(&This->base, pParams, pDevice, FALSE,
                             D3DRTYPE_SURFACE, pDesc->Pool);
     if (FAILED(hr))
         return hr;
@@ -88,7 +113,6 @@ NineSurface9_ctor( struct NineSurface9 *This,
         NineUnknown_AddRef(NineUnknown(NineResource9(This)->device));
 
     This->pipe = NineDevice9_GetPipe(pDevice);
-    This->screen = NineDevice9_GetScreen(pDevice);
     This->transfer = NULL;
 
     This->level = Level;
@@ -103,6 +127,12 @@ NineSurface9_ctor( struct NineSurface9 *This,
     }
 
     This->stride = util_format_get_stride(This->base.info.format, pDesc->Width);
+
+    if (!pResource) {
+        hr = NineSurface9_AllocateData(This);
+        if (FAILED(hr))
+            return hr;
+    }
 
     return D3D_OK;
 }
@@ -149,7 +179,7 @@ NineSurface9_GetContainer( struct NineSurface9 *This,
 {
     if (!NineUnknown(This)->container)
         return E_NOINTERFACE;
-    return NineUnknown_QueryInterface(This->container, riid, ppContainer);
+    return NineUnknown_QueryInterface(NineUnknown(This)->container, riid, ppContainer);
 }
 
 HRESULT WINAPI
@@ -341,6 +371,9 @@ NineSurface9_AllocateData( struct NineSurface9 *This )
             PIPE_BIND_TRANSFER_READ;
         templ.flags = 0;
 
+        DBG("(%p(This=%p),level=%u) Allocating staging resource.\n",
+            This->base.base.container, This, This->level);
+
         resource = screen->resource_create(screen, &templ);
         if (!resource)
             DBG("Failed to allocate staging resource.\n");
@@ -351,6 +384,9 @@ NineSurface9_AllocateData( struct NineSurface9 *This )
     if (!This->base.resource) {
         const unsigned size = This->stride *
             util_format_get_nblocksy(This->base.info.format, This->desc.Height);
+
+        DBG("(%p(This=%p),level=%u) Allocating 0x%x bytes of system memory.\n",
+            This->base.base.container, This, This->level, size);
 
         This->base.data = (uint8_t *)MALLOC(size);
         if (!This->base.data)

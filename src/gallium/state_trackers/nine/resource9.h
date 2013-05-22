@@ -62,7 +62,7 @@ HRESULT
 NineResource9_ctor( struct NineResource9 *This,
                     struct NineUnknownParams *pParams,
                     struct NineDevice9 *pDevice,
-                    struct pipe_resource *pResource,
+                    BOOL Allocate,
                     D3DRESOURCETYPE Type,
                     D3DPOOL Pool );
 

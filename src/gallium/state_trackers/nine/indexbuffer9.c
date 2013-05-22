@@ -74,7 +74,7 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
     info->last_level = 0;
     info->nr_samples = 0;
 
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, NULL,/*TRUE,*/
+    hr = NineResource9_ctor(&This->base, pParams, pDevice, TRUE,
                             D3DRTYPE_INDEXBUFFER, pDesc->Pool);
     if (FAILED(hr))
         return hr;
