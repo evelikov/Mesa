@@ -2,6 +2,7 @@
 #define UTIL_BOX_INLINES_H
 
 #include "pipe/p_state.h"
+#include "util/u_math.h"
 
 static INLINE
 void u_box_1d( unsigned x,
@@ -116,6 +117,32 @@ boolean u_box_contained_2d(const struct pipe_box *a, const struct pipe_box *b)
    return
       a->x >= b->x && a_x1 <= b_x1 &&
       a->y >= b->y && a_y1 <= b_y1;
+}
+
+static INLINE
+int64_t u_box_volume(const struct pipe_box *box)
+{
+   return (int64_t)box->width * box->height * box->depth;
+}
+
+static INLINE
+void u_box_cover(struct pipe_box *dst,
+                 const struct pipe_box *a, const struct pipe_box *b)
+{
+   int x1_a = a->x + a->width;
+   int y1_a = a->y + a->height;
+   int z1_a = a->z + a->depth;
+   int x1_b = b->x + b->width;
+   int y1_b = b->y + b->height;
+   int z1_b = b->z + b->depth;
+
+   dst->x = MIN2(a->x, b->x);
+   dst->y = MIN2(a->y, b->y);
+   dst->z = MIN2(a->z, b->z);
+
+   dst->width = MAX2(x1_a, x1_b) - dst->x;
+   dst->height = MAX2(y1_a, y1_b) - dst->y;
+   dst->depth = MAX2(z1_a, z1_b) - dst->z;
 }
 
 #endif
