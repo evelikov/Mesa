@@ -268,7 +268,7 @@ NineSurface9_LockRect( struct NineSurface9 *This,
                 D3DERR_INVALIDCALL);
 
     /* check if it's already locked */
-    user_assert(!This->transfer, D3DERR_INVALIDCALL);
+    user_assert(This->lock_count == 0, D3DERR_INVALIDCALL);
     user_assert(pLockedRect, E_POINTER);
 
     user_assert(This->desc.MultiSampleType == D3DMULTISAMPLE_NONE,
@@ -502,7 +502,7 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
                 src_box.height <= dst_box.height, D3DERR_INVALIDCALL);
 
     dst_box.width = src_box.width;
-    dst_box.height = dst_box.height;
+    dst_box.height = src_box.height;
 
     /* Don't copy to device memory of managed resources.
      * We don't want to download it back again later.

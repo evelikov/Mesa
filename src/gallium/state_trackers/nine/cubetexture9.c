@@ -20,10 +20,111 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include "device9.h"
 #include "cubetexture9.h"
+#include "nine_helpers.h"
 #include "nine_pipe.h"
 
 #define DBG_CHANNEL DBG_CUBETEXTURE
+
+
+static HRESULT
+NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
+                       struct NineUnknownParams *pParams,
+                       struct NineDevice9 *pDevice,
+                       UINT EdgeLength, UINT Levels,
+                       DWORD Usage,
+                       D3DFORMAT Format,
+                       D3DPOOL Pool,
+                       HANDLE *pSharedHandle )
+{
+    struct pipe_resource *info = &This->base.base.info;
+    unsigned i;
+    D3DSURFACE_DESC sfdesc;
+    HRESULT hr;
+
+    user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
+                Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
+                Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+
+    assert(!pSharedHandle); /* TODO */
+
+    This->base.format = Format;
+
+    info->screen = pDevice->screen;
+    info->target = PIPE_TEXTURE_CUBE;
+    info->format = d3d9_to_pipe_format(Format);
+    info->width0 = EdgeLength;
+    info->height0 = EdgeLength;
+    info->depth0 = 1;
+    if (Levels)
+        info->last_level = Levels - 1;
+    else
+        info->last_level = util_logbase2(EdgeLength);
+    info->array_size = 6;
+    info->nr_samples = 0;
+    info->bind = PIPE_BIND_SAMPLER_VIEW;
+    info->usage = PIPE_USAGE_DEFAULT;
+    info->flags = 0;
+
+    if (Usage & D3DUSAGE_RENDERTARGET)
+        info->bind |= PIPE_BIND_RENDER_TARGET;
+    if (Usage & D3DUSAGE_DEPTHSTENCIL)
+        info->bind |= PIPE_BIND_DEPTH_STENCIL;
+
+    if (Usage & D3DUSAGE_DYNAMIC) {
+        info->usage = PIPE_USAGE_DYNAMIC;
+        info->bind |=
+            PIPE_BIND_TRANSFER_READ |
+            PIPE_BIND_TRANSFER_WRITE;
+    }
+
+    This->surfaces = CALLOC(6 * (info->last_level + 1), sizeof(*This->surfaces));
+    if (!This->surfaces)
+        return E_OUTOFMEMORY;
+
+    hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
+                               D3DRTYPE_TEXTURE, Pool);
+    if (FAILED(hr))
+        return hr;
+
+    /* Create all the surfaces right away.
+     * They manage backing storage, and transfers (LockRect) are deferred
+     * to them.
+     */
+    sfdesc.Format = Format;
+    sfdesc.Type = D3DRTYPE_CUBETEXTURE;
+    sfdesc.Usage = Usage;
+    sfdesc.Pool = Pool;
+    sfdesc.MultiSampleType = D3DMULTISAMPLE_NONE;
+    sfdesc.MultiSampleQuality = 0;
+    for (i = 0; i < (info->last_level + 1) * 6; ++i) {
+        sfdesc.Width = sfdesc.Height = u_minify(EdgeLength, i / 6);
+
+        hr = NineSurface9_new(pDevice, NineUnknown(This),
+                              This->base.base.resource, i / 6, i % 6,
+                              &sfdesc, &This->surfaces[i]);
+        if (FAILED(hr))
+            return hr;
+    }
+
+    return D3D_OK;
+}
+
+static void
+NineCubeTexture9_dtor( struct NineCubeTexture9 *This )
+{
+    unsigned i;
+
+    if (This->surfaces) {
+        for (i = 0; i < This->base.base.info.last_level * 6; ++i)
+            nine_reference(&This->surfaces[i], NULL);
+        FREE(This->surfaces);
+    }
+
+    NineBaseTexture9_dtor(&This->base);
+}
 
 HRESULT WINAPI
 NineCubeTexture9_GetLevelDesc( struct NineCubeTexture9 *This,
@@ -135,3 +236,25 @@ IDirect3DCubeTexture9Vtbl NineCubeTexture9_vtable = {
     (void *)NineCubeTexture9_UnlockRect,
     (void *)NineCubeTexture9_AddDirtyRect
 };
+
+static const GUID *NineCubeTexture9_IIDs[] = {
+    &IID_IDirect3DCubeTexture9,
+    &IID_IDirect3DBaseTexture9,
+    &IID_IDirect3DResource9,
+    &IID_IUnknown,
+    NULL
+};
+
+HRESULT
+NineCubeTexture9_new( struct NineDevice9 *pDevice,
+                      UINT EdgeLength, UINT Levels,
+                      DWORD Usage,
+                      D3DFORMAT Format,
+                      D3DPOOL Pool,
+                      struct NineCubeTexture9 **ppOut,
+                      HANDLE *pSharedHandle )
+{
+    NINE_NEW(NineCubeTexture9, ppOut, pDevice,
+             EdgeLength, Levels,
+             Usage, Format, Pool, pSharedHandle);
+}

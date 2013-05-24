@@ -105,6 +105,21 @@ int u_box_clip_2d(struct pipe_box *box, int w, int h)
    return res;
 }
 
+static INLINE
+int u_box_clip_3d(struct pipe_box *box, int w, int h, int d)
+{
+   int max_w = w - box->x;
+   int max_h = h - box->y;
+   int max_d = d - box->z;
+   int res = 0;
+   if (box->x >= w || box->y >= h || box->z >= d)
+      return -1;
+   if (box->width  > max_w) { res |= 1; box->width  = max_w; }
+   if (box->height > max_h) { res |= 2; box->height = max_h; }
+   if (box->depth  > max_d) { res |= 4; box->depth  = max_d; }
+   return res;
+}
+
 /* Return true if @a is contained in or equal to @b.
  */
 static INLINE

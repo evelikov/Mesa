@@ -25,7 +25,12 @@
 
 #include "iunknown.h"
 
+#include "pipe/p_state.h"
 #include "util/u_inlines.h"
+
+struct util_hash_table;
+
+struct NineDevice9;
 
 struct NineVolume9
 {
@@ -35,15 +40,37 @@ struct NineVolume9
     unsigned level;
     unsigned level_actual;
 
+    uint8_t *data; /* system memory backing */
+
     D3DVOLUME_DESC desc;
+    struct pipe_resource info;
+    unsigned stride;
+    unsigned layer_stride;
+
+    struct pipe_transfer *transfer;
+    unsigned lock_count;
 
     struct pipe_box dirty_box[2];
+
+    struct pipe_context *pipe;
+    struct NineDevice9 *device; /* creator device */
+
+    /* for [GS]etPrivateData/FreePrivateData */
+    struct util_hash_table *pdata;
 };
 static INLINE struct NineVolume9 *
 NineVolume9( void *data )
 {
     return (struct NineVolume9 *)data;
 }
+
+HRESULT
+NineVolume9_new( struct NineDevice9 *pDevice,
+                 struct NineUnknown *pContainer,
+                 struct pipe_resource *pResource,
+                 unsigned Level,
+                 D3DVOLUME_DESC *pDesc,
+                 struct NineVolume9 **ppOut );
 
 /*** Nine private ***/
 
@@ -53,6 +80,16 @@ NineVolume9_SetResource( struct NineVolume9 *This,
 {
     This->level = level;
     pipe_resource_reference(&This->resource, resource);
+}
+
+void
+NineVolume9_AddDirtyRegion( struct NineVolume9 *This,
+                            const struct pipe_box *box );
+
+static INLINE void
+NineVolume9_ClearDirtyRegion( struct NineVolume9 *This )
+{
+    memset(&This->dirty_box, 0, sizeof(This->dirty_box));
 }
 
 HRESULT

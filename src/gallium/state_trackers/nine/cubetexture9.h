@@ -37,6 +37,15 @@ NineCubeTexture9( void *data )
     return (struct NineCubeTexture9 *)data;
 }
 
+HRESULT
+NineCubeTexture9_new( struct NineDevice9 *pDevice,
+                      UINT EdgeLength, UINT Levels,
+                      DWORD Usage,
+                      D3DFORMAT Format,
+                      D3DPOOL Pool,
+                      struct NineCubeTexture9 **ppOut,
+                      HANDLE *pSharedHandle );
+
 HRESULT WINAPI
 NineCubeTexture9_GetLevelDesc( struct NineCubeTexture9 *This,
                                UINT Level,

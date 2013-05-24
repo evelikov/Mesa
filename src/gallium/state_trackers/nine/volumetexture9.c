@@ -20,9 +20,102 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
+#include "device9.h"
 #include "volumetexture9.h"
+#include "nine_helpers.h"
+#include "nine_pipe.h"
 
 #define DBG_CHANNEL DBG_VOLUMETEXTURE
+
+static HRESULT
+NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
+                         struct NineUnknownParams *pParams,
+                         struct NineDevice9 *pDevice,
+                         UINT Width, UINT Height, UINT Depth, UINT Levels,
+                         DWORD Usage,
+                         D3DFORMAT Format,
+                         D3DPOOL Pool,
+                         HANDLE *pSharedHandle )
+{
+    struct pipe_resource *info = &This->base.base.info;
+    unsigned l;
+    D3DVOLUME_DESC voldesc;
+    HRESULT hr;
+
+    /* An IDirect3DVolume9 cannot be bound as a render target can it ? */
+    user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)),
+                D3DERR_INVALIDCALL);
+    user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
+                Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+
+    assert(!pSharedHandle); /* TODO */
+
+    This->base.format = Format;
+
+    info->screen = pDevice->screen;
+    info->target = PIPE_TEXTURE_3D;
+    info->format = d3d9_to_pipe_format(Format);
+    info->width0 = Width;
+    info->height0 = Height;
+    info->depth0 = Depth;
+    if (Levels)
+        info->last_level = Levels - 1;
+    else
+        info->last_level = util_logbase2(MAX2(MAX2(Width, Height), Depth));
+    info->array_size = 1;
+    info->nr_samples = 0;
+    info->bind = PIPE_BIND_SAMPLER_VIEW;
+    info->usage = PIPE_USAGE_DEFAULT;
+    info->flags = 0;
+
+    if (Usage & D3DUSAGE_DYNAMIC) {
+        info->usage = PIPE_USAGE_DYNAMIC;
+        info->bind |=
+            PIPE_BIND_TRANSFER_READ |
+            PIPE_BIND_TRANSFER_WRITE;
+    }
+
+    This->volumes = CALLOC(info->last_level + 1, sizeof(*This->volumes));
+    if (!This->volumes)
+        return E_OUTOFMEMORY;
+
+    hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
+                               D3DRTYPE_TEXTURE, Pool);
+    if (FAILED(hr))
+        return hr;
+
+    voldesc.Format = Format;
+    voldesc.Type = D3DRTYPE_VOLUMETEXTURE;
+    voldesc.Usage = Usage;
+    voldesc.Pool = Pool;
+    for (l = 0; l <= info->last_level; ++l) {
+        voldesc.Width = u_minify(Width, l);
+        voldesc.Height = u_minify(Height, l);
+        voldesc.Depth = u_minify(Depth, l);
+
+        hr = NineVolume9_new(pDevice, NineUnknown(This),
+                             This->base.base.resource, l,
+                             &voldesc, &This->volumes[l]);
+        if (FAILED(hr))
+            return hr;
+    }
+
+    return D3D_OK;
+}
+
+static void
+NineVolumeTexture9_dtor( struct NineVolumeTexture9 *This )
+{
+    unsigned l;
+
+    if (This->volumes) {
+        for (l = 0; l < This->base.base.info.last_level; ++l)
+            nine_reference(&This->volumes[l], NULL);
+        FREE(This->volumes);
+    }
+
+    NineBaseTexture9_dtor(&This->base);
+}
 
 HRESULT WINAPI
 NineVolumeTexture9_GetLevelDesc( struct NineVolumeTexture9 *This,
@@ -77,7 +170,17 @@ HRESULT WINAPI
 NineVolumeTexture9_AddDirtyBox( struct NineVolumeTexture9 *This,
                                 const D3DBOX *pDirtyBox )
 {
-    STUB(D3DERR_INVALIDCALL);
+    if (This->base.base.pool != D3DPOOL_MANAGED)
+        return D3D_OK;
+
+    if (!pDirtyBox) {
+        NineVolume9_AddDirtyRegion(This->volumes[0], NULL);
+    } else {
+        struct pipe_box box;
+        d3dbox_to_pipe_box(&box, pDirtyBox);
+        NineVolume9_AddDirtyRegion(This->volumes[0], &box);
+    }
+    return D3D_OK;
 }
 
 IDirect3DVolumeTexture9Vtbl NineVolumeTexture9_vtable = {
@@ -104,3 +207,26 @@ IDirect3DVolumeTexture9Vtbl NineVolumeTexture9_vtable = {
     (void *)NineVolumeTexture9_UnlockBox,
     (void *)NineVolumeTexture9_AddDirtyBox
 };
+
+static const GUID *NineVolumeTexture9_IIDs[] = {
+    &IID_IDirect3DVolumeTexture9,
+    &IID_IDirect3DBaseTexture9,
+    &IID_IDirect3DResource9,
+    &IID_IUnknown,
+    NULL
+};
+
+HRESULT
+NineVolumeTexture9_new( struct NineDevice9 *pDevice,
+                        UINT Width, UINT Height, UINT Depth, UINT Levels,
+                        DWORD Usage,
+                        D3DFORMAT Format,
+                        D3DPOOL Pool,
+                        struct NineVolumeTexture9 **ppOut,
+                        HANDLE *pSharedHandle )
+{
+    NINE_NEW(NineVolumeTexture9, ppOut, pDevice,
+             Width, Height, Depth, Levels,
+             Usage, Format, Pool, pSharedHandle);
+}
+

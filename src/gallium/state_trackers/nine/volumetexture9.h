@@ -37,6 +37,15 @@ NineVolumeTexture9( void *data )
     return (struct NineVolumeTexture9 *)data;
 }
 
+HRESULT
+NineVolumeTexture9_new( struct NineDevice9 *pDevice,
+                        UINT Width, UINT Height, UINT Depth, UINT Levels,
+                        DWORD Usage,
+                        D3DFORMAT Format,
+                        D3DPOOL Pool,
+                        struct NineVolumeTexture9 **ppOut,
+                        HANDLE *pSharedHandle );
+
 HRESULT WINAPI
 NineVolumeTexture9_GetLevelDesc( struct NineVolumeTexture9 *This,
                                  UINT Level,
