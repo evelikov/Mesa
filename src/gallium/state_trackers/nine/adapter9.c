@@ -26,6 +26,7 @@
 #include "nine_defines.h"
 #include "nine_pipe.h"
 #include "util/u_math.h"
+#include "util/u_dump.h"
 
 #include "pipe/p_screen.h"
 
@@ -201,84 +202,86 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
                                 D3DFORMAT CheckFormat )
 {
     struct pipe_screen *screen;
-    enum pipe_texture_target target;
-    enum pipe_format fmt;
-    unsigned bind = 0;
-    unsigned usage = 0;
     HRESULT hr;
-    boolean nomip = FALSE;
+    enum pipe_format pf;
+    enum pipe_texture_target target;
+    unsigned bind = 0;
+
+    /* Check adapter format. */
 
     user_assert(display_format(AdapterFormat, FALSE), D3DERR_INVALIDCALL);
 
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr))
+        return hr;
 
-    fmt = d3d9_to_pipe_format(AdapterFormat);
-    if (fmt == PIPE_FORMAT_NONE) { return D3DERR_NOTAVAILABLE; }
-    if (!screen->is_format_supported(screen, fmt, PIPE_TEXTURE_2D, 1,
+    pf = d3d9_to_pipe_format(AdapterFormat);
+    if (pf == PIPE_FORMAT_NONE ||
+        !screen->is_format_supported(screen, pf, PIPE_TEXTURE_2D, 0,
                                      PIPE_BIND_DISPLAY_TARGET |
                                      PIPE_BIND_SHARED)) {
+        DBG("AdapterFormat %s not available.\n",
+            d3dformat_to_string(AdapterFormat));
         return D3DERR_NOTAVAILABLE;
     }
 
-    if (Usage & D3DUSAGE_DEPTHSTENCIL) { bind |= PIPE_BIND_DEPTH_STENCIL; }
-    if (Usage & D3DUSAGE_DYNAMIC) { usage |= PIPE_USAGE_DYNAMIC; }
-    if (Usage & D3DUSAGE_RENDERTARGET) { usage |= PIPE_BIND_RENDER_TARGET; }
+    /* Check actual format. */
 
     switch (RType) {
-        case D3DRTYPE_SURFACE:
-            nomip = TRUE;
-            target = PIPE_TEXTURE_2D;
-            break;
-
-        case D3DRTYPE_VOLUME:
-            nomip = TRUE;
-            target = PIPE_TEXTURE_3D;
-            break;
-
-        case D3DRTYPE_TEXTURE:
-            target = PIPE_TEXTURE_2D;
-            break;
-
-        case D3DRTYPE_VOLUMETEXTURE:
-            target = PIPE_TEXTURE_3D;
-            break;
-
-        case D3DRTYPE_CUBETEXTURE:
-            target = PIPE_TEXTURE_CUBE;
-            break;
-
-        case D3DRTYPE_VERTEXBUFFER:
-            target = PIPE_BUFFER;
-            bind |= PIPE_BIND_VERTEX_BUFFER;
-            break;
-
-        case D3DRTYPE_INDEXBUFFER:
-            target = PIPE_BUFFER;
-            bind |= PIPE_BIND_INDEX_BUFFER;
-            break;
-
-        default:
-            return D3DERR_INVALIDCALL;
+    case D3DRTYPE_SURFACE:       target = PIPE_TEXTURE_2D; break;
+    case D3DRTYPE_TEXTURE:       target = PIPE_TEXTURE_2D; break;
+    case D3DRTYPE_CUBETEXTURE:   target = PIPE_TEXTURE_CUBE; break;
+    case D3DRTYPE_VOLUME:        target = PIPE_TEXTURE_3D; break;
+    case D3DRTYPE_VOLUMETEXTURE: target = PIPE_TEXTURE_3D; break;
+    case D3DRTYPE_VERTEXBUFFER:  target = PIPE_BUFFER; break;
+    case D3DRTYPE_INDEXBUFFER:   target = PIPE_BUFFER; break;
+    default:
+        user_assert(0, D3DERR_INVALIDCALL);
     }
 
-    /* XXX displacement map */
+    bind = 0;
+    if (Usage & D3DUSAGE_RENDERTARGET) bind |= PIPE_BIND_RENDER_TARGET;
+    if (Usage & D3DUSAGE_DEPTHSTENCIL) bind |= PIPE_BIND_DEPTH_STENCIL;
+
+    if (Usage & D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING)
+        bind |= PIPE_BIND_BLENDABLE;
+
     if (Usage & D3DUSAGE_DMAP) {
+        DBG("D3DUSAGE_DMAP not available\n");
+        return D3DERR_NOTAVAILABLE; /* TODO: displacement mapping */
+    }
+
+    switch (RType) {
+    case D3DRTYPE_TEXTURE:       bind |= PIPE_BIND_SAMPLER_VIEW; break;
+    case D3DRTYPE_CUBETEXTURE:   bind |= PIPE_BIND_SAMPLER_VIEW; break;
+    case D3DRTYPE_VOLUMETEXTURE: bind |= PIPE_BIND_SAMPLER_VIEW; break;
+    case D3DRTYPE_VERTEXBUFFER:  bind |= PIPE_BIND_VERTEX_BUFFER; break;
+    case D3DRTYPE_INDEXBUFFER:   bind |= PIPE_BIND_INDEX_BUFFER; break;
+    default:
+        break;
+    }
+
+
+    pf = d3d9_to_pipe_format(CheckFormat);
+    if (Usage & (D3DUSAGE_QUERY_SRGBREAD | D3DUSAGE_QUERY_SRGBWRITE))
+        pf = util_format_srgb(pf);
+
+    DBG("Format=%s/%s Usage/Bind=%x/%s RType/Target=%u/%s\n",
+        d3dformat_to_string(CheckFormat), util_format_name(pf),
+        Usage, util_dump_bind_flags(bind),
+        RType, util_dump_tex_target(target, TRUE));
+
+    if (pf == PIPE_FORMAT_NONE ||
+        !screen->is_format_supported(screen, pf, target, 0, bind)) {
+        DBG("NOT AVAILABLE\n");
         return D3DERR_NOTAVAILABLE;
     }
 
-    fmt = d3d9_to_pipe_format(CheckFormat);
-    if (!screen->is_format_supported(screen, fmt, target, 1, bind)) {
-        return D3DERR_NOTAVAILABLE;
-    }
+    /* if (Usage & D3DUSAGE_NONSECURE) { don't know the implications of this } */
+    /* if (Usage & D3DUSAGE_SOFTWAREPROCESSING) { we can always support this } */
 
-    /*if (Usage & D3DUSAGE_NONSECURE) { don't know the implication of this }*/
-    /*if (Usage & D3DUSAGE_SOFTWAREPROCESSING) { we can always support this }*/
-
-    if ((Usage & D3DUSAGE_AUTOGENMIPMAP) && nomip) {
+    if ((Usage & D3DUSAGE_AUTOGENMIPMAP) && !(bind & PIPE_BIND_SAMPLER_VIEW))
         return D3DOK_NOAUTOGEN;
-    }
-
     return D3D_OK;
 }
 
@@ -291,20 +294,25 @@ NineAdapter9_CheckDeviceMultiSampleType( struct NineAdapter9 *This,
                                          DWORD *pQualityLevels )
 {
     struct pipe_screen *screen;
-    enum pipe_format fmt;
     HRESULT hr;
+    enum pipe_format pf;
 
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr))
+        return hr;
 
-    fmt = d3d9_to_pipe_format(SurfaceFormat);
-    if (fmt == PIPE_FORMAT_NONE) { return D3DERR_NOTAVAILABLE; }
-    if (!screen->is_format_supported(screen, fmt, PIPE_TEXTURE_2D, 1, 0)) {
+    pf = d3d9_to_pipe_format(SurfaceFormat);
+    if (pf == PIPE_FORMAT_NONE ||
+        !screen->is_format_supported(screen, pf, PIPE_TEXTURE_2D,
+                                     MultiSampleType,
+                                     PIPE_BIND_RENDER_TARGET)) {
+        DBG("%s with %u samples not available.\n",
+            d3dformat_to_string(SurfaceFormat), MultiSampleType);
         return D3DERR_NOTAVAILABLE;
     }
 
-    /* XXX check MSAA levels */
-    if (pQualityLevels) { *pQualityLevels = 0; }
+    if (pQualityLevels)
+        *pQualityLevels = 1; /* gallium doesn't have quality levels */
 
     return D3D_OK;
 }
@@ -358,12 +366,12 @@ NineAdapter9_CheckDepthStencilMatch( struct NineAdapter9 *This,
         return D3DERR_NOTAVAILABLE;
     }
 
-    if (!screen->is_format_supported(screen, dfmt, PIPE_TEXTURE_2D, 1,
+    if (!screen->is_format_supported(screen, dfmt, PIPE_TEXTURE_2D, 0,
                                      PIPE_BIND_DISPLAY_TARGET |
                                      PIPE_BIND_SHARED) ||
-        !screen->is_format_supported(screen, bfmt, PIPE_TEXTURE_2D, 1,
+        !screen->is_format_supported(screen, bfmt, PIPE_TEXTURE_2D, 0,
                                      PIPE_BIND_RENDER_TARGET) ||
-        !screen->is_format_supported(screen, zsfmt, PIPE_TEXTURE_2D, 1,
+        !screen->is_format_supported(screen, zsfmt, PIPE_TEXTURE_2D, 0,
                                      PIPE_BIND_DEPTH_STENCIL)) {
         return D3DERR_NOTAVAILABLE;
     }
@@ -401,6 +409,9 @@ NineAdapter9_CheckDeviceFormatConversion( struct NineAdapter9 *This,
         !screen->is_format_supported(screen, bfmt, PIPE_TEXTURE_2D, 1,
                                      PIPE_BIND_DISPLAY_TARGET |
                                      PIPE_BIND_SHARED)) {
+        DBG("%s to %s not supported.\n",
+            d3dformat_to_string(SourceFormat),
+            d3dformat_to_string(TargetFormat));
         return D3DERR_NOTAVAILABLE;
     }
 
