@@ -474,9 +474,22 @@ NineDevice9_CreateVolumeTexture( struct NineDevice9 *This,
                                  IDirect3DVolumeTexture9 **ppVolumeTexture,
                                  HANDLE *pSharedHandle )
 {
+    struct NineVolumeTexture9 *tex;
+    HRESULT hr;
+
     Usage &= D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
              D3DUSAGE_SOFTWAREPROCESSING;
-    STUB(D3DERR_INVALIDCALL);
+
+    user_assert(Width && Height && Depth, D3DERR_INVALIDCALL);
+    user_assert(!pSharedHandle || Pool != D3DPOOL_SYSTEMMEM || Levels == 1,
+                D3DERR_INVALIDCALL);
+
+    hr = NineVolumeTexture9_new(This, Width, Height, Depth, Levels,
+                                Usage, Format, Pool, &tex, pSharedHandle);
+    if (SUCCEEDED(hr))
+        *ppVolumeTexture = (IDirect3DVolumeTexture9 *)tex;
+
+    return hr;
 }
 
 HRESULT WINAPI
@@ -489,10 +502,23 @@ NineDevice9_CreateCubeTexture( struct NineDevice9 *This,
                                IDirect3DCubeTexture9 **ppCubeTexture,
                                HANDLE *pSharedHandle )
 {
+    struct NineCubeTexture9 *tex;
+    HRESULT hr;
+
     Usage &= D3DUSAGE_AUTOGENMIPMAP | D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_DYNAMIC |
              D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET |
              D3DUSAGE_SOFTWAREPROCESSING;
-    STUB(D3DERR_INVALIDCALL);
+
+    user_assert(EdgeLength, D3DERR_INVALIDCALL);
+    user_assert(!pSharedHandle || Pool != D3DPOOL_SYSTEMMEM || Levels == 1,
+                D3DERR_INVALIDCALL);
+
+    hr = NineCubeTexture9_new(This, EdgeLength, Levels, Usage, Format, Pool,
+                              &tex, pSharedHandle);
+    if (SUCCEEDED(hr))
+        *ppCubeTexture = (IDirect3DCubeTexture9 *)tex;
+
+    return hr;
 }
 
 HRESULT WINAPI
