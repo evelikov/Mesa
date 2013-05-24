@@ -1423,6 +1423,8 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
     HRESULT hr;
     enum nine_stateblock_type type;
 
+    DBG("This=%p Type=%u ppSB=%p\n", This, Type, ppSB);
+
     user_assert(Type == D3DSBT_ALL ||
                 Type == D3DSBT_VERTEXSTATE ||
                 Type == D3DSBT_PIXELSTATE, D3DERR_INVALIDCALL);
@@ -1494,6 +1496,8 @@ NineDevice9_BeginStateBlock( struct NineDevice9 *This )
 {
     HRESULT hr;
 
+    DBG("This=%p\n", This);
+
     user_assert(!This->record, D3DERR_INVALIDCALL);
 
     hr = NineStateBlock9_new(This, &This->record, NINESBT_CUSTOM);
@@ -1508,6 +1512,8 @@ HRESULT WINAPI
 NineDevice9_EndStateBlock( struct NineDevice9 *This,
                            IDirect3DStateBlock9 **ppSB )
 {
+    DBG("This=%p ppSB=%p\n", This, ppSB);
+
     user_assert(This->record, D3DERR_INVALIDCALL);
 
     nine_reference(ppSB, This->record);

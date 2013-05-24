@@ -96,7 +96,7 @@ nine_state_transfer(struct nine_state *dst,
                     const struct nine_state *mask,
                     const boolean apply)
 {
-    unsigned i, j;
+    unsigned i, j, s;
 
     if (mask->changed.group & NINE_STATE_VIEWPORT)
         dst->viewport = src->viewport;
@@ -240,10 +240,56 @@ nine_state_transfer(struct nine_state *dst,
     }
 
     /* Texture and sampler state. */
-    /* TODO */
+    if (mask->changed.texture) {
+        for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
+            if (mask->changed.texture & (1 << s))
+                nine_reference(&dst->texture[s], src->texture[s]);
+        if (apply)
+            dst->changed.texture |= mask->changed.texture;
+    }
+    if (mask->changed.group & NINE_STATE_SAMPLER) {
+        for (s = 0; s < NINE_MAX_SAMPLERS; ++s) {
+            if (mask->changed.sampler[s] == 0x3ffe) {
+                memcpy(&dst->samp[s], &src->samp[s], sizeof(dst->samp[s]));
+            } else {
+                for (i = 0; i <= NINED3DSAMP_LAST; ++i)
+                    if (mask->changed.sampler[s] & (1 << i))
+                        dst->samp[s][i] = src->samp[s][i];
+            }
+            if (apply)
+                dst->changed.sampler[s] |= mask->changed.sampler[s];
+        }
+    }
+
+    if (!(mask->changed.group & NINE_STATE_FF))
+        return;
 
     /* Fixed function state. */
-    /* TODO */
+    if (mask->changed.group & NINE_STATE_FF_MATERIAL) {
+        dst->ff.material = src->ff.material;
+        if (apply)
+            dst->changed.group |= NINE_STATE_FF_MATERIAL;
+    }
+    if (mask->changed.group & NINE_STATE_FF_PSSTAGES) {
+        for (s = 0; s < NINE_MAX_SAMPLERS; ++s) {
+            for (i = 0; i < NINED3DTSS_COUNT; ++i)
+                if (mask->ff.changed.tex_stage[s][i / 32] & (1 << (i % 32)))
+                    dst->ff.tex_stage[s][i] = src->ff.tex_stage[s][i];
+            if (apply) {
+                /* TODO: it's 32 exactly, just offset by 1 as 0 is unused */
+                dst->ff.changed.tex_stage[s][0] |=
+                    mask->ff.changed.tex_stage[s][0];
+                dst->ff.changed.tex_stage[s][1] |=
+                    mask->ff.changed.tex_stage[s][1];
+            }
+        }
+    }
+    if (mask->changed.group & NINE_STATE_FF_LIGHTING) {
+        DBG("TODO: lighting state\n");
+    }
+    if (mask->changed.group & NINE_STATE_FF_VSTRANSF) {
+        DBG("TODO: transforms\n");
+    }
 }
 
 /* Capture those bits of current device state that have been changed between
@@ -252,6 +298,8 @@ nine_state_transfer(struct nine_state *dst,
 HRESULT WINAPI
 NineStateBlock9_Capture( struct NineStateBlock9 *This )
 {
+    DBG("This=%p\n", This);
+
     nine_state_transfer(&This->state, &This->device->state, &This->state,
                         FALSE);
     return D3D_OK;
@@ -261,6 +309,8 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
 HRESULT WINAPI
 NineStateBlock9_Apply( struct NineStateBlock9 *This )
 {
+    DBG("This=%p\n", This);
+
     if (This->type == NINESBT_ALL && 0) /* TODO */
        nine_state_transfer_all(&This->device->state, &This->state);
     nine_state_transfer(&This->device->state, &This->state, &This->state, TRUE);
