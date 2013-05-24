@@ -453,6 +453,10 @@ NineDevice9_CreateTexture( struct NineDevice9 *This,
     struct NineTexture9 *tex;
     HRESULT hr;
 
+    DBG("This=%p Width=%u Height=%u Levels=%u Usage=%x Format=%s Pool=%u "
+        "ppOut=%p pSharedHandle=%p\n", This, Width, Height, Levels, Usage,
+        d3dformat_to_string(Format), Pool, ppTexture, pSharedHandle);
+
     Usage &= D3DUSAGE_AUTOGENMIPMAP | D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_DMAP |
              D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET |
              D3DUSAGE_SOFTWAREPROCESSING | D3DUSAGE_TEXTAPI;
@@ -484,6 +488,10 @@ NineDevice9_CreateVolumeTexture( struct NineDevice9 *This,
     struct NineVolumeTexture9 *tex;
     HRESULT hr;
 
+    DBG("This=%p Width=%u Height=%u Depth=%u Levels=%u Format=%s Pool=%u "
+        "ppOut=%p pSharedHandle=%p\n", This, Width, Height, Depth, Levels,
+        d3dformat_to_string(Format), Pool, ppVolumeTexture, pSharedHandle);
+
     Usage &= D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
              D3DUSAGE_SOFTWAREPROCESSING;
 
@@ -511,6 +519,10 @@ NineDevice9_CreateCubeTexture( struct NineDevice9 *This,
 {
     struct NineCubeTexture9 *tex;
     HRESULT hr;
+
+    DBG("This=%p EdgeLength=%u Levels=%u Usage=%x Format=%s Pool=%u ppOut=%p "
+        "pSharedHandle=%p", This, EdgeLength, Levels, Usage,
+        d3dformat_to_string(Format), Pool, ppCubeTexture, pSharedHandle);
 
     Usage &= D3DUSAGE_AUTOGENMIPMAP | D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_DYNAMIC |
              D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET |
@@ -540,6 +552,9 @@ NineDevice9_CreateVertexBuffer( struct NineDevice9 *This,
     struct NineVertexBuffer9 *buf;
     HRESULT hr;
     D3DVERTEXBUFFER_DESC desc;
+
+    DBG("This=%p Length=%u Usage=%x FVF=%x Pool=%u ppOut=%p pSharedHandle=%p\n",
+        This, Length, Usage, FVF, Pool, ppVertexBuffer, pSharedHandle);
 
     desc.Format = D3DFMT_VERTEXDATA;
     desc.Type = D3DRTYPE_VERTEXBUFFER;
@@ -572,6 +587,10 @@ NineDevice9_CreateIndexBuffer( struct NineDevice9 *This,
     struct NineIndexBuffer9 *buf;
     HRESULT hr;
     D3DINDEXBUFFER_DESC desc;
+
+    DBG("This=%p Length=%u Usage=%x Format=%s Pool=%u ppOut=%p "
+        "pSharedHandle=%p\n", This, Length, Usage,
+        d3dformat_to_string(Format), Pool, ppIndexBuffer, pSharedHandle);
 
     desc.Format = Format;
     desc.Type = D3DRTYPE_INDEXBUFFER;
@@ -607,6 +626,12 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     HRESULT hr;
     D3DSURFACE_DESC desc;
     struct pipe_resource templ;
+
+    DBG("This=%p zs=%i Width=%u Height=%u Format=%s MS=%u Quality=%u "
+        "Discard_or_Lockable=%i ppSurface=%p pSharedHandle=%p\n",
+        This, zs, Width, Height, d3dformat_to_string(Format),
+        MultiSample, MultisampleQuality,
+        Discard_or_Lockable, ppSurface, pSharedHandle);
 
     assert(!pSharedHandle);
     user_assert(Width && Height, D3DERR_INVALIDCALL);
@@ -690,6 +715,16 @@ NineDevice9_UpdateSurface( struct NineDevice9 *This,
     struct NineSurface9 *dst = NineSurface9(pDestinationSurface);
     struct NineSurface9 *src = NineSurface9(pSourceSurface);
 
+    DBG("This=%p pSourceSurface=%p pDestinationSurface=%p "
+        "pSourceRect=%p pDestPoint=%p\n", This,
+        pSourceSurface, pDestinationSurface, pSourceRect, pDestPoint);
+    if (pSourceRect)
+        DBG("pSourceRect = (%u,%u)-(%u,%u)\n",
+            pSourceRect->left, pSourceRect->top,
+            pSourceRect->right, pSourceRect->bottom);
+    if (pDestPoint)
+        DBG("pDestPoint = (%u,%u)\n", pDestPoint->x, pDestPoint->y);
+
     user_assert(dst->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
     user_assert(src->base.pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
 
@@ -708,6 +743,9 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
     struct NineBaseTexture9 *srcb = NineBaseTexture9(pSourceTexture);
     unsigned l;
     unsigned last_level = dstb->base.info.last_level;
+
+    DBG("This=%p pSourceTexture=%p pDestinationTexture=%p\n", This,
+        pSourceTexture, pDestinationTexture);
 
     user_assert(pSourceTexture != pDestinationTexture, D3DERR_INVALIDCALL);
 
@@ -773,6 +811,9 @@ NineDevice9_GetRenderTargetData( struct NineDevice9 *This,
     struct NineSurface9 *dst = NineSurface9(pDestSurface);
     struct NineSurface9 *src = NineSurface9(pRenderTarget);
 
+    DBG("This=%p pRenderTarget=%p pDestSurface=%p\n",
+        This, pRenderTarget, pDestSurface);
+
     user_assert(dst->desc.Pool == D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
     user_assert(src->desc.Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
@@ -787,6 +828,9 @@ NineDevice9_GetFrontBufferData( struct NineDevice9 *This,
                                 UINT iSwapChain,
                                 IDirect3DSurface9 *pDestSurface )
 {
+    DBG("This=%p iSwapChain=%u pDestSurface=%p\n", This,
+        iSwapChain, pDestSurface);
+
     user_assert(pDestSurface != NULL, D3DERR_INVALIDCALL);
     user_assert(iSwapChain < This->nswapchains, D3DERR_INVALIDCALL);
 
@@ -810,6 +854,17 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
     struct pipe_resource *src_res = NineSurface9_GetResource(src);
     const boolean zs = util_format_is_depth_or_stencil(dst_res->format);
     struct pipe_blit_info blit;
+
+    DBG("This=%p pSourceSurface=%p pSourceRect=%p pDestSurface=%p "
+        "pDestRect=%p Filter=%u\n",
+        This, pSourceSurface, pSourceRect, pDestSurface, pDestRect, Filter);
+    if (pSourceRect)
+        DBG("pSourceRect=(%u,%u)-(%u,%u)\n",
+            pSourceRect->left, pSourceRect->top,
+            pSourceRect->right, pSourceRect->bottom);
+    if (pDestRect)
+        DBG("pSourceRect=(%u,%u)-(%u,%u)\n", pDestRect->left, pDestRect->top,
+            pDestRect->right, pDestRect->bottom);
 
     user_assert(!zs || !This->in_scene, D3DERR_INVALIDCALL);
     user_assert(!zs || !pSourceRect ||
@@ -881,6 +936,12 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
     unsigned x, y, w, h;
     union pipe_color_union rgba;
 
+    DBG("This=%p pSurface=%p pRect=%p color=%08x\n", This,
+        pSurface, pRect, color);
+    if (pRect)
+        DBG("pRect=(%u,%u)-(%u,%u)\n", pRect->left, pRect->top,
+            pRect->right, pRect->bottom);
+
     user_assert(surf->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
     /* XXX: resource usage == rt, rt texture, or off-screen plain */
@@ -923,6 +984,9 @@ NineDevice9_SetRenderTarget( struct NineDevice9 *This,
 {
     const unsigned i = RenderTargetIndex;
 
+    DBG("This=%p RenderTargetIndex=%u pRenderTarget=%p\n", This,
+        RenderTargetIndex, pRenderTarget);
+
     user_assert(i < This->caps.NumSimultaneousRTs, D3DERR_INVALIDCALL);
 
     if (This->state.rt[i] != NineSurface9(pRenderTarget)) {
@@ -955,6 +1019,8 @@ HRESULT WINAPI
 NineDevice9_SetDepthStencilSurface( struct NineDevice9 *This,
                                     IDirect3DSurface9 *pNewZStencil )
 {
+    DBG("This=%p pNewZStencil=%p\n", This, pNewZStencil);
+
     if (This->state.ds != NineSurface9(pNewZStencil)) {
         This->state.changed.group |= NINE_STATE_FB;
 
@@ -978,6 +1044,7 @@ NineDevice9_GetDepthStencilSurface( struct NineDevice9 *This,
 HRESULT WINAPI
 NineDevice9_BeginScene( struct NineDevice9 *This )
 {
+    DBG("This=%p\n", This);
     user_assert(!This->in_scene, D3DERR_INVALIDCALL);
     This->in_scene = TRUE;
     /* Do we want to do anything else here ? */
@@ -987,6 +1054,7 @@ NineDevice9_BeginScene( struct NineDevice9 *This )
 HRESULT WINAPI
 NineDevice9_EndScene( struct NineDevice9 *This )
 {
+    DBG("This=%p\n", This);
     user_assert(This->in_scene, D3DERR_INVALIDCALL);
     This->in_scene = FALSE;
     return D3D_OK;
@@ -1011,7 +1079,8 @@ NineDevice9_Clear( struct NineDevice9 *This,
         This->state.fb.cbufs[0]->height-1
     };
 
-    DBG("\n");
+    DBG("This=%p Count=%u pRects=%p Flags=%x Color=%08x Z=%f Stencil=%x\n",
+        This, Count, pRects, Flags, Color, Z, Stencil);
 
     user_assert((pRects && Count != 0) || (!pRects && Count == 0),
                 D3DERR_INVALIDCALL);
@@ -1169,6 +1238,8 @@ NineDevice9_SetLight( struct NineDevice9 *This,
 {
     NINESTATEPOINTER_SET(This);
 
+    DBG("This=%p Index=%u pLight=%p\n", This, Index, pLight);
+
     user_assert(pLight, D3DERR_INVALIDCALL);
     user_assert(pLight->Type < NINED3DLIGHT_INVALID, D3DERR_INVALIDCALL);
 
@@ -1229,6 +1300,8 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
     unsigned i;
 
+    DBG("This=%p Index=%u Enable=%i\n", This, Index, Enable);
+
     if (Index >= state->ff.num_lights ||
         state->ff.light[Index].Type == NINED3DLIGHT_INVALID) {
         /* This should create a default light. */
@@ -1288,6 +1361,10 @@ NineDevice9_SetClipPlane( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
     user_assert(Index < PIPE_MAX_CLIP_PLANES, D3DERR_INVALIDCALL);
 
+    DBG("This=%p Index=%u pPlane=%p(%f %f %f %f)\n", This, Index, pPlane,
+        pPlane ? pPlane[0] : 0.0f, pPlane ? pPlane[1] : 0.0f,
+        pPlane ? pPlane[2] : 0.0f, pPlane ? pPlane[3] : 0.0f);
+
     memcpy(&state->clip.ucp[Index][0], pPlane, sizeof(state->clip.ucp[0]));
     state->changed.ucp |= 1 << Index;
 
@@ -1313,6 +1390,9 @@ NineDevice9_SetRenderState( struct NineDevice9 *This,
 {
     NINESTATEPOINTER_SET(This);
     user_assert(State < Elements(state->rs), D3DERR_INVALIDCALL);
+
+    DBG("This=%p State=%u(%s) Value=%08x\n", This,
+        State, nine_d3drs_to_string(State), Value);
 
     state->rs[State] = Value;
     state->changed.rs[State / 32] |= 1 << (State % 32);
@@ -1468,6 +1548,9 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
                         IDirect3DBaseTexture9 *pTexture )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p Stage=%u pTexture=%p\n", This, Stage, pTexture);
+
     user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
 
     if (!This->record) {
@@ -1541,6 +1624,9 @@ NineDevice9_SetSamplerState( struct NineDevice9 *This,
                              DWORD Value )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p Sampler=%u Type=%u Value=%08x\n", This, Sampler, Type, Value);
+
     user_assert(Sampler < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
 
     state->samp[Sampler][Type] = Value;

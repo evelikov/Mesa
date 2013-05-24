@@ -195,4 +195,6 @@ D3DMATRIX *
 nine_state_access_transform(struct nine_state *, D3DTRANSFORMSTATETYPE,
                             boolean alloc);
 
+const char *nine_d3drs_to_string(DWORD State);
+
 #endif /* _NINE_STATE_H_ */

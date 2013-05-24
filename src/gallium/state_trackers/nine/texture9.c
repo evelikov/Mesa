@@ -195,6 +195,10 @@ HRESULT WINAPI
 NineTexture9_AddDirtyRect( struct NineTexture9 *This,
                            const RECT *pDirtyRect )
 {
+    DBG("This=%p pDirtyRect=%p[(%u,%u)-(%u,%u)]\n", This, pDirtyRect,
+        pDirtyRect ? pDirtyRect->left : 0, pDirtyRect ? pDirtyRect->top : 0,
+        pDirtyRect ? pDirtyRect->right : 0, pDirtyRect ? pDirtyRect->bottom : 0);
+
     /* Tracking dirty regions on DEFAULT or SYSTEMMEM resources is pointless,
      * because we always write to the final storage.
      */
