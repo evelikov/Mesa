@@ -140,6 +140,8 @@ update_vertex_elements(struct NineDevice9 *device)
 
     vs = device->state.vs ? device->state.vs : device->ff.vs;
 
+    if (!vdecl) /* no inputs */
+        return;
     for (n = 0; n < vs->num_inputs; ++n) {
         DBG("looking up input %u (usage %u) from vdecl(%p)\n",
             n, vs->input_map[n].ndecl, vdecl);
@@ -831,8 +833,8 @@ const uint32_t nine_render_state_group[NINED3DRS_LAST + 1] =
     [D3DRS_WRAP6] = NINE_STATE_UNHANDLED,
     [D3DRS_WRAP7] = NINE_STATE_UNHANDLED,
     [D3DRS_CLIPPING] = NINE_STATE_RASTERIZER,
-    [D3DRS_LIGHTING] = NINE_STATE_FF_LIGHTING,
-    [D3DRS_AMBIENT] = NINE_STATE_FF_LIGHTING,
+    [D3DRS_LIGHTING] = NINE_STATE_ALL,
+    [D3DRS_AMBIENT] = NINE_STATE_FF_LIGHTING | NINE_STATE_FF_MATERIAL,
     [D3DRS_FOGVERTEXMODE] = NINE_STATE_FF_OTHER,
     [D3DRS_COLORVERTEX] = NINE_STATE_FF_LIGHTING,
     [D3DRS_LOCALVIEWER] = NINE_STATE_FF_LIGHTING,

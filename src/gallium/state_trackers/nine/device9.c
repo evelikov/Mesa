@@ -174,7 +174,6 @@ NineDevice9_ctor( struct NineDevice9 *This,
     }
     This->update = &This->state;
 
-    This->state.changed.group = NINE_STATE_FB;
     nine_update_state(This);
 
     ID3DPresentFactory_Release(This->present);
@@ -2077,6 +2076,7 @@ NineDevice9_SetVertexShader( struct NineDevice9 *This,
                              IDirect3DVertexShader9 *pShader )
 {
     NINESTATEPOINTER_SET(This);
+    DBG("This=%p pShader=%p\n", This, pShader);
     nine_reference(&state->vs, pShader);
     state->changed.group |= NINE_STATE_VS;
     return D3D_OK;
@@ -2355,6 +2355,7 @@ NineDevice9_SetPixelShader( struct NineDevice9 *This,
                             IDirect3DPixelShader9 *pShader )
 {
     NINESTATEPOINTER_SET(This);
+    DBG("This=%p pShader=%p\n", This, pShader);
     nine_reference(&state->vs, pShader);
     state->changed.group |= NINE_STATE_PS;
     return D3D_OK;
