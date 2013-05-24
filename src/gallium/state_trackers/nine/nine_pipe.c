@@ -184,7 +184,9 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     samp.border_color.f[2] = ((ss[D3DSAMP_BORDERCOLOR] >> 16) & 0xff) / 255.0f;
     samp.border_color.f[3] = ((ss[D3DSAMP_BORDERCOLOR] >> 24) & 0xff) / 255.0f;
 
+    /* XXX: track shader sampler usage */
     cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx, &samp);
+    cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
 }
 
 const enum pipe_format nine_d3d9_to_pipe_format_map[120] =
