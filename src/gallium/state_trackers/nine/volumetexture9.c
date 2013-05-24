@@ -29,7 +29,11 @@ NineVolumeTexture9_GetLevelDesc( struct NineVolumeTexture9 *This,
                                  UINT Level,
                                  D3DVOLUME_DESC *pDesc )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+
+    *pDesc = This->volumes[Level]->desc;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -37,7 +41,12 @@ NineVolumeTexture9_GetVolumeLevel( struct NineVolumeTexture9 *This,
                                    UINT Level,
                                    IDirect3DVolume9 **ppVolumeLevel )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+
+    NineUnknown_AddRef(NineUnknown(This->volumes[Level]));
+    *ppVolumeLevel = (IDirect3DVolume9 *)This->volumes[Level];
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -47,14 +56,21 @@ NineVolumeTexture9_LockBox( struct NineVolumeTexture9 *This,
                             const D3DBOX *pBox,
                             DWORD Flags )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 && !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
+
+    return NineVolume9_LockBox(This->volumes[Level], pLockedVolume, pBox,
+                               Flags);
 }
 
 HRESULT WINAPI
 NineVolumeTexture9_UnlockBox( struct NineVolumeTexture9 *This,
                               UINT Level )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+
+    return NineVolume9_UnlockBox(This->volumes[Level]);
 }
 
 HRESULT WINAPI

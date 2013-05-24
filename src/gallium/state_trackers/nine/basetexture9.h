@@ -38,6 +38,7 @@ struct NineBaseTexture9
 
     D3DTEXTUREFILTERTYPE mipfilter;
     DWORD lod;
+    DWORD lod_resident;
 };
 static INLINE struct NineBaseTexture9 *
 NineBaseTexture9( void *data )

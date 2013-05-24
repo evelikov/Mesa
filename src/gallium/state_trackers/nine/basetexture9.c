@@ -108,6 +108,7 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This )
 HRESULT
 NineBaseTexture9_UpdateSelf( struct NineBaseTexture9 *This )
 {
+    HRESULT hr;
     unsigned last_level = This->base.info.last_level;
     unsigned l;
 
@@ -115,6 +116,51 @@ NineBaseTexture9_UpdateSelf( struct NineBaseTexture9 *This )
 
     if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
         last_level = 0;
+
+    if (This->lod_resident != This->lod) {
+        struct pipe_resource *res;
+
+        pipe_sampler_view_reference(&This->view, NULL);
+
+        hr = NineBaseTexture9_CreatePipeResource(This);
+        if (FAILED(hr))
+            return hr;
+        res = This->base.resource;
+
+        if (This->base.type == D3DRTYPE_TEXTURE) {
+            struct NineTexture9 *tex = NineTexture9(This);
+
+            for (l = 0; l < This->lod; ++l)
+                NineSurface9_SetResource(tex->surfaces[l], NULL, -1);
+            for (; l <= last_level; ++l)
+                NineSurface9_SetResource(tex->surfaces[l], res, l - This->lod);
+        } else
+        if (This->base.type == D3DRTYPE_CUBETEXTURE) {
+            struct NineCubeTexture9 *tex = NineCubeTexture9(This);
+            unsigned z;
+
+            for (l = 0; l < This->lod; ++l) {
+                for (z = 0; z < 6; ++z)
+                    NineSurface9_SetResource(tex->surfaces[l * 6 + z],
+                                             NULL, -1);
+            }
+            for (; l <= last_level; ++l) {
+                for (z = 0; z < 6; ++z)
+                    NineSurface9_SetResource(tex->surfaces[l * 6 + z],
+                                             res, l - This->lod);
+            }
+        } else
+        if (This->base.type == D3DRTYPE_VOLUMETEXTURE) {
+            struct NineVolumeTexture9 *tex = NineVolumeTexture9(This);
+
+            for (l = 0; l < This->lod; ++l)
+                NineVolume9_SetResource(tex->volumes[l], NULL, -1);
+            for (; l <= last_level; ++l)
+                NineVolume9_SetResource(tex->volumes[l], res, l - This->lod);
+        } else {
+            assert(!"invalid texture type");
+        }
+    }
 
     if (This->base.type == D3DRTYPE_TEXTURE) {
         struct NineTexture9 *tex = NineTexture9(This);
@@ -138,6 +184,8 @@ NineBaseTexture9_UpdateSelf( struct NineBaseTexture9 *This )
     } else {
         assert(!"invalid texture type");
     }
+
+    This->lod_resident = This->lod;
 
     return D3D_OK;
 }

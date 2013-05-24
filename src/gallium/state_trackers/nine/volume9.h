@@ -25,11 +25,19 @@
 
 #include "iunknown.h"
 
-struct pipe_box;
+#include "util/u_inlines.h"
 
 struct NineVolume9
 {
     struct NineUnknown base;
+
+    struct pipe_resource *resource;
+    unsigned level;
+    unsigned level_actual;
+
+    D3DVOLUME_DESC desc;
+
+    struct pipe_box dirty_box[2];
 };
 static INLINE struct NineVolume9 *
 NineVolume9( void *data )
@@ -37,7 +45,15 @@ NineVolume9( void *data )
     return (struct NineVolume9 *)data;
 }
 
-/* nine private */
+/*** Nine private ***/
+
+static INLINE void
+NineVolume9_SetResource( struct NineVolume9 *This,
+                         struct pipe_resource *resource, unsigned level )
+{
+    This->level = level;
+    pipe_resource_reference(&This->resource, resource);
+}
 
 HRESULT
 NineVolume9_CopyVolume( struct NineVolume9 *This,
@@ -48,7 +64,8 @@ NineVolume9_CopyVolume( struct NineVolume9 *This,
 HRESULT
 NineVolume9_UpdateSelf( struct NineVolume9 *This );
 
-/* public */
+
+/*** Direct3D public ***/
 
 HRESULT WINAPI
 NineVolume9_GetDevice( struct NineVolume9 *This,

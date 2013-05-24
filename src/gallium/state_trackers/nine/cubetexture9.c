@@ -21,6 +21,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "cubetexture9.h"
+#include "nine_pipe.h"
 
 #define DBG_CHANNEL DBG_CUBETEXTURE
 
@@ -29,7 +30,11 @@ NineCubeTexture9_GetLevelDesc( struct NineCubeTexture9 *This,
                                UINT Level,
                                D3DSURFACE_DESC *pDesc )
 {
-    STUB(D3DERR_INVALIDCALL);
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+
+    *pDesc = This->surfaces[Level]->desc;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -38,7 +43,17 @@ NineCubeTexture9_GetCubeMapSurface( struct NineCubeTexture9 *This,
                                     UINT Level,
                                     IDirect3DSurface9 **ppCubeMapSurface )
 {
-    STUB(D3DERR_INVALIDCALL);
+    const unsigned s = Level * 6 + FaceType;
+
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 && !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
+    user_assert(FaceType < 6, D3DERR_INVALIDCALL);
+
+    NineUnknown_AddRef(NineUnknown(This->surfaces[s]));
+    *ppCubeMapSurface = (IDirect3DSurface9 *)This->surfaces[s];
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -49,7 +64,14 @@ NineCubeTexture9_LockRect( struct NineCubeTexture9 *This,
                            const RECT *pRect,
                            DWORD Flags )
 {
-    STUB(D3DERR_INVALIDCALL);
+    const unsigned s = Level * 6 + FaceType;
+
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 && !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
+    user_assert(FaceType < 6, D3DERR_INVALIDCALL);
+
+    return NineSurface9_LockRect(This->surfaces[s], pLockedRect, pRect, Flags);
 }
 
 HRESULT WINAPI
@@ -57,7 +79,12 @@ NineCubeTexture9_UnlockRect( struct NineCubeTexture9 *This,
                              D3DCUBEMAP_FACES FaceType,
                              UINT Level )
 {
-    STUB(D3DERR_INVALIDCALL);
+    const unsigned s = Level * 6 + FaceType;
+
+    user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(FaceType < 6, D3DERR_INVALIDCALL);
+
+    return NineSurface9_UnlockRect(This->surfaces[s]);
 }
 
 HRESULT WINAPI
@@ -65,7 +92,23 @@ NineCubeTexture9_AddDirtyRect( struct NineCubeTexture9 *This,
                                D3DCUBEMAP_FACES FaceType,
                                const RECT *pDirtyRect )
 {
-    STUB(D3DERR_INVALIDCALL);
+    unsigned z;
+
+    user_assert(FaceType < 6, D3DERR_INVALIDCALL);
+
+    if (This->base.base.pool != D3DPOOL_MANAGED)
+        return D3D_OK;
+
+    if (!pDirtyRect) {
+        for (z = 0; z < 6; ++z)
+            NineSurface9_AddDirtyRect(This->surfaces[z], NULL);
+    } else {
+        struct pipe_box box;
+        rect_to_pipe_box(&box, pDirtyRect);
+        for (z = 0; z < 6; ++z)
+            NineSurface9_AddDirtyRect(This->surfaces[z], &box);
+    }
+    return D3D_OK;
 }
 
 IDirect3DCubeTexture9Vtbl NineCubeTexture9_vtable = {

@@ -116,6 +116,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
     This->transfer = NULL;
 
     This->level = Level;
+    This->level_actual = Level;
     This->layer = Layer;
     This->desc = *pDesc;
 

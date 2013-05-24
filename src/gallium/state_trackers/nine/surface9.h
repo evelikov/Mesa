@@ -28,6 +28,7 @@
 #include "pipe/p_state.h"
 #include "util/u_double_list.h"
 #include "util/u_rect.h"
+#include "util/u_inlines.h"
 
 struct NineSurface9
 {
@@ -40,7 +41,8 @@ struct NineSurface9
     int lock_count;
 
     /* resource description */
-    unsigned level;
+    unsigned level;        /* refers to the pipe_resource (SetLOD !) */
+    unsigned level_actual; /* refers to the NineTexture */
     unsigned layer;
     D3DSURFACE_DESC desc;
 
@@ -94,6 +96,14 @@ static INLINE struct pipe_resource *
 NineSurface9_GetResource( struct NineSurface9 *This )
 {
     return This->base.resource;
+}
+
+static INLINE void
+NineSurface9_SetResource( struct NineSurface9 *This,
+                          struct pipe_resource *resource, unsigned level )
+{
+    This->level = level;
+    pipe_resource_reference(&This->base.resource, resource);
 }
 
 void
