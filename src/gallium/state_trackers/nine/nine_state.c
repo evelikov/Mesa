@@ -186,6 +186,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     unsigned i, j, c, n;
     unsigned x;
+    const struct nine_lconstf *lconstf;
 
     if (shader_type == PIPE_SHADER_VERTEX) {
         DBG("VS\n");
@@ -197,6 +198,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         dirty_b = device->state.changed.vs_const_b;
         const_b = device->state.vs_const_b;
         b_true = device->vs_bool_true;
+        lconstf = &device->state.vs->lconstf;
     } else {
         DBG("PS\n");
         buf = device->constbuf_ps;
@@ -207,6 +209,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         dirty_b = device->state.changed.ps_const_b;
         const_b = device->state.ps_const_b;
         b_true = device->ps_bool_true;
+        lconstf = &device->state.ps->lconstf;
     }
     box.y = 0;
     box.z = 0;
@@ -279,6 +282,27 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         data = &const_f[x * 4];
         box.x = x * 4 * sizeof(float);
         box.width = c * 4 * sizeof(float);
+        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
+    }
+
+    /* TODO: only upload these when shader itself changes */
+    if (lconstf->num) {
+        box.x = lconstf->locations[0] * 4 * sizeof(float);
+        box.width = 4 * sizeof(float);
+        x = 0;
+        for (i = 1; i < lconstf->num; ++i) {
+            if (lconstf->locations[i] == (lconstf->locations[i - 1] + 1)) {
+                box.width += 4 * sizeof(float);
+            } else {
+                data = &lconstf->data[x * 4];
+                pipe->transfer_inline_write(pipe,
+                                            buf, 0, usage, &box, data, 0, 0);
+                box.x = lconstf->locations[i] * 4 * sizeof(float);
+                box.width = 4 * sizeof(float);
+                x = i;
+            }
+        }
+        data = &lconstf->data[x * 4];
         pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
 }

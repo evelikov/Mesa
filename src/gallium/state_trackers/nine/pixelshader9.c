@@ -62,6 +62,7 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
         return E_OUTOFMEMORY;
     This->byte_code.size = info.byte_size;
     This->cso = info.cso;
+    This->lconstf = info.lconstf;
 
     return D3D_OK;
 }
@@ -77,6 +78,9 @@ NinePixelShader9_dtor( struct NinePixelShader9 *This )
 
     if (This->byte_code.tokens)
         FREE((void *)This->byte_code.tokens); /* const_cast */
+
+    FREE(This->lconstf.locations);
+    FREE(This->lconstf.data);
 
     NineUnknown_dtor(&This->base);
 }

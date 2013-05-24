@@ -30,6 +30,13 @@
 
 struct NineDevice9;
 
+struct nine_lconstf
+{
+    int *locations;
+    float *data;
+    unsigned num;
+};
+
 struct nine_shader_info
 {
     unsigned type; /* in, PIPE_SHADER_x */
@@ -40,6 +47,8 @@ struct nine_shader_info
     void *cso; /* out, pipe cso for bind_vs,fs_state */
 
     unsigned input_map[32]; /* VS input -> NINE_DECLUSAGE_x */
+
+    struct nine_lconstf lconstf; /* members to be free'd by user */
 };
 
 HRESULT

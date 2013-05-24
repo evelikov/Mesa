@@ -115,6 +115,11 @@ NineDevice9_ctor( struct NineDevice9 *This,
         max_const_vs = MIN2(max_const_vs, NINE_MAX_CONST_F);
         max_const_ps = MIN2(max_const_ps, NINE_MAX_CONST_F);
 
+        This->state.vs_const_f = CALLOC(max_const_vs, 4 * sizeof(float));
+        This->state.ps_const_f = CALLOC(max_const_ps, 4 * sizeof(float));
+        if (!This->state.vs_const_f || !This->state.ps_const_f)
+            return E_OUTOFMEMORY;
+
         tmpl.target = PIPE_BUFFER;
         tmpl.format = PIPE_FORMAT_R8_UNORM;
         tmpl.height0 = 1;
@@ -204,6 +209,8 @@ NineDevice9_dtor( struct NineDevice9 *This )
 
     pipe_resource_reference(&This->constbuf_vs, NULL);
     pipe_resource_reference(&This->constbuf_ps, NULL);
+    FREE(This->state.vs_const_f);
+    FREE(This->state.ps_const_f);
 
     if (This->swapchains) {
         for (i = 0; i < This->nswapchains; ++i)

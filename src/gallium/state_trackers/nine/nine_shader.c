@@ -406,13 +406,11 @@ struct sm1_local_const
 {
     INT idx;
     struct ureg_src reg;
-    /*
     union {
         boolean b;
         float f[4];
         int32_t i[4];
     } imm;
-    */
 };
 
 struct shader_translator
@@ -471,6 +469,8 @@ struct shader_translator
     unsigned num_lconstf;
     struct sm1_local_const lconsti[NINE_MAX_CONST_I];
     struct sm1_local_const lconstb[NINE_MAX_CONST_B];
+
+    boolean indirect_const_access;
 };
 
 #define IS_VS (tx->processor == TGSI_PROCESSOR_VERTEX)
@@ -542,6 +542,8 @@ tx_set_lconstf(struct shader_translator *tx, INT index, float f[4])
     }
     tx->lconstf[n].idx = index;
     tx->lconstf[n].reg = ureg_imm4f(tx->ureg, f[0], f[1], f[2], f[3]);
+
+    memcpy(tx->lconstf[n].imm.f, f, sizeof(tx->lconstf[n].imm.f));
 }
 static void
 tx_set_lconsti(struct shader_translator *tx, INT index, int i[4])
@@ -762,6 +764,8 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         src = ureg_src_register(TGSI_FILE_SAMPLER, param->idx);
         break;
     case D3DSPR_CONST:
+        if (param->rel)
+            tx->indirect_const_access = TRUE;
         if (param->rel || !tx_lconstf(tx, &src, param->idx))
             src = ureg_src_register(TGSI_FILE_CONSTANT, param->idx);
         break;
@@ -2253,6 +2257,7 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     struct shader_translator *tx;
     HRESULT hr = D3D_OK;
     const unsigned processor = tgsi_processor_from_type(info->type);
+    unsigned i;
 
     user_assert(processor != ~0, D3DERR_INVALIDCALL);
 
@@ -2301,9 +2306,33 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     }
 #endif
 
+    /* record local constants */
+    if (tx->num_lconstf && tx->indirect_const_access) {
+        /* TODO: sort them */
+        info->lconstf.data = MALLOC(tx->num_lconstf * 4 * sizeof(float));
+        info->lconstf.locations = MALLOC(tx->num_lconstf * sizeof(int));
+        if (!info->lconstf.data ||
+            !info->lconstf.locations) {
+            hr = E_OUTOFMEMORY;
+            goto out;
+        }
+        for (i = 0; i < tx->num_lconstf; ++i) {
+            info->lconstf.locations[i] = tx->lconstf[i].idx;
+            info->lconstf.data[i * 4 + 0] = tx->lconstf[i].imm.f[0];
+            info->lconstf.data[i * 4 + 1] = tx->lconstf[i].imm.f[1];
+            info->lconstf.data[i * 4 + 2] = tx->lconstf[i].imm.f[2];
+            info->lconstf.data[i * 4 + 3] = tx->lconstf[i].imm.f[3];
+        }
+        info->lconstf.num = tx->num_lconstf;
+    } else {
+        info->lconstf.num = 0;
+    }
+
     info->cso = ureg_create_shader_and_destroy(tx->ureg, device->pipe);
     if (!info->cso) {
         hr = D3DERR_DRIVERINTERNALERROR;
+        FREE(info->lconstf.locations);
+        FREE(info->lconstf.data);
         goto out;
     }
 

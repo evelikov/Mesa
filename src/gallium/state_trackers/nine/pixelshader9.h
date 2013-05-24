@@ -24,6 +24,9 @@
 #define _NINE_PIXELSHADER9_H_
 
 #include "iunknown.h"
+#include "nine_shader.h"
+
+struct nine_lconstf;
 
 struct NinePixelShader9
 {
@@ -34,6 +37,8 @@ struct NinePixelShader9
         DWORD size;
     } byte_code;
     struct NineDevice9 *device;
+
+    struct nine_lconstf lconstf;
 
     uint64_t ff_key[5];
 };

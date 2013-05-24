@@ -24,7 +24,7 @@
 #define _NINE_VERTEXSHADER9_H_
 
 #include "iunknown.h"
-#include "pipe/p_state.h" /* PIPE_MAX_ATTRIBS */
+#include "nine_shader.h"
 
 struct NineVertexShader9
 {
@@ -40,6 +40,8 @@ struct NineVertexShader9
         DWORD size;
     } byte_code;
     struct NineDevice9 *device;
+
+    struct nine_lconstf lconstf;
 
     const struct pipe_stream_output_info *so;
 
