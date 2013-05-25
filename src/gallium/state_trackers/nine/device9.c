@@ -395,12 +395,17 @@ NineDevice9_Reset( struct NineDevice9 *This,
 {
     HRESULT hr;
 
+    DBG("This=%p pPresentationParameters=%p\n", This, pPresentationParameters);
+
     hr = NineSwapChain9_Resize(This->swapchains[0], pPresentationParameters);
     if (FAILED(hr))
         return (hr == D3DERR_OUTOFVIDEOMEMORY) ? hr : D3DERR_DEVICELOST;
 
     nine_state_reset(&This->state, This);
     NineDevice9_SetDefaultState(This);
+    NineDevice9_SetRenderTarget(
+        This, 0, (IDirect3DSurface9 *)This->swapchains[0]->buffers[0]);
+    /* XXX: better use GetBackBuffer here ? */
 
     return hr;
 }
