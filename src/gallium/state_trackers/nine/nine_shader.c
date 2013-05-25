@@ -2351,6 +2351,8 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         info->lconstf.num = tx->num_lconstf;
     } else {
         info->lconstf.num = 0;
+        info->lconstf.locations = NULL;
+        info->lconstf.data = NULL;
     }
 
     info->cso = ureg_create_shader_and_destroy(tx->ureg, device->pipe);
