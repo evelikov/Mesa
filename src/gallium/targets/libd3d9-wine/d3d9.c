@@ -225,15 +225,19 @@ Nine9Ex_EnumAdapterModes( struct Nine9Ex *This,
                           UINT Mode,
                           D3DDISPLAYMODE *pMode )
 {
+    HRESULT hr;
+
     if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
         _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);
         return D3DERR_INVALIDCALL;
     }
-    if (FAILED(Nine9Ex_CheckDeviceFormat(This, Adapter, D3DDEVTYPE_HAL,
-                                         Format, D3DUSAGE_RENDERTARGET,
-                                         D3DRTYPE_SURFACE, Format))) {
+
+    hr = Nine9Ex_CheckDeviceFormat(This, Adapter, D3DDEVTYPE_HAL,
+                                   Format, D3DUSAGE_RENDERTARGET,
+                                   D3DRTYPE_SURFACE, Format);
+    if (FAILED(hr)) {
         _WARNING("%s: DeviceFormat not available.\n", __FUNCTION__);
-        return D3DERR_NOTAVAILABLE;
+        return hr;
     }
 
     if (Mode >= ADAPTER_OUTPUT.nmodes) {
