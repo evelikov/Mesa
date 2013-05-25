@@ -92,6 +92,7 @@ NinePresentXlib_QueryInterface( struct NinePresentXlib *This,
         *ppvObject = This;
         return S_OK;
     }
+    *ppvObject = NULL;
     return E_NOINTERFACE;
 }
 
@@ -400,6 +401,7 @@ NinePresentFactoryXlib_QueryInterface( struct NinePresentFactoryXlib *This,
         *ppvObject = This;
         return S_OK;
     }
+    *ppvObject = NULL;
     return E_NOINTERFACE;
 }
 

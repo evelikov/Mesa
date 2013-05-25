@@ -61,6 +61,7 @@ NineUnknown_QueryInterface( struct NineUnknown *This,
         }
     } while (This->guids[i++]);
 
+    *ppvObject = NULL;
     return E_NOINTERFACE;
 }
 

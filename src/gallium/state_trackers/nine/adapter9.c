@@ -913,7 +913,8 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     pCaps->MaxVShaderInstructionsExecuted = MAX2(65535, pCaps->MaxVertexShader30InstructionSlots * 32);
     pCaps->MaxPShaderInstructionsExecuted = MAX2(65535, pCaps->MaxPixelShader30InstructionSlots * 32);
 
-    nine_dump_D3DCAPS9(DBG_CHANNEL, pCaps);
+    if (debug_get_bool_option("NINE_DUMP_CAPS", FALSE))
+        nine_dump_D3DCAPS9(DBG_CHANNEL, pCaps);
 
     return D3D_OK;
 }

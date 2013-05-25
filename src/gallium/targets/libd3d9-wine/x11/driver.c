@@ -82,6 +82,7 @@ NineWineDriverX11_QueryInterface( struct NineWineDriverX11 *This,
         *ppvObject = This;
         return S_OK;
     }
+    *ppvObject = NULL;
     return E_NOINTERFACE;
 }
 

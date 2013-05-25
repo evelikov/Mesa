@@ -111,6 +111,7 @@ Nine9Ex_QueryInterface( struct Nine9Ex *This,
         return S_OK;
     }
     _WARNING("%s: QueryInterface failed.\n", __FUNCTION__);
+    *ppvObject = NULL;
     return E_NOINTERFACE;
 }
 

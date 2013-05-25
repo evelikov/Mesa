@@ -153,6 +153,7 @@ Nine9Ex_QueryInterface( struct Nine9Ex *This,
         *ppvObject = This;
         return S_OK;
     }
+    *ppvObject = NULL;
     return E_NOINTERFACE;
 }
 
