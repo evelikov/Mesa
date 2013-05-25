@@ -21,8 +21,30 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "device9ex.h"
+#include "nine_helpers.h"
 
 #define DBG_CHANNEL DBG_DEVICE
+
+static HRESULT
+NineDevice9Ex_ctor( struct NineDevice9Ex *This,
+                    struct NineUnknownParams *pParams,
+                    struct pipe_screen *pScreen,
+                    D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
+                    D3DCAPS9 *pCaps,
+                    IDirect3D9Ex *pD3D9Ex,
+                    ID3DPresentFactory *pPresentationFactory,
+                    PPRESENT_TO_RESOURCE pPTR )
+{
+    return NineDevice9_ctor(&This->base, pParams,
+                            pScreen, pCreationParameters, pCaps,
+                            (IDirect3D9 *)pD3D9Ex, pPresentationFactory, pPTR);
+}
+
+static void
+NineDevice9Ex_dtor( struct NineDevice9Ex *This )
+{
+    NineDevice9_dtor(&This->base);
+}
 
 HRESULT WINAPI
 NineDevice9Ex_SetConvolutionMonoKernel( struct NineDevice9Ex *This,
@@ -305,3 +327,25 @@ IDirect3DDevice9ExVtbl NineDevice9Ex_vtable = {
     (void *)NineDevice9Ex_ResetEx,
     (void *)NineDevice9Ex_GetDisplayModeEx
 };
+
+static const GUID *NineDevice9Ex_IIDs[] = {
+    &IID_IDirect3DDevice9Ex,
+    &IID_IDirect3DDevice9,
+    &IID_IUnknown,
+    NULL
+};
+
+HRESULT
+NineDevice9Ex_new( struct pipe_screen *pScreen,
+                   D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
+                   D3DCAPS9 *pCaps,
+                   IDirect3D9Ex *pD3D9Ex,
+                   ID3DPresentFactory *pPresentationFactory,
+                   PPRESENT_TO_RESOURCE pPTR,
+                   struct NineDevice9Ex **ppOut )
+{
+    NINE_NEW(NineDevice9Ex, ppOut,
+             pScreen, pCreationParameters, pCaps,
+             pD3D9Ex, pPresentationFactory, pPTR);
+}
+

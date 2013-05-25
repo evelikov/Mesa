@@ -35,6 +35,15 @@ NineDevice9Ex( void *data )
     return (struct NineDevice9Ex *)data;
 }
 
+HRESULT
+NineDevice9Ex_new( struct pipe_screen *pScreen,
+                   D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
+                   D3DCAPS9 *pCaps,
+                   IDirect3D9Ex *pD3D9Ex,
+                   ID3DPresentFactory *pPresentationFactory,
+                   PPRESENT_TO_RESOURCE pPTR,
+                   struct NineDevice9Ex **ppOut );
+
 HRESULT WINAPI
 NineDevice9Ex_SetConvolutionMonoKernel( struct NineDevice9Ex *This,
                                         UINT width,

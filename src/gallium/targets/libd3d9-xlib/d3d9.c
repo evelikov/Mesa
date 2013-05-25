@@ -398,9 +398,15 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
                                     This->dri2_minor, &present);
     if (FAILED(hr)) { return hr; }
 
-    hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
-                      BehaviorFlags, (IDirect3D9 *)This, present,
-                      ppReturnedDeviceInterface);
+    if (This->ex) {
+        hr = ADAPTER_PROC(CreateDeviceEx, Adapter, DeviceType, hFocusWindow,
+                          BehaviorFlags, (IDirect3D9Ex *)This, present,
+                          (IDirect3DDevice9Ex **)ppReturnedDeviceInterface);
+    } else {
+        hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
+                          BehaviorFlags, (IDirect3D9 *)This, present,
+                          ppReturnedDeviceInterface);
+    }
     if (FAILED(hr)) { ID3DPresentFactory_Release(present); }
 
     return hr;

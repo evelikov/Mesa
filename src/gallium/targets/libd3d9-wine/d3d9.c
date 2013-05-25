@@ -381,7 +381,8 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
     HRESULT hr;
     unsigned nparams;
 
-    _MESSAGE("%s\n", __FUNCTION__);
+    _MESSAGE("%s(This=%p, Adapter=%u, ..., Ex=%i)\n", __FUNCTION__,
+             This, Adapter, This->ex);
 
     if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
         _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);
@@ -398,9 +399,15 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
         return hr;
     }
 
-    hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
-                      BehaviorFlags, (IDirect3D9 *)This, present,
-                      ppReturnedDeviceInterface);
+    if (This->ex) {
+        hr = ADAPTER_PROC(CreateDeviceEx, Adapter, DeviceType, hFocusWindow,
+                          BehaviorFlags, (IDirect3D9Ex *)This, present,
+                          (IDirect3DDevice9Ex **)ppReturnedDeviceInterface);
+    } else {
+        hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
+                          BehaviorFlags, (IDirect3D9 *)This, present,
+                          ppReturnedDeviceInterface);
+    }
     if (FAILED(hr)) {
         _WARNING("%s: ADAPTER_PROC failed.\n", __FUNCTION__);
         ID3DPresentFactory_Release(present);
@@ -740,6 +747,7 @@ Nine9Ex_new( boolean ex,
 
     This->vtable = &Nine9Ex_vtable;
     This->refs = 1;
+    This->ex = ex;
 
     hr = D3DWineDriverCreate(&This->driver);
     if (FAILED(hr)) {

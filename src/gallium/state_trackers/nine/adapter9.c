@@ -21,7 +21,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "adapter9.h"
-#include "device9.h"
+#include "device9ex.h"
 #include "nine_helpers.h"
 #include "nine_defines.h"
 #include "nine_pipe.h"
@@ -979,7 +979,44 @@ NineAdapter9_CreateDeviceEx( struct NineAdapter9 *This,
                              ID3DPresentFactory *pPresentationFactory,
                              IDirect3DDevice9Ex **ppReturnedDeviceInterface )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct pipe_screen *screen;
+    D3DDEVICE_CREATION_PARAMETERS params;
+    D3DCAPS9 caps;
+    HRESULT hr;
+
+    DBG("This=%p RealAdapter=%u DeviceType=%s hFocusWindow=%p "
+        "BehaviourFlags=%x " "pD3D9Ex=%p pPresentationFactory=%p "
+        "ppReturnedDeviceInterface=%p\n", This,
+        RealAdapter, nine_D3DDEVTYPE_to_str(DeviceType), hFocusWindow,
+        BehaviorFlags, pD3D9Ex, pPresentationFactory, ppReturnedDeviceInterface);
+
+    hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
+    if (FAILED(hr)) {
+        DBG("Failed to get pipe_screen.\n");
+        return hr;
+    }
+
+    hr = NineAdapter9_GetDeviceCaps(This, DeviceType, &caps);
+    if (FAILED(hr)) {
+        DBG("Failed to get device caps.\n");
+        return hr;
+    }
+
+    params.AdapterOrdinal = RealAdapter;
+    params.DeviceType = DeviceType;
+    params.hFocusWindow = hFocusWindow;
+    params.BehaviorFlags = BehaviorFlags;
+
+    hr = NineDevice9Ex_new(screen, &params, &caps, pD3D9Ex,
+                           pPresentationFactory, This->ptrfunc,
+                           (struct NineDevice9Ex **)ppReturnedDeviceInterface);
+    if (FAILED(hr)) {
+        DBG("Failed to create device.\n");
+        return hr;
+    }
+    DBG("NineDevice9Ex created successfully.\n");
+
+    return D3D_OK;
 }
 
 ID3DAdapter9Vtbl NineAdapter9_vtable = {
