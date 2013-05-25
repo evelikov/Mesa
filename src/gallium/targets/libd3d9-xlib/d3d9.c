@@ -399,6 +399,8 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
                                     This->dri2_minor, &present);
     if (FAILED(hr)) { return hr; }
 
+    /* Looks like you should get a DeviceEx even if you don't call
+     * CreateDeviceEx. */
     if (This->ex) {
         hr = ADAPTER_PROC(CreateDeviceEx, Adapter, DeviceType, hFocusWindow,
                           BehaviorFlags, (IDirect3D9Ex *)This, present,
@@ -450,7 +452,14 @@ Nine9Ex_CreateDeviceEx( struct Nine9Ex *This,
                         D3DDISPLAYMODEEX *pFullscreenDisplayMode,
                         IDirect3DDevice9Ex **ppReturnedDeviceInterface )
 {
-    return D3DERR_INVALIDCALL;
+    HRESULT hr;
+    hr = Nine9Ex_CreateDevice(This, Adapter, DeviceType, hFocusWindow,
+                              BehaviorFlags, pPresentationParameters,
+                              (IDirect3DDevice9 **)ppReturnedDeviceInterface);
+    if (FAILED(hr))
+        return hr;
+    WARNING("ignoring pFullscreenDisplayMode: %p\n", pFullscreenDisplayMode);
+    return D3D_OK;
 }
 
 static HRESULT WINAPI
