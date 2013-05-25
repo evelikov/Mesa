@@ -1318,7 +1318,7 @@ nine_ff_upload_lights(struct NineDevice9 *device)
 
     u_box_1d(0, sizeof(data), &box);
 
-    if (state->changed.group & NINE_FF_STATE_MATERIAL) {
+    if (state->changed.group & NINE_STATE_FF_MATERIAL) {
         const D3DMATERIAL9 *mtl = &state->ff.material;
 
         memcpy(data[1], &mtl->Diffuse, sizeof(data[1]));
@@ -1343,7 +1343,7 @@ nine_ff_upload_lights(struct NineDevice9 *device)
                                     data, 0, 0);
     }
 
-    if (!(state->changed.group & NINE_FF_STATE_LIGHTING))
+    if (!(state->changed.group & NINE_STATE_FF_LIGHTING))
         return;
 
     /* initialize unused fields */
@@ -1491,10 +1491,13 @@ nine_ff_update(struct NineDevice9 *device)
         nine_ff_upload_point_and_fog_params(device);
 
         memset(state->ff.changed.transform, 0, sizeof(state->ff.changed.transform));
+        state->changed.group &= ~NINE_STATE_FF_VS;
     }
 
-    if (!device->state.ps)
+    if (!device->state.ps) {
         nine_ff_upload_ps_params(device);
+        state->changed.group &= ~NINE_STATE_FF_PS; /* XXX: shared state ? */
+    }
 
     device->state.changed.group |= NINE_STATE_VS | NINE_STATE_PS;
 }

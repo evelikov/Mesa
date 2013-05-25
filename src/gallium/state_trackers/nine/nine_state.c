@@ -470,7 +470,7 @@ nine_update_state(struct NineDevice9 *device)
     if (state->changed.vtxbuf)
         update_vertex_buffers(device);
 
-    device->state.changed.group = 0;
+    device->state.changed.group &= NINE_STATE_FF;
 
     return TRUE;
 }
@@ -833,7 +833,7 @@ const uint32_t nine_render_state_group[NINED3DRS_LAST + 1] =
     [D3DRS_WRAP6] = NINE_STATE_UNHANDLED,
     [D3DRS_WRAP7] = NINE_STATE_UNHANDLED,
     [D3DRS_CLIPPING] = NINE_STATE_RASTERIZER,
-    [D3DRS_LIGHTING] = NINE_STATE_ALL,
+    [D3DRS_LIGHTING] = NINE_STATE_FF_LIGHTING,
     [D3DRS_AMBIENT] = NINE_STATE_FF_LIGHTING | NINE_STATE_FF_MATERIAL,
     [D3DRS_FOGVERTEXMODE] = NINE_STATE_FF_OTHER,
     [D3DRS_COLORVERTEX] = NINE_STATE_FF_LIGHTING,
