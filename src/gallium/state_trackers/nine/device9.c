@@ -48,6 +48,35 @@
 
 #define DBG_CHANNEL DBG_DEVICE
 
+static void
+NineDevice9_SetDefaultState( struct NineDevice9 *This )
+{
+    struct NineSurface9 *refSurf = NULL;
+
+    This->state.viewport.X = 0;
+    This->state.viewport.Y = 0;
+    This->state.viewport.Width = 0;
+    This->state.viewport.Height = 0;
+
+    This->state.scissor.minx = 0;
+    This->state.scissor.miny = 0;
+    This->state.scissor.maxx = 0xffff;
+    This->state.scissor.maxy = 0xffff;
+
+    if (This->nswapchains && This->swapchains[0]->params.BackBufferCount)
+        refSurf = This->swapchains[0]->buffers[0];
+
+    if (refSurf) {
+        This->state.viewport.Width = refSurf->desc.Width;
+        This->state.viewport.Height = refSurf->desc.Height;
+        This->state.scissor.maxx = refSurf->desc.Width;
+        This->state.scissor.maxy = refSurf->desc.Height;
+    }
+
+    if (This->nswapchains && This->swapchains[0]->params.EnableAutoDepthStencil)
+        This->state.rs[D3DRS_ZENABLE] = TRUE;
+}
+
 HRESULT
 NineDevice9_ctor( struct NineDevice9 *This,
                   struct NineUnknownParams *pParams,
@@ -167,10 +196,12 @@ NineDevice9_ctor( struct NineDevice9 *This,
     {
         struct pipe_poly_stipple stipple;
 
-        nine_state_set_defaults(&This->state, &This->caps);
+        nine_state_set_defaults(&This->state, &This->caps, FALSE);
 
         memset(&stipple, ~0, sizeof(stipple));
         pipe->set_polygon_stipple(pipe, &stipple);
+
+        NineDevice9_SetDefaultState(This);
     }
     This->update = &This->state;
 
@@ -192,16 +223,7 @@ NineDevice9_dtor( struct NineDevice9 *This )
 
     nine_reference(&This->record, NULL);
 
-    for (i = 0; i < This->caps.NumSimultaneousRTs; ++i)
-       nine_reference(&This->state.rt[i], NULL);
-    nine_reference(&This->state.ds, NULL);
-    nine_reference(&This->state.vs, NULL);
-    nine_reference(&This->state.ps, NULL);
-    nine_reference(&This->state.vdecl, NULL);
-    for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
-        nine_reference(&This->state.stream[i], NULL);
-    for (i = 0; i < NINE_MAX_SAMPLERS; ++i)
-        nine_reference(&This->state.texture[i], NULL);
+    nine_state_reset(&This->state, This);
 
     nine_reference(&This->ff.vs, NULL);
     nine_reference(&This->ff.ps, NULL);
@@ -367,7 +389,16 @@ HRESULT WINAPI
 NineDevice9_Reset( struct NineDevice9 *This,
                    D3DPRESENT_PARAMETERS *pPresentationParameters )
 {
-    STUB(D3DERR_INVALIDCALL);
+    HRESULT hr;
+
+    hr = NineSwapChain9_Resize(This->swapchains[0], pPresentationParameters);
+    if (FAILED(hr))
+        return (hr == D3DERR_OUTOFVIDEOMEMORY) ? hr : D3DERR_DEVICELOST;
+
+    nine_state_reset(&This->state, This);
+    NineDevice9_SetDefaultState(This);
+
+    return hr;
 }
 
 HRESULT WINAPI
@@ -975,7 +1006,17 @@ NineDevice9_CreateOffscreenPlainSurface( struct NineDevice9 *This,
                                          IDirect3DSurface9 **ppSurface,
                                          HANDLE *pSharedHandle )
 {
-    STUB(D3DERR_INVALIDCALL);
+    /* Can be used with StretchRect and ColorFill, just create an RT and
+     * hope it works.
+     */
+    HRESULT hr = create_zs_or_rt_surface(This, FALSE, Width, Height,
+                                         Format,
+                                         D3DMULTISAMPLE_NONE, 0,
+                                         TRUE,
+                                         ppSurface, pSharedHandle);
+    if (FAILED(hr))
+        DBG("Could not create surface, remove RT bind flag ?\n");
+    return hr;
 }
 
 HRESULT WINAPI

@@ -40,12 +40,12 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      PPRESENT_TO_RESOURCE pPTR,
                      HWND hFocusWindow )
 {
-    unsigned i;
-    struct pipe_resource *resource, tmplt;
-    D3DSURFACE_DESC desc;
+    D3DPRESENT_PARAMETERS params;
+    HRESULT hr;
 
-    HRESULT hr = NineUnknown_ctor(&This->base, pParams);
-    if (FAILED(hr)) { return hr; }
+    hr = NineUnknown_ctor(&This->base, pParams);
+    if (FAILED(hr))
+        return hr;
 
     This->screen = NineDevice9_GetScreen(pDevice);
     This->pipe = NineDevice9_GetPipe(pDevice);
@@ -53,54 +53,143 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     This->device = pDevice;
     This->ptrfunc = pPTR;
     This->present = pPresent;
-    hr = ID3DPresent_GetPresentParameters(This->present, &This->params);
-    if (FAILED(hr)) { return hr; }
+    hr = ID3DPresent_GetPresentParameters(This->present, &params);
+    if (FAILED(hr))
+        return hr;
 
-    This->buffers = CALLOC(This->params.BackBufferCount+1,
-                           sizeof(struct NineSurface9 *));
-    if (!This->buffers) { return E_OUTOFMEMORY; }
+    return NineSwapChain9_Resize(This, &params);
+}
 
-    desc.Format = This->params.BackBufferFormat;
-    desc.Pool = D3DPOOL_DEFAULT;
-    desc.MultiSampleType = D3DMULTISAMPLE_NONE;
-    desc.MultiSampleQuality = 0.0f;
-    desc.Width = This->params.BackBufferWidth;
-    desc.Height = This->params.BackBufferHeight;
-    desc.Usage = D3DUSAGE_RENDERTARGET;
+HRESULT
+NineSwapChain9_Resize( struct NineSwapChain9 *This,
+                       D3DPRESENT_PARAMETERS *pParams )
+{
+    struct NineDevice9 *pDevice = This->device;
+    struct NineSurface9 **bufs;
+    D3DSURFACE_DESC desc;
+    HRESULT hr;
+    struct pipe_resource *resource, tmplt;
+    unsigned i;
 
-    tmplt.screen = This->screen;
+    DBG("This=%p pParams=%p\n", This, pParams);
+    if (pParams) {
+        DBG("pParams(%p):\n"
+            "BackBufferWidth: %u\n"
+            "BackBufferHeight: %u\n"
+            "BackBufferFormat: %s\n"
+            "BackBufferCount: %u\n"
+            "MultiSampleType: %u\n"
+            "MultiSampleQuality: %u\n"
+            "SwapEffect: %u\n"
+            "hDeviceWindow: %p\n"
+            "Windowed: %i\n"
+            "EnableAutoDepthStencil: %i\n"
+            "AutoDepthStencilFormat: %s\n"
+            "Flags: %x\n"
+            "FullScreen_RefreshRateInHz: %u\n"
+            "PresentationInterval: %u\n", pParams,
+            pParams->BackBufferWidth, pParams->BackBufferHeight,
+            d3dformat_to_string(pParams->BackBufferFormat),
+            pParams->BackBufferCount,
+            pParams->MultiSampleType, pParams->MultiSampleQuality,
+            pParams->SwapEffect, pParams->hDeviceWindow, pParams->Windowed,
+            pParams->EnableAutoDepthStencil,
+            d3dformat_to_string(pParams->AutoDepthStencilFormat),
+            pParams->Flags, pParams->FullScreen_RefreshRateInHz,
+            pParams->PresentationInterval);
+    }
+
+    if (pParams->BackBufferFormat == D3DFMT_UNKNOWN)
+        pParams->BackBufferFormat = This->params.BackBufferFormat;
+    if (pParams->EnableAutoDepthStencil &&
+        This->params.EnableAutoDepthStencil &&
+        pParams->AutoDepthStencilFormat == D3DFMT_UNKNOWN)
+        pParams->AutoDepthStencilFormat = This->params.AutoDepthStencilFormat;
+    /* NULL means focus window.
+    if (!pParams->hDeviceWindow && This->params.hDeviceWindow)
+        pParams->hDeviceWindow = This->params.hDeviceWindow;
+    */
+    if (pParams->BackBufferCount == 0)
+        pParams->BackBufferCount = 1; /* ref MSDN */
+
     tmplt.target = PIPE_TEXTURE_2D;
-    tmplt.format = d3d9_to_pipe_format(desc.Format);
-    tmplt.width0 = desc.Width;
-    tmplt.height0 = desc.Height;
+    tmplt.width0 = pParams->BackBufferWidth;
+    tmplt.height0 = pParams->BackBufferHeight;
     tmplt.depth0 = 1;
-    tmplt.array_size = 1;
+    tmplt.nr_samples = pParams->MultiSampleType;
     tmplt.last_level = 0;
-    tmplt.nr_samples = 0;
-    tmplt.usage = PIPE_USAGE_DEFAULT; /* is there a better usage? */
-    tmplt.bind = PIPE_BIND_RENDER_TARGET | PIPE_BIND_TRANSFER_WRITE |
-                 PIPE_BIND_TRANSFER_READ;
+    tmplt.array_size = 1;
+    tmplt.usage = PIPE_USAGE_DEFAULT;
+    tmplt.bind = PIPE_BIND_TRANSFER_READ | PIPE_BIND_TRANSFER_WRITE;
     tmplt.flags = 0;
 
-    for (i = 0; i < This->params.BackBufferCount; i++) {
+    desc.Format = pParams->AutoDepthStencilFormat;
+    desc.Pool = D3DPOOL_DEFAULT;
+    desc.MultiSampleType = pParams->MultiSampleType;
+    desc.MultiSampleQuality = 0;
+    desc.Width = pParams->BackBufferWidth;
+    desc.Height = pParams->BackBufferHeight;
+
+    if (pParams->BackBufferCount != This->params.BackBufferCount) {
+        for (i = pParams->BackBufferCount; i < This->params.BackBufferCount;
+             ++i)
+            nine_reference(&This->buffers[i], NULL);
+
+        bufs = REALLOC(This->buffers,
+                       This->params.BackBufferCount * sizeof(This->buffers[0]),
+                       pParams->BackBufferCount * sizeof(This->buffers[0]));
+        if (!bufs)
+            return E_OUTOFMEMORY;
+        This->buffers = bufs;
+        for (i = This->params.BackBufferCount; i < pParams->BackBufferCount;
+             ++i)
+            This->buffers[i] = NULL;
+    }
+
+    for (i = 0; i < pParams->BackBufferCount; ++i) {
+        tmplt.format = d3d9_to_pipe_format(pParams->BackBufferFormat);
+        tmplt.bind |= PIPE_BIND_RENDER_TARGET;
         resource = This->screen->resource_create(This->screen, &tmplt);
         if (!resource) {
-            DBG("screen::resource_create failed\n"
-                " format = %u\n"
-                " width0 = %u\n"
-                " height0 = %u\n"
-                " usage = %u\n"
-                " bind = %u\n",
-                tmplt.format, tmplt.width0,
-                tmplt.height0, tmplt.usage, tmplt.bind);
+            DBG("Failed to create pipe_resource.\n");
             return D3DERR_OUTOFVIDEOMEMORY;
         }
-
-        hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
-                              0, 0, &desc, &This->buffers[i]);
-        pipe_resource_reference(&resource, NULL);
-        if (FAILED(hr)) { return hr; }
+        if (This->buffers[i]) {
+            NineSurface9_SetResource(This->buffers[i], resource, 0);
+        } else {
+            desc.Usage = D3DUSAGE_RENDERTARGET;
+            hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
+                                  0, 0, &desc, &This->buffers[i]);
+            if (FAILED(hr)) {
+                DBG("Failed to create RT surface.\n");
+                return hr;
+            }
+        }
     }
+    if (pParams->EnableAutoDepthStencil) {
+        tmplt.format = d3d9_to_pipe_format(pParams->AutoDepthStencilFormat);
+        tmplt.bind &= ~PIPE_BIND_RENDER_TARGET;
+        tmplt.bind |= PIPE_BIND_DEPTH_STENCIL;
+
+        resource = This->screen->resource_create(This->screen, &tmplt);
+        if (!resource) {
+            DBG("Failed to create pipe_resource for depth buffer.\n");
+            return D3DERR_OUTOFVIDEOMEMORY;
+        }
+        if (This->zsbuf) {
+            NineSurface9_SetResource(This->zsbuf, resource, 0);
+        } else {
+            desc.Usage = D3DUSAGE_DEPTHSTENCIL;
+            hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
+                                  0, 0, &desc, &This->zsbuf);
+            if (FAILED(hr)) {
+                DBG("Failed to create ZS surface.\n");
+                return hr;
+            }
+        }
+    }
+
+    This->params = *pParams;
 
     return D3D_OK;
 }
@@ -111,10 +200,12 @@ NineSwapChain9_dtor( struct NineSwapChain9 *This )
     unsigned i;
 
     if (This->buffers) {
-        for (i = 0; i <= This->params.BackBufferCount; i++)
+        for (i = 0; i < This->params.BackBufferCount; i++)
             nine_reference(&This->buffers[i], NULL);
         FREE(This->buffers);
     }
+    nine_reference(&This->zsbuf, NULL);
+
     if (This->present) {
         ID3DPresent_Release(This->present);
     }

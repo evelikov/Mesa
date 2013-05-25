@@ -382,8 +382,9 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
     HRESULT hr;
     unsigned nparams;
 
-    _MESSAGE("%s(This=%p, Adapter=%u, ..., Ex=%i)\n", __FUNCTION__,
-             This, Adapter, This->ex);
+    _MESSAGE("%s(This=%p, Adapter=%u, pPresentationParameters=%p, "
+             "..., Ex=%i)\n", __FUNCTION__, This, Adapter,
+             pPresentationParameters, This->ex);
 
     if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
         _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);

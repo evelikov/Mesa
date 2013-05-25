@@ -185,7 +185,9 @@ struct NineDevice9;
 
 boolean nine_update_state(struct NineDevice9 *);
 
-void nine_state_set_defaults(struct nine_state *, D3DCAPS9 *);
+void nine_state_set_defaults(struct nine_state *, const D3DCAPS9 *,
+                             boolean is_reset);
+void nine_state_reset(struct nine_state *, const struct NineDevice9 *);
 
 /* If @alloc is FALSE, the return value may be a const identity matrix.
  * Therefore, do not modify if you set alloc to FALSE !

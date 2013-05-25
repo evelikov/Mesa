@@ -52,6 +52,7 @@ struct NineSwapChain9
 
     /* buffer handles */
     struct NineSurface9 **buffers; /* [0] is frontbuffer */
+    struct NineSurface9 *zsbuf;
 };
 static INLINE struct NineSwapChain9 *
 NineSwapChain9( void *data )
@@ -76,6 +77,10 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
 
 void
 NineSwapChain9_dtor( struct NineSwapChain9 *This );
+
+HRESULT
+NineSwapChain9_Resize( struct NineSwapChain9 *This,
+                       D3DPRESENT_PARAMETERS *pParams );
 
 HRESULT WINAPI
 NineSwapChain9_Present( struct NineSwapChain9 *This,

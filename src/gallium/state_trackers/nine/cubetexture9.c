@@ -48,7 +48,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
                 Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
 
-    assert(!pSharedHandle); /* TODO */
+    user_assert(!pSharedHandle, D3DERR_INVALIDCALL); /* TODO */
 
     This->base.format = Format;
 

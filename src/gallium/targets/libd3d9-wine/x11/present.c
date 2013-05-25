@@ -423,7 +423,7 @@ NineWinePresentX11_new( xcb_connection_t *c,
     struct NineWinePresentX11 *This;
     RECT rect;
 
-    _MESSAGE("%s\n", __FUNCTION__);
+    _MESSAGE("%s(params=%p)\n", __FUNCTION__, params);
 
     if (params->hDeviceWindow) { focus_wnd = params->hDeviceWindow; }
     if (!focus_wnd) {

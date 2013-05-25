@@ -472,6 +472,8 @@ nine_update_state(struct NineDevice9 *device)
 
     device->state.changed.group &= NINE_STATE_FF;
 
+    DBG("finished\n");
+
     return TRUE;
 }
 
@@ -625,7 +627,8 @@ static const DWORD nine_samp_state_defaults[NINED3DSAMP_LAST + 1] =
     [D3DSAMP_DMAPOFFSET] = 0
 };
 void
-nine_state_set_defaults(struct nine_state *state, D3DCAPS9 *caps)
+nine_state_set_defaults(struct nine_state *state, const D3DCAPS9 *caps,
+                        boolean is_reset)
 {
     unsigned s;
 
@@ -661,6 +664,30 @@ nine_state_set_defaults(struct nine_state *state, D3DCAPS9 *caps)
 
     state->ff.changed.transform[0] = ~0;
     state->ff.changed.transform[D3DTS_WORLD / 32] |= 1 << (D3DTS_WORLD % 32);
+
+    if (!is_reset) {
+        state->viewport.MinZ = 0.0f;
+        state->viewport.MaxZ = 1.0f;
+    }
+}
+
+void
+nine_state_reset(struct nine_state *state, const struct NineDevice9 *dev)
+{
+    unsigned i;
+
+    for (i = 0; i < dev->caps.NumSimultaneousRTs; ++i)
+       nine_reference(&state->rt[i], NULL);
+    nine_reference(&state->ds, NULL);
+    nine_reference(&state->vs, NULL);
+    nine_reference(&state->ps, NULL);
+    nine_reference(&state->vdecl, NULL);
+    for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
+        nine_reference(&state->stream[i], NULL);
+    for (i = 0; i < NINE_MAX_SAMPLERS; ++i)
+        nine_reference(&state->texture[i], NULL);
+
+    nine_state_set_defaults(state, &dev->caps, TRUE);
 }
 
 /*
