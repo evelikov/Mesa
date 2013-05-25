@@ -108,6 +108,7 @@ Nine9Ex_QueryInterface( struct Nine9Ex *This,
          GUID_equal(&IID_IDirect3D9, riid) ||
          GUID_equal(&IID_IUnknown, riid)) {
         *ppvObject = This;
+        This->refs++;
         return S_OK;
     }
     _WARNING("%s: QueryInterface failed.\n", __FUNCTION__);

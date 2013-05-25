@@ -80,6 +80,7 @@ NineWineDriverX11_QueryInterface( struct NineWineDriverX11 *This,
     if (GUID_equal(&IID_ID3DWineDriver, riid) ||
         GUID_equal(&IID_IUnknown, riid)) {
         *ppvObject = This;
+        This->refs++;
         return S_OK;
     }
     *ppvObject = NULL;

@@ -154,6 +154,7 @@ NineWinePresentX11_QueryInterface( struct NineWinePresentX11 *This,
     if (GUID_equal(&IID_ID3DPresent, riid) ||
         GUID_equal(&IID_IUnknown, riid)) {
         *ppvObject = This;
+        This->refs++;
         return S_OK;
     }
     _WARNING("%s: E_NOINTERFACE\n", __FUNCTION__);

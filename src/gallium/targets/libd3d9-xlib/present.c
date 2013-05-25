@@ -90,6 +90,7 @@ NinePresentXlib_QueryInterface( struct NinePresentXlib *This,
     if (GUID_equal(&IID_ID3DPresent, riid) ||
         GUID_equal(&IID_IUnknown, riid)) {
         *ppvObject = This;
+        This->refs++;
         return S_OK;
     }
     *ppvObject = NULL;
@@ -399,6 +400,7 @@ NinePresentFactoryXlib_QueryInterface( struct NinePresentFactoryXlib *This,
     if (GUID_equal(&IID_ID3DPresentFactory, riid) ||
         GUID_equal(&IID_IUnknown, riid)) {
         *ppvObject = This;
+        This->refs++;
         return S_OK;
     }
     *ppvObject = NULL;
