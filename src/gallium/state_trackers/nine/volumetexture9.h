@@ -30,6 +30,7 @@ struct NineVolumeTexture9
 {
     struct NineBaseTexture9 base;
     struct NineVolume9 **volumes;
+    struct pipe_box dirty_box;
 };
 static INLINE struct NineVolumeTexture9 *
 NineVolumeTexture9( void *data )

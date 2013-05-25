@@ -120,7 +120,7 @@ HRESULT
 NineSurface9_AllocateData( struct NineSurface9 *This );
 
 HRESULT
-NineSurface9_UpdateSelf( struct NineSurface9 *This );
+NineSurface9_UploadSelf( struct NineSurface9 *This );
 
 HRESULT
 NineSurface9_CopySurface( struct NineSurface9 *This,

@@ -99,7 +99,7 @@ NineVolume9_CopyVolume( struct NineVolume9 *This,
                         struct pipe_box *pSrcBox );
 
 HRESULT
-NineVolume9_UpdateSelf( struct NineVolume9 *This );
+NineVolume9_UploadSelf( struct NineVolume9 *This );
 
 
 /*** Direct3D public ***/

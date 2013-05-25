@@ -22,6 +22,7 @@
 
 #include "device9.h"
 #include "volume9.h"
+#include "basetexture9.h" /* for marking dirty */
 #include "nine_helpers.h"
 #include "nine_pipe.h"
 
@@ -117,6 +118,20 @@ NineVolume9_GetContainer( struct NineVolume9 *This,
     if (!NineUnknown(This)->container)
         return E_NOINTERFACE;
     return NineUnknown_QueryInterface(NineUnknown(This)->container, riid, ppContainer);
+}
+
+static INLINE void
+NineVolume9_MarkContainerDirty( struct NineVolume9 *This )
+{
+    if (This->desc.Type == D3DRTYPE_VOLUMETEXTURE) {
+        struct NineBaseTexture9 *tex = NineBaseTexture9(This->base.container);
+        assert(tex);
+        if (This->desc.Pool != D3DPOOL_MANAGED)
+            tex->dirty_mip = TRUE;
+        else
+        if (This->desc.Usage & D3DUSAGE_AUTOGENMIPMAP)
+            tex->dirty = TRUE;
+    }
 }
 
 HRESULT WINAPI
@@ -378,6 +393,9 @@ NineVolume9_CopyVolume( struct NineVolume9 *This,
                       src_box.x, src_box.y, src_box.z);
     }
 
+    if (This->desc.Pool == D3DPOOL_DEFAULT ||
+        This->desc.Pool == D3DPOOL_MANAGED)
+        NineVolume9_MarkContainerDirty(This);
     if (!r_dst && This->resource)
         NineVolume9_AddDirtyRegion(This, &dst_box);
 
@@ -385,7 +403,7 @@ NineVolume9_CopyVolume( struct NineVolume9 *This,
 }
 
 HRESULT
-NineVolume9_UpdateSelf( struct NineVolume9 *This )
+NineVolume9_UploadSelf( struct NineVolume9 *This )
 {
     struct pipe_context *pipe = This->pipe;
     struct pipe_resource *res = This->resource;

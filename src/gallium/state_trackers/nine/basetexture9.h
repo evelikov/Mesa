@@ -39,6 +39,9 @@ struct NineBaseTexture9
     D3DTEXTUREFILTERTYPE mipfilter;
     DWORD lod;
     DWORD lod_resident;
+
+    boolean dirty;
+    boolean dirty_mip;
 };
 static INLINE struct NineBaseTexture9 *
 NineBaseTexture9( void *data )
@@ -76,20 +79,33 @@ NineBaseTexture9_GetAutoGenFilterType( struct NineBaseTexture9 *This );
 void WINAPI
 NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This );
 
+void WINAPI
+NineBaseTexture9_PreLoad( struct NineBaseTexture9 *This );
+
 /* For D3DPOOL_MANAGED only (after SetLOD change): */
 HRESULT
 NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This );
 
 /* For D3DPOOL_MANAGED only: */
 HRESULT
-NineBaseTexture9_UpdateSelf( struct NineBaseTexture9 *This );
+NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This );
 
 HRESULT
 NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This );
 
+static INLINE void
+NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
+{
+    if (This->dirty && This->base.pool == D3DPOOL_MANAGED)
+        NineBaseTexture9_UploadSelf(This);
+    if (This->dirty_mip)
+        NineBaseTexture9_GenerateMipSubLevels(This);
+}
+
 static INLINE struct pipe_sampler_view *
 NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This )
 {
+    NineBaseTexture9_Validate(This);
     if (!This->view)
         NineBaseTexture9_UpdateSamplerView(This);
     return This->view;

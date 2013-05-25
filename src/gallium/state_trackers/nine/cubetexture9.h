@@ -30,6 +30,7 @@ struct NineCubeTexture9
 {
     struct NineBaseTexture9 base;
     struct NineSurface9 **surfaces;
+    struct pipe_box dirty_rect[6]; /* covers all mip levels */
 };
 static INLINE struct NineCubeTexture9 *
 NineCubeTexture9( void *data )

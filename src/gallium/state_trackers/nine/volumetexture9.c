@@ -170,15 +170,24 @@ HRESULT WINAPI
 NineVolumeTexture9_AddDirtyBox( struct NineVolumeTexture9 *This,
                                 const D3DBOX *pDirtyBox )
 {
-    if (This->base.base.pool != D3DPOOL_MANAGED)
+    if (This->base.base.pool != D3DPOOL_MANAGED) {
+        if (This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP)
+            This->base.dirty_mip = TRUE;
         return D3D_OK;
+    }
+    This->base.dirty = TRUE;
 
     if (!pDirtyBox) {
-        NineVolume9_AddDirtyRegion(This->volumes[0], NULL);
+        This->dirty_box.x = 0;
+        This->dirty_box.y = 0;
+        This->dirty_box.z = 0;
+        This->dirty_box.width = This->base.base.info.width0;
+        This->dirty_box.height = This->base.base.info.height0;
+        This->dirty_box.depth = This->base.base.info.depth0;
     } else {
         struct pipe_box box;
         d3dbox_to_pipe_box(&box, pDirtyBox);
-        NineVolume9_AddDirtyRegion(This->volumes[0], &box);
+        u_box_cover(&This->dirty_box, &This->dirty_box, &box);
     }
     return D3D_OK;
 }
@@ -193,7 +202,7 @@ IDirect3DVolumeTexture9Vtbl NineVolumeTexture9_vtable = {
     (void *)NineResource9_FreePrivateData,
     (void *)NineResource9_SetPriority,
     (void *)NineResource9_GetPriority,
-    (void *)NineResource9_PreLoad,
+    (void *)NineBaseTexture9_PreLoad,
     (void *)NineResource9_GetType,
     (void *)NineBaseTexture9_SetLOD,
     (void *)NineBaseTexture9_GetLOD,

@@ -123,6 +123,8 @@ NineTexture9_ctor( struct NineTexture9 *This,
             return hr;
     }
 
+    This->dirty_rect.depth = 1; /* widht == 0 means empty, depth stays 1 */
+
     return D3D_OK;
 }
 
@@ -200,31 +202,25 @@ NineTexture9_AddDirtyRect( struct NineTexture9 *This,
         pDirtyRect ? pDirtyRect->right : 0, pDirtyRect ? pDirtyRect->bottom : 0);
 
     /* Tracking dirty regions on DEFAULT or SYSTEMMEM resources is pointless,
-     * because we always write to the final storage.
+     * because we always write to the final storage. Just marked it dirty in
+     * case we need to generate mip maps.
      */
-    if (This->base.base.pool != D3DPOOL_MANAGED)
+    if (This->base.base.pool != D3DPOOL_MANAGED) {
+        if (This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP)
+            This->base.dirty_mip = TRUE;
         return D3D_OK;
+    }
+    This->base.dirty = TRUE;
 
     if (!pDirtyRect) {
-        NineSurface9_AddDirtyRect(This->surfaces[0], NULL);
+        u_box_origin_2d(This->base.base.info.width0,
+                        This->base.base.info.height0, &This->dirty_rect);
     } else {
         struct pipe_box box;
-        rect_to_pipe_box(&box, pDirtyRect);    
-        NineSurface9_AddDirtyRect(This->surfaces[0], &box);
+        rect_to_pipe_box(&box, pDirtyRect);
+        u_box_cover_2d(&This->dirty_rect, &This->dirty_rect, &box);
     }
     return D3D_OK;
-}
-
-static void WINAPI
-NineTexture9_PreLoad( struct NineTexture9 *This )
-{
-    unsigned l;
-
-    if (This->base.base.pool != D3DPOOL_MANAGED)
-        return;
-
-    for (l = 0; l <= This->base.base.info.last_level; ++l)
-        NineSurface9_UpdateSelf(This->surfaces[l]);
 }
 
 IDirect3DTexture9Vtbl NineTexture9_vtable = {
@@ -237,7 +233,7 @@ IDirect3DTexture9Vtbl NineTexture9_vtable = {
     (void *)NineResource9_FreePrivateData,
     (void *)NineResource9_SetPriority,
     (void *)NineResource9_GetPriority,
-    (void *)NineTexture9_PreLoad,
+    (void *)NineBaseTexture9_PreLoad,
     (void *)NineResource9_GetType,
     (void *)NineBaseTexture9_SetLOD,
     (void *)NineBaseTexture9_GetLOD,

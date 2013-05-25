@@ -22,6 +22,7 @@
 
 #include "surface9.h"
 #include "device9.h"
+#include "basetexture9.h" /* for marking dirty */
 
 #include "nine_helpers.h"
 #include "nine_pipe.h"
@@ -183,6 +184,23 @@ NineSurface9_GetContainer( struct NineSurface9 *This,
     return NineUnknown_QueryInterface(NineUnknown(This)->container, riid, ppContainer);
 }
 
+static INLINE void
+NineSurface9_MarkContainerDirty( struct NineSurface9 *This )
+{
+    if (This->base.type != D3DRTYPE_SURFACE) {
+        struct NineBaseTexture9 *tex =
+            NineBaseTexture9(This->base.base.container);
+        assert(tex);
+        assert(This->base.type == D3DRTYPE_TEXTURE ||
+               This->base.type == D3DRTYPE_CUBETEXTURE);
+        if (This->base.pool != D3DPOOL_MANAGED)
+            tex->dirty_mip = TRUE;
+        else
+        if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
+            tex->dirty = TRUE;
+    }
+}
+
 HRESULT WINAPI
 NineSurface9_GetDesc( struct NineSurface9 *This,
                       D3DSURFACE_DESC *pDesc )
@@ -317,9 +335,11 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         pLockedRect->Pitch = This->transfer->stride;
     }
 
-    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY)))
+    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY))) {
+        NineSurface9_MarkContainerDirty(This);
         if (This->base.pool == D3DPOOL_MANAGED)
             NineSurface9_AddDirtyRect(This, &box);
+    }
 
     ++This->lock_count;
     return D3D_OK;
@@ -559,6 +579,9 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
                        From->stride, src_box.x, src_box.y);
     }
 
+    if (This->base.pool == D3DPOOL_DEFAULT ||
+        This->base.pool == D3DPOOL_MANAGED)
+        NineSurface9_MarkContainerDirty(This);
     if (!r_dst && This->base.resource)
         NineSurface9_AddDirtyRect(This, &dst_box);
 
@@ -566,7 +589,7 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
 }
 
 HRESULT
-NineSurface9_UpdateSelf( struct NineSurface9 *This )
+NineSurface9_UploadSelf( struct NineSurface9 *This )
 {
     struct pipe_context *pipe = This->pipe;
     struct pipe_resource *res = This->base.resource;

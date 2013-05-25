@@ -108,6 +108,8 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
         if (FAILED(hr))
             return hr;
     }
+    for (i = 0; i < 6; ++i) /* width = 0 means empty, depth stays 1 */
+        This->dirty_rect[i].depth = 1;
 
     return D3D_OK;
 }
@@ -193,21 +195,24 @@ NineCubeTexture9_AddDirtyRect( struct NineCubeTexture9 *This,
                                D3DCUBEMAP_FACES FaceType,
                                const RECT *pDirtyRect )
 {
-    unsigned z;
-
     user_assert(FaceType < 6, D3DERR_INVALIDCALL);
 
-    if (This->base.base.pool != D3DPOOL_MANAGED)
+    if (This->base.base.pool != D3DPOOL_MANAGED) {
+        if (This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP)
+            This->base.dirty_mip = TRUE;
         return D3D_OK;
+    }
+    This->base.dirty = TRUE;
 
     if (!pDirtyRect) {
-        for (z = 0; z < 6; ++z)
-            NineSurface9_AddDirtyRect(This->surfaces[z], NULL);
+        u_box_origin_2d(This->base.base.info.width0,
+                        This->base.base.info.height0,
+                        &This->dirty_rect[FaceType]);
     } else {
         struct pipe_box box;
         rect_to_pipe_box(&box, pDirtyRect);
-        for (z = 0; z < 6; ++z)
-            NineSurface9_AddDirtyRect(This->surfaces[z], &box);
+        u_box_cover_2d(&This->dirty_rect[FaceType], &This->dirty_rect[FaceType],
+                       &box);
     }
     return D3D_OK;
 }
@@ -222,7 +227,7 @@ IDirect3DCubeTexture9Vtbl NineCubeTexture9_vtable = {
     (void *)NineResource9_FreePrivateData,
     (void *)NineResource9_SetPriority,
     (void *)NineResource9_GetPriority,
-    (void *)NineResource9_PreLoad,
+    (void *)NineBaseTexture9_PreLoad,
     (void *)NineResource9_GetType,
     (void *)NineBaseTexture9_SetLOD,
     (void *)NineBaseTexture9_GetLOD,
