@@ -482,6 +482,8 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     vs = !!(screen->get_shader_param(screen, PIPE_SHADER_VERTEX,
                                      PIPE_SHADER_CAP_MAX_INSTRUCTIONS));
 
+    pCaps->DeviceType = DeviceType;
+
     pCaps->AdapterOrdinal = 0;
 
     pCaps->Caps = 0;
@@ -494,14 +496,15 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     pCaps->Caps3 = /*D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD |*/
                    /*D3DCAPS2_FULLSCREENGAMMA |*/
                    D3DCAPS3_COPY_TO_VIDMEM |
-                   D3DCAPS3_COPY_TO_SYSTEMMEM;
+                   D3DCAPS3_COPY_TO_SYSTEMMEM |
+                   D3DCAPS3_LINEAR_TO_SRGB_PRESENTATION;
 
     pCaps->PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT |
-                                   /*D3DPRESENT_INTERVAL_ONE |*/
+                                   D3DPRESENT_INTERVAL_ONE |
                                    /*D3DPRESENT_INTERVAL_TWO |*/
                                    /*D3DPRESENT_INTERVAL_THREE |*/
                                    /*D3DPRESENT_INTERVAL_FOUR |*/
-                                   /*D3DPRESENT_INTERVAL_IMMEDIATE*/0;
+                                   D3DPRESENT_INTERVAL_IMMEDIATE;
     pCaps->CursorCaps = D3DCURSORCAPS_COLOR | D3DCURSORCAPS_LOWRES;
 
     pCaps->DevCaps = D3DDEVCAPS_CANBLTSYSTONONLOCAL |
@@ -509,8 +512,8 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                      D3DDEVCAPS_DRAWPRIMITIVES2 |
                      D3DDEVCAPS_DRAWPRIMITIVES2EX |
                      D3DDEVCAPS_DRAWPRIMTLVERTEX |
-                     /*D3DDEVCAPS_EXECUTESYSTEMMEMORY |*/
-                     /*D3DDEVCAPS_EXECUTEVIDEOMEMORY |*/
+                     D3DDEVCAPS_EXECUTESYSTEMMEMORY |
+                     D3DDEVCAPS_EXECUTEVIDEOMEMORY |
                      D3DDEVCAPS_HWRASTERIZATION |
                      D3DDEVCAPS_HWTRANSFORMANDLIGHT |
                      /*D3DDEVCAPS_NPATCHES |*/
@@ -641,9 +644,9 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
         D3DPTADDRESSCAPS_BORDER |
         D3DPTADDRESSCAPS_INDEPENDENTUV |
         D3DPTADDRESSCAPS_WRAP |
-        D3DPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_MIRROR) |
-        D3DPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_CLAMP) |
-        D3DNPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_MIRRORONCE);
+        D3DPTADDRESSCAPS_MIRROR |
+        D3DPTADDRESSCAPS_CLAMP |
+        D3DPIPECAP(TEXTURE_MIRROR_CLAMP, D3DPTADDRESSCAPS_MIRRORONCE);
 
     pCaps->VolumeTextureAddressCaps = pCaps->TextureAddressCaps;
 
@@ -737,7 +740,7 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                                   D3DVTXPCAPS_MATERIALSOURCE7 |
                                   D3DVTXPCAPS_DIRECTIONALLIGHTS |
                                   D3DVTXPCAPS_POSITIONALLIGHTS |
-                                  /*D3DVTXPCAPS_LOCALVIEWER |*/
+                                  D3DVTXPCAPS_LOCALVIEWER |
                                   /*D3DVTXPCAPS_TWEENING |*/
                                   /*D3DVTXPCAPS_NO_TEXGEN_NONLOCALVIEWER*/0;
 
@@ -748,8 +751,8 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
 
     pCaps->MaxPointSize = screen->get_paramf(screen, PIPE_CAPF_MAX_POINT_WIDTH);
 
-    pCaps->MaxPrimitiveCount = 0xFFFFFFFF;
-    pCaps->MaxVertexIndex = 0xFFFFFFFF;
+    pCaps->MaxPrimitiveCount = 0xFFFFF; /* <- wine, really 0xFFFFFFFF; */
+    pCaps->MaxVertexIndex = 0xFFFFF; /* <- wine, really 0xFFFFFFFF */
     pCaps->MaxStreams = screen->get_shader_param(screen,
         PIPE_SHADER_VERTEX, PIPE_SHADER_CAP_MAX_INPUTS);
     if (pCaps->MaxStreams > 16)
@@ -788,6 +791,10 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                       /*D3DDEVCAPS2_ADAPTIVETESSRTPATCH |*/
                       /*D3DDEVCAPS2_ADAPTIVETESSNPATCH |*/
                       /*D3DDEVCAPS2_PRESAMPLEDDMAPNPATCH*/0;
+
+    pCaps->MasterAdapterOrdinal = 0;
+    pCaps->AdapterOrdinalInGroup = 0;
+    pCaps->NumberOfAdaptersInGroup = 1;
 
     /* Undocumented ? */
     pCaps->MaxNpatchTessellationLevel = 0.0f;
