@@ -279,6 +279,7 @@ NineDevice9_GetDirect3D( struct NineDevice9 *This,
                          IDirect3D9 **ppD3D9 )
 {
     user_assert(ppD3D9 != NULL, E_POINTER);
+    IDirect3D9_AddRef(This->d3d9);
     *ppD3D9 = This->d3d9;
     return D3D_OK;
 }
@@ -350,6 +351,7 @@ NineDevice9_GetSwapChain( struct NineDevice9 *This,
     user_assert(pSwapChain != NULL, D3DERR_INVALIDCALL);
     user_assert(iSwapChain < This->nswapchains, D3DERR_INVALIDCALL);
 
+    NineUnknown_AddRef(NineUnknown(This->swapchains[iSwapChain]));
     *pSwapChain = (IDirect3DSwapChain9 *)This->swapchains[iSwapChain];
 
     return D3D_OK;
