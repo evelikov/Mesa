@@ -140,9 +140,27 @@ int64_t u_box_volume(const struct pipe_box *box)
    return (int64_t)box->width * box->height * box->depth;
 }
 
+/* Aliasing of @dst and @a permitted. */
+static INLINE
+void u_box_cover_2d(struct pipe_box *dst,
+                    struct pipe_box *a, const struct pipe_box *b)
+{
+   int x1_a = a->x + a->width;
+   int y1_a = a->y + a->height;
+   int x1_b = b->x + b->width;
+   int y1_b = b->y + b->height;
+
+   dst->x = MIN2(a->x, b->x);
+   dst->y = MIN2(a->y, b->y);
+
+   dst->width = MAX2(x1_a, x1_b) - dst->x;
+   dst->height = MAX2(y1_a, y1_b) - dst->y;
+}
+
+/* Aliasing of @dst and @a permitted. */
 static INLINE
 void u_box_cover(struct pipe_box *dst,
-                 const struct pipe_box *a, const struct pipe_box *b)
+                 struct pipe_box *a, const struct pipe_box *b)
 {
    int x1_a = a->x + a->width;
    int y1_a = a->y + a->height;
@@ -158,6 +176,28 @@ void u_box_cover(struct pipe_box *dst,
    dst->width = MAX2(x1_a, x1_b) - dst->x;
    dst->height = MAX2(y1_a, y1_b) - dst->y;
    dst->depth = MAX2(z1_a, z1_b) - dst->z;
+}
+
+static INLINE
+void u_box_minify(struct pipe_box *dst,
+                  const struct pipe_box *src, unsigned l)
+{
+   dst->x = src->x >> l;
+   dst->y = src->y >> l;
+   dst->z = src->z >> l;
+   dst->width = MAX2(src->width >> l, 1);
+   dst->height = MAX2(src->height >> l, 1);
+   dst->depth = MAX2(src->depth >> l, 1);
+}
+
+static INLINE
+void u_box_minify_2d(struct pipe_box *dst,
+                     const struct pipe_box *src, unsigned l)
+{
+   dst->x = src->x >> l;
+   dst->y = src->y >> l;
+   dst->width = MAX2(src->width >> l, 1);
+   dst->height = MAX2(src->height >> l, 1);
 }
 
 #endif
