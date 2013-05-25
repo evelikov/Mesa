@@ -106,6 +106,7 @@ Nine9Ex_QueryInterface( struct Nine9Ex *This,
         *ppvObject = This;
         return S_OK;
     }
+    _WARNING("%s: QueryInterface failed.\n", __FUNCTION__);
     return E_NOINTERFACE;
 }
 
@@ -152,12 +153,13 @@ static HRESULT WINAPI
 Nine9Ex_RegisterSoftwareDevice( struct Nine9Ex *This,
                                 void *pInitializeFunction )
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 static UINT WINAPI
 Nine9Ex_GetAdapterCount( struct Nine9Ex *This )
 {
+    _MESSAGE("%s: returning %u\n", __FUNCTION__, This->nadapters);
     return This->nadapters;
 }
 
@@ -176,13 +178,18 @@ Nine9Ex_GetAdapterModeCount( struct Nine9Ex *This,
                              UINT Adapter,
                              D3DFORMAT Format )
 {
-    if (Adapter >= Nine9Ex_GetAdapterCount(This)) { return 0; }
+    if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
+        _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);
+        return 0;
+    }
     if (FAILED(Nine9Ex_CheckDeviceFormat(This, Adapter, D3DDEVTYPE_HAL,
                                          Format, D3DUSAGE_RENDERTARGET,
                                          D3DRTYPE_SURFACE, Format))) {
+        _WARNING("%s: DeviceFormat not available.\n", __FUNCTION__);
         return 0;
     }
 
+    _MESSAGE("%s: %u modes.\n", __FUNCTION__, ADAPTER_OUTPUT.nmodes);
     return ADAPTER_OUTPUT.nmodes;
 }
 
@@ -193,19 +200,30 @@ Nine9Ex_EnumAdapterModes( struct Nine9Ex *This,
                           UINT Mode,
                           D3DDISPLAYMODE *pMode )
 {
-    if (Adapter >= Nine9Ex_GetAdapterCount(This)) { return D3DERR_INVALIDCALL; }
+    if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
+        _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);
+        return D3DERR_INVALIDCALL;
+    }
     if (FAILED(Nine9Ex_CheckDeviceFormat(This, Adapter, D3DDEVTYPE_HAL,
                                          Format, D3DUSAGE_RENDERTARGET,
                                          D3DRTYPE_SURFACE, Format))) {
+        _WARNING("%s: DeviceFormat not available.\n", __FUNCTION__);
         return D3DERR_NOTAVAILABLE;
     }
 
-    if (Mode >= ADAPTER_OUTPUT.nmodes) { return D3DERR_INVALIDCALL; }
+    if (Mode >= ADAPTER_OUTPUT.nmodes) {
+        _WARNING("%s: Mode %u does not exist.\n", __FUNCTION__, Mode);
+        return D3DERR_INVALIDCALL;
+    }
 
     pMode->Width = ADAPTER_OUTPUT.modes[Mode].Width;
     pMode->Height = ADAPTER_OUTPUT.modes[Mode].Height;
     pMode->RefreshRate = ADAPTER_OUTPUT.modes[Mode].RefreshRate;
     pMode->Format = Format;
+
+    _MESSAGE("%s: returning mode Width=%u Height=%u RefreshRate=%u Format=%u\n",
+             __FUNCTION__,
+             pMode->Width, pMode->Height, pMode->RefreshRate, pMode->Format);
 
     return D3D_OK;
 }
@@ -217,7 +235,10 @@ Nine9Ex_GetAdapterDisplayMode( struct Nine9Ex *This,
 {
     UINT Mode;
 
-    if (Adapter >= Nine9Ex_GetAdapterCount(This)) { return D3DERR_INVALIDCALL; }
+    if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
+        _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);
+        return D3DERR_INVALIDCALL;
+    }
 
     Mode = ADAPTER_OUTPUT.current;
     pMode->Width = ADAPTER_OUTPUT.modes[Mode].Width;
@@ -336,19 +357,30 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
     HRESULT hr;
     unsigned nparams;
 
-    if (Adapter >= Nine9Ex_GetAdapterCount(This)) { return D3DERR_INVALIDCALL; }
+    _MESSAGE("%s\n", __FUNCTION__);
+
+    if (Adapter >= Nine9Ex_GetAdapterCount(This)) {
+        _WARNING("%s: Adapter %u does not exist.\n", __FUNCTION__, Adapter);
+        return D3DERR_INVALIDCALL;
+    }
 
     nparams = (BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) ?
               This->groups[This->map[Adapter].group].noutputs : 1;
     hr = ID3DWineDriver_CreatePresentFactory(This->driver, hFocusWindow,
                                              pPresentationParameters, nparams,
                                              &present);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr)) {
+        _WARNING("%s: Failed to create PresentFactory.\n", __FUNCTION__);
+        return hr;
+    }
 
     hr = ADAPTER_PROC(CreateDevice, Adapter, DeviceType, hFocusWindow,
                       BehaviorFlags, (IDirect3D9 *)This, present,
                       ppReturnedDeviceInterface);
-    if (FAILED(hr)) { ID3DPresentFactory_Release(present); }
+    if (FAILED(hr)) {
+        _WARNING("%s: ADAPTER_PROC failed.\n", __FUNCTION__);
+        ID3DPresentFactory_Release(present);
+    }
 
     return hr;
 }
@@ -368,7 +400,7 @@ Nine9Ex_EnumAdapterModesEx( struct Nine9Ex *This,
                             UINT Mode,
                             D3DDISPLAYMODEEX *pMode )
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 static HRESULT WINAPI
@@ -377,7 +409,7 @@ Nine9Ex_GetAdapterDisplayModeEx( struct Nine9Ex *This,
                                  D3DDISPLAYMODEEX *pMode,
                                  D3DDISPLAYROTATION *pRotation )
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 static HRESULT WINAPI
@@ -390,7 +422,7 @@ Nine9Ex_CreateDeviceEx( struct Nine9Ex *This,
                         D3DDISPLAYMODEEX *pFullscreenDisplayMode,
                         IDirect3DDevice9Ex **ppReturnedDeviceInterface )
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 static HRESULT WINAPI
@@ -398,7 +430,7 @@ Nine9Ex_GetAdapterLUID( struct Nine9Ex *This,
                         UINT Adapter,
                         LUID *pLUID )
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 static INLINE struct adapter_group *
@@ -679,6 +711,8 @@ Nine9Ex_new( boolean ex,
     HRESULT hr;
     int i, j, k = 0;
 
+    _MESSAGE("%s(ex=%i, ppOut=%p)\n", __FUNCTION__, ex, ppOut);
+
     if (!This) { OOM(); }
 
     This->vtable = &Nine9Ex_vtable;
@@ -749,6 +783,8 @@ void *WINAPI
 Direct3DShaderValidatorCreate9( void )
 {
     static boolean first = TRUE;
+
+    _WARNING("%s: not implemented, returning NULL.\n", __FUNCTION__);
 
     if (first) {
         first = FALSE;

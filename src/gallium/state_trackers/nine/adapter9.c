@@ -25,6 +25,7 @@
 #include "nine_helpers.h"
 #include "nine_defines.h"
 #include "nine_pipe.h"
+#include "nine_dump.h"
 #include "util/u_math.h"
 #include "util/u_dump.h"
 
@@ -45,6 +46,11 @@ NineAdapter9_ctor( struct NineAdapter9 *This,
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr)) { return hr; }
 
+    DBG("This=%p pParams=%p pScreenHAL/REF=%p/%p pIdentifier=%p pPTR=%p "
+        "pClosure=%p pDtor=%p\n", This, pParams, pScreenHAL, pScreenREF,
+        pIdentifier, pPTR, pClosure, pDestructor);
+    nine_dump_D3DADAPTER_IDENTIFIER9(DBG_CHANNEL, pIdentifier);
+
     This->hal = pScreenHAL;
     This->ref = pScreenREF;
     This->identifier = *pIdentifier;
@@ -60,6 +66,8 @@ NineAdapter9_dtor( struct NineAdapter9 *This )
 {
     void *closure = This->closure;
     void (*dtor)(void *) = This->dtor;
+
+    DBG("This=%p\n", This);
 
     if (This->ref) {
         if (This->ref->destroy) { This->ref->destroy(This->ref); }
@@ -147,6 +155,11 @@ NineAdapter9_CheckDeviceType( struct NineAdapter9 *This,
     struct pipe_screen *screen;
     enum pipe_format dfmt, bfmt;
     HRESULT hr;
+
+    DBG("This=%p DevType=%s AdapterFormat=%s BackBufferFormat=%s "
+        "bWindowed=%i\n", This, nine_D3DDEVTYPE_to_str(DevType),
+        d3dformat_to_string(AdapterFormat),
+        d3dformat_to_string(BackBufferFormat), bWindowed);
 
     user_assert(backbuffer_format(AdapterFormat, BackBufferFormat, bWindowed),
                 D3DERR_NOTAVAILABLE);
@@ -297,6 +310,11 @@ NineAdapter9_CheckDeviceMultiSampleType( struct NineAdapter9 *This,
     HRESULT hr;
     enum pipe_format pf;
 
+    DBG("This=%p DeviceType=%s SurfaceFormat=%s Windowed=%i MultiSampleType=%u"
+        "pQualityLevels=%p\n", This, nine_D3DDEVTYPE_to_str(DeviceType),
+        d3dformat_to_string(SurfaceFormat), Windowed, MultiSampleType,
+        pQualityLevels);
+
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr))
         return hr;
@@ -351,6 +369,12 @@ NineAdapter9_CheckDepthStencilMatch( struct NineAdapter9 *This,
     enum pipe_format dfmt, bfmt, zsfmt;
     HRESULT hr;
 
+    DBG("This=%p DeviceType=%s AdapterFormat=%s "
+        "RenderTargetFormat=%s DepthStencilFormat=%s\n", This,
+        nine_D3DDEVTYPE_to_str(DeviceType), d3dformat_to_string(AdapterFormat),
+        d3dformat_to_string(RenderTargetFormat),
+        d3dformat_to_string(DepthStencilFormat));
+
     user_assert(display_format(AdapterFormat, FALSE), D3DERR_NOTAVAILABLE);
     user_assert(depth_stencil_format(DepthStencilFormat), D3DERR_NOTAVAILABLE);
 
@@ -392,6 +416,10 @@ NineAdapter9_CheckDeviceFormatConversion( struct NineAdapter9 *This,
     enum pipe_format dfmt, bfmt;
     HRESULT hr;
 
+    DBG("This=%p DeviceType=%s SourceFormat=%s TargetFormat=%s\n", This,
+        nine_D3DDEVTYPE_to_str(DeviceType),
+        d3dformat_to_string(SourceFormat), d3dformat_to_string(TargetFormat));
+
     user_assert(backbuffer_format(TargetFormat, SourceFormat, FALSE),
                 D3DERR_NOTAVAILABLE);
 
@@ -427,10 +455,16 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     boolean sm3, vs;
     HRESULT hr;
 
+    DBG("This=%p DeviceType=%s pCaps=%p\n", This,
+        nine_D3DDEVTYPE_to_str(DeviceType), pCaps);
+
     user_assert(pCaps, D3DERR_INVALIDCALL);
 
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr)) {
+       DBG("Failed to get pipe_screen.\n");
+       return hr;
+    }
 
 #define D3DPIPECAP(pcap, d3dcap) \
     (screen->get_param(screen, PIPE_CAP_##pcap) ? (d3dcap) : 0)
@@ -881,11 +915,23 @@ NineAdapter9_CreateDevice( struct NineAdapter9 *This,
     D3DCAPS9 caps;
     HRESULT hr;
 
+    DBG("This=%p RealAdapter=%u DeviceType=%s hFocusWindow=%p "
+        "BehaviourFlags=%x " "pD3D9=%p pPresentationFactory=%p "
+        "ppReturnedDeviceInterface=%p\n", This,
+        RealAdapter, nine_D3DDEVTYPE_to_str(DeviceType), hFocusWindow,
+        BehaviorFlags, pD3D9, pPresentationFactory, ppReturnedDeviceInterface);
+
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr)) {
+        DBG("Failed to get pipe_screen.\n");
+        return hr;
+    }
 
     hr = NineAdapter9_GetDeviceCaps(This, DeviceType, &caps);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr)) {
+        DBG("Failed to get device caps.\n");
+        return hr;
+    }
 
     params.AdapterOrdinal = RealAdapter;
     params.DeviceType = DeviceType;
@@ -895,7 +941,11 @@ NineAdapter9_CreateDevice( struct NineAdapter9 *This,
     hr = NineDevice9_new(screen, &params, &caps, pD3D9,
                          pPresentationFactory, This->ptrfunc,
                          (struct NineDevice9 **)ppReturnedDeviceInterface);
-    if (FAILED(hr)) { return hr; }
+    if (FAILED(hr)) {
+        DBG("Failed to create device.\n");
+        return hr;
+    }
+    DBG("NineDevice9 created successfully.\n");
 
     return D3D_OK;
 }

@@ -43,4 +43,7 @@ _MESSAGE( const char *fmt,
         return E_OUTOFMEMORY; \
     } while (0)
 
+#define STUB(ret) \
+   do { _WARNING("%s: STUB\n", __FUNCTION__); return ret; } while(0)
+
 #endif /* _LIBD3D9_DEBUG_H_ */

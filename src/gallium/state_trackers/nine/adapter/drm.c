@@ -233,6 +233,8 @@ create_adapter_drm( int fd,
     D3DADAPTER_IDENTIFIER9 drvid;
     HRESULT hr;
 
+    DBG("fd=%i ppAdapter=%p\n", fd, ppAdapter);
+
     hal = driver_descriptor.create_screen(fd);
     if (!hal) {
         DBG("Unable to create drm screen.\n");
