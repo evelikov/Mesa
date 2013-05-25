@@ -112,6 +112,18 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
     if (pParams->BackBufferCount == 0)
         pParams->BackBufferCount = 1; /* ref MSDN */
 
+    if (pParams->BackBufferWidth == 0 || pParams->BackBufferHeight == 0) {
+        if (!pParams->Windowed)
+            return D3DERR_INVALIDCALL;
+
+        DBG("FIXME: set buffer dimensions to window's client rect.\n");
+
+        if (!pParams->BackBufferWidth)
+            pParams->BackBufferWidth = 1; /* XXX: GetClientRect.right */
+        if (!pParams->BackBufferHeight)
+            pParams->BackBufferHeight = 1; /* XXX: GetClientRect.bottom */
+    }
+
     tmplt.target = PIPE_TEXTURE_2D;
     tmplt.width0 = pParams->BackBufferWidth;
     tmplt.height0 = pParams->BackBufferHeight;
