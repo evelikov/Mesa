@@ -276,6 +276,31 @@ create_adapter_drm( int fd,
         drvid.WHQLLevel = 1; /* This fakes WHQL validaion */
     }
 
+    /* Fake NVIDIA binary driver on Windows.
+     *
+     * OS version: 4=95/98/NT4, 5=2000, 6=2000/XP, 7=Vista, 8=Win7
+     */
+    {
+        strncpy(drvid.Driver, "nvd3dum.dll", sizeof(drvid.Driver));
+        strncpy(drvid.Description, "NVIDIA GeForce GTX 680", sizeof(drvid.Description));
+        drvid.DriverVersionLowPart = VERSION_DWORD(12, 6658); /* minor, build */
+        drvid.DriverVersionHighPart = VERSION_DWORD(6, 15); /* OS, major */
+        drvid.SubSysId = 0;
+        drvid.Revision = 0;
+        drvid.DeviceIdentifier.Data1 = 0xaeb2cdd4;
+        drvid.DeviceIdentifier.Data2 = 0x6e41;
+        drvid.DeviceIdentifier.Data3 = 0x43ea;
+        drvid.DeviceIdentifier.Data4[0] = 0x94;
+        drvid.DeviceIdentifier.Data4[1] = 0x1c;
+        drvid.DeviceIdentifier.Data4[2] = 0x83;
+        drvid.DeviceIdentifier.Data4[3] = 0x61;
+        drvid.DeviceIdentifier.Data4[4] = 0xcc;
+        drvid.DeviceIdentifier.Data4[5] = 0x76;
+        drvid.DeviceIdentifier.Data4[6] = 0x07;
+        drvid.DeviceIdentifier.Data4[7] = 0x81;
+        drvid.WHQLLevel = 0;
+    }
+
     hr = NineAdapter9_new(hal, ref, &drvid, winsys_to_resource, NULL, NULL,
                           (struct NineAdapter9 **)ppAdapter);
     if (FAILED(hr)) {

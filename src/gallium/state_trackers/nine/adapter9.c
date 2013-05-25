@@ -116,6 +116,8 @@ NineAdapter9_GetAdapterIdentifier( struct NineAdapter9 *This,
                                    DWORD Flags,
                                    D3DADAPTER_IDENTIFIER9 *pIdentifier )
 {
+    DBG("This=%p Flags=%x pIdentifier=%p\n", This, Flags, pIdentifier);
+
     /* regarding flags, MSDN has this to say:
      *  Flags sets the WHQLLevel member of D3DADAPTER_IDENTIFIER9. Flags can be
      *  set to either 0 or D3DENUM_WHQL_LEVEL. If D3DENUM_WHQL_LEVEL is
@@ -170,6 +172,7 @@ NineAdapter9_CheckDeviceType( struct NineAdapter9 *This,
     dfmt = d3d9_to_pipe_format(AdapterFormat);
     bfmt = d3d9_to_pipe_format(BackBufferFormat);
     if (dfmt == PIPE_FORMAT_NONE || bfmt == PIPE_FORMAT_NONE) {
+        DBG("Invalid Adapter/BackBufferFormat.\n");
         return D3DERR_NOTAVAILABLE;
     }
 
@@ -179,6 +182,7 @@ NineAdapter9_CheckDeviceType( struct NineAdapter9 *This,
         !screen->is_format_supported(screen, bfmt, PIPE_TEXTURE_2D, 1,
                                      PIPE_BIND_DISPLAY_TARGET |
                                      PIPE_BIND_SHARED)) {
+        DBG("Unsupported Adapter/BackBufferFormat.\n");
         return D3DERR_NOTAVAILABLE;
     }
 
@@ -221,6 +225,8 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
     unsigned bind = 0;
 
     /* Check adapter format. */
+    DBG("This=%p DeviceType=%s AdapterFormat=%s\n", This,
+        nine_D3DDEVTYPE_to_str(DeviceType), d3dformat_to_string(AdapterFormat));
 
     user_assert(display_format(AdapterFormat, FALSE), D3DERR_INVALIDCALL);
 
@@ -896,6 +902,8 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     /* 65535 is required, advertise more for GPUs with >= 2048 instruction slots */
     pCaps->MaxVShaderInstructionsExecuted = MAX2(65535, pCaps->MaxVertexShader30InstructionSlots * 32);
     pCaps->MaxPShaderInstructionsExecuted = MAX2(65535, pCaps->MaxPixelShader30InstructionSlots * 32);
+
+    nine_dump_D3DCAPS9(DBG_CHANNEL, pCaps);
 
     return D3D_OK;
 }

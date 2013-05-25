@@ -46,6 +46,10 @@ struct adapter_group
     unsigned noutputs;
     unsigned noutputsalloc;
 
+    /* override driver provided DeviceName with this to homogenize device names
+     * with wine */
+    WCHAR devname[32];
+
     /* driver stuff */
     ID3DAdapter9 *adapter;
 };
@@ -169,8 +173,27 @@ Nine9Ex_GetAdapterIdentifier( struct Nine9Ex *This,
                               DWORD Flags,
                               D3DADAPTER_IDENTIFIER9 *pIdentifier )
 {
+    HRESULT hr;
+
     if (Adapter >= Nine9Ex_GetAdapterCount(This)) { return D3DERR_INVALIDCALL; }
-    return ADAPTER_PROC(GetAdapterIdentifier, Flags, pIdentifier);
+
+    hr = ADAPTER_PROC(GetAdapterIdentifier, Flags, pIdentifier);
+    if (SUCCEEDED(hr)) {
+        struct adapter_group *group = &This->groups[This->map[Adapter].group];
+
+        /* Override the driver provided DeviceName with what Wine provided */
+        ZeroMemory(pIdentifier->DeviceName, sizeof(pIdentifier->DeviceName));
+        if (!WideCharToMultiByte(CP_ACP, 0, group->devname, -1,
+                                 pIdentifier->DeviceName,
+                                 sizeof(pIdentifier->DeviceName),
+                                 NULL, NULL)) {
+            /* Wine does it */
+            return D3DERR_INVALIDCALL;
+        }
+        _MESSAGE("%s: DeviceName overriden: %s\n", __FUNCTION__,
+                 pIdentifier->DeviceName);
+    }
+    return hr;
 }
 
 static UINT WINAPI
@@ -548,7 +571,6 @@ static INLINE HRESULT
 fill_groups( struct Nine9Ex *This )
 {
     DISPLAY_DEVICEW dd;
-    WCHAR devname[32];
     DEVMODEW dm;
     POINT pt;
     HDC hdc;
@@ -580,8 +602,8 @@ fill_groups( struct Nine9Ex *This )
             goto end_group;
         }
 
-        CopyMemory(devname, dd.DeviceName, sizeof(devname));
-        for (j = 0; EnumDisplayDevicesW(devname, j, &dd, 0); ++j) {
+        CopyMemory(group->devname, dd.DeviceName, sizeof(group->devname));
+        for (j = 0; EnumDisplayDevicesW(group->devname, j, &dd, 0); ++j) {
             struct output *out = add_output(This);
             boolean orient = FALSE, monit = FALSE;
             if (!out) { OOM(); }
