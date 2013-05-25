@@ -138,6 +138,8 @@ d3d9_to_pipe_format(D3DFORMAT format)
     if (format <= D3DFMT_A2B10G10R10_XR_BIAS)
         return nine_d3d9_to_pipe_format_map[format];
     switch (format) {
+    case D3DFMT_DF16: return PIPE_FORMAT_Z16_UNORM;
+    case D3DFMT_DF24: return PIPE_FORMAT_Z24X8_UNORM;
     case D3DFMT_DXT1: return PIPE_FORMAT_DXT1_RGBA;
     case D3DFMT_DXT2: return PIPE_FORMAT_DXT3_RGBA; /* XXX */
     case D3DFMT_DXT3: return PIPE_FORMAT_DXT3_RGBA;
@@ -149,8 +151,11 @@ d3d9_to_pipe_format(D3DFORMAT format)
     case D3DFMT_R8G8_B8G8: return PIPE_FORMAT_R8G8_B8G8_UNORM; /* XXX order ? */
     case D3DFMT_BINARYBUFFER: return PIPE_FORMAT_NONE; /* not a format */
     case D3DFMT_MULTI2_ARGB8: return PIPE_FORMAT_NONE; /* not supported */
+    case D3DFMT_NULL: return PIPE_FORMAT_NONE; /* ? */
     default:
-        DBG_FLAG(DBG_UNKNOWN, "unknown D3DFORMAT: 0x%x\n", format);
+        DBG_FLAG(DBG_UNKNOWN, "unknown D3DFORMAT: 0x%x/%c%c%c%c\n",
+                 format, (char)format, (char)(format >> 8),
+                 (char)(format >> 16), (char)(format >> 24));
         assert(0);
         return PIPE_FORMAT_NONE;
     }
@@ -225,6 +230,9 @@ d3dformat_to_string(D3DFORMAT fmt)
     case D3DFMT_A1: return "D3DFMT_A1";
     case D3DFMT_A2B10G10R10_XR_BIAS: return "D3DFMT_A2B10G10R10_XR_BIAS";
     case D3DFMT_BINARYBUFFER: return "D3DFMT_BINARYBUFFER";
+    case D3DFMT_DF16: return "D3DFMT_DF16";
+    case D3DFMT_DF24: return "D3DFMT_DF24";
+    case D3DFMT_NULL: return "D3DFMT_NULL";
     default:
         break;
     }

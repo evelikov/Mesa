@@ -225,8 +225,11 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
     unsigned bind = 0;
 
     /* Check adapter format. */
+
+    /* Nicer output if we only have the line at the end.
     DBG("This=%p DeviceType=%s AdapterFormat=%s\n", This,
         nine_D3DDEVTYPE_to_str(DeviceType), d3dformat_to_string(AdapterFormat));
+    */
 
     user_assert(display_format(AdapterFormat, FALSE), D3DERR_INVALIDCALL);
 
