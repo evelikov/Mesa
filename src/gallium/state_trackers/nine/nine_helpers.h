@@ -39,6 +39,15 @@ static inline void _nine_reference(void **ref, void *ptr)
     }
 }
 
+#define nine_reference_set(a, b) _nine_reference_set((void *)(a), (b))
+
+static inline void _nine_reference_set(void **ref, void *ptr)
+{
+    *ref = ptr;
+    if (ptr)
+        NineUnknown_AddRef(ptr);
+}
+
 #define NINE_NEW(nine, out, ...) \
     { \
         struct NineUnknownParams __params; \

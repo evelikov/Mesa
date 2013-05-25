@@ -1060,9 +1060,13 @@ NineDevice9_GetRenderTarget( struct NineDevice9 *This,
     const unsigned i = RenderTargetIndex;
 
     user_assert(i < This->caps.NumSimultaneousRTs, D3DERR_INVALIDCALL);
+    user_assert(ppRenderTarget, D3DERR_INVALIDCALL);
 
-    nine_reference(ppRenderTarget, This->state.rt[i]);
+    *ppRenderTarget = (IDirect3DSurface9 *)This->state.rt[i];
+    if (!This->state.rt[i])
+        return D3DERR_NOTFOUND;
 
+    NineUnknown_AddRef(NineUnknown(This->state.rt[i]));
     return D3D_OK;
 }
 
@@ -1088,7 +1092,13 @@ HRESULT WINAPI
 NineDevice9_GetDepthStencilSurface( struct NineDevice9 *This,
                                     IDirect3DSurface9 **ppZStencilSurface )
 {
-    nine_reference(ppZStencilSurface, This->state.ds);
+    user_assert(ppZStencilSurface, D3DERR_INVALIDCALL);
+
+    *ppZStencilSurface = (IDirect3DSurface9 *)This->state.ds;
+    if (!This->state.ds)
+        return D3DERR_NOTFOUND;
+
+    NineUnknown_AddRef(NineUnknown(This->state.ds));
     return D3D_OK;
 }
 
@@ -1595,7 +1605,12 @@ NineDevice9_GetTexture( struct NineDevice9 *This,
 {
     NINESTATEPOINTER_GET(This);
     user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
-    nine_reference(ppTexture, state->texture[Stage]);
+    user_assert(ppTexture, D3DERR_INVALIDCALL);
+
+    *ppTexture = (IDirect3DBaseTexture9 *)state->texture[Stage];
+
+    if (state->texture[Stage])
+        NineUnknown_AddRef(NineUnknown(state->texture[Stage]));
     return D3D_OK;
 }
 
@@ -2065,7 +2080,12 @@ NineDevice9_GetVertexDeclaration( struct NineDevice9 *This,
                                   IDirect3DVertexDeclaration9 **ppDecl )
 {
     NINESTATEPOINTER_GET(This);
-    nine_reference(ppDecl, state->vdecl);
+    user_assert(ppDecl, D3DERR_INVALIDCALL);
+
+    *ppDecl = (IDirect3DVertexDeclaration9 *)state->vdecl;
+
+    if (state->vdecl)
+        NineUnknown_AddRef(NineUnknown(state->vdecl));
     return D3D_OK;
 }
 
@@ -2139,7 +2159,8 @@ NineDevice9_GetVertexShader( struct NineDevice9 *This,
                              IDirect3DVertexShader9 **ppShader )
 {
     NINESTATEPOINTER_GET(This);
-    nine_reference(ppShader, state->vs);
+    user_assert(ppShader, D3DERR_INVALIDCALL);
+    nine_reference_set(ppShader, state->vs);
     return D3D_OK;
 }
 
@@ -2317,7 +2338,7 @@ NineDevice9_GetStreamSource( struct NineDevice9 *This,
     user_assert(StreamNumber < This->caps.MaxStreams, D3DERR_INVALIDCALL);
     user_assert(ppStreamData, D3DERR_INVALIDCALL);
 
-    nine_reference(ppStreamData, state->stream[i]);
+    nine_reference_set(ppStreamData, state->stream[i]);
     *pStride = state->vtxbuf[i].stride;
     *pOffsetInBytes = state->vtxbuf[i].buffer_offset;
 
@@ -2385,7 +2406,7 @@ NineDevice9_GetIndices( struct NineDevice9 *This,
     NINESTATEPOINTER_GET(This);
     user_assert(ppIndexData, D3DERR_INVALIDCALL);
 
-    nine_reference(ppIndexData, state->idxbuf);
+    nine_reference_set(ppIndexData, state->idxbuf);
     return D3D_OK;
 }
 
@@ -2420,7 +2441,8 @@ NineDevice9_GetPixelShader( struct NineDevice9 *This,
                             IDirect3DPixelShader9 **ppShader )
 {
     NINESTATEPOINTER_GET(This);
-    nine_reference(ppShader, state->ps);
+    user_assert(ppShader, D3DERR_INVALIDCALL);
+    nine_reference_set(ppShader, state->ps);
     return D3D_OK;
 }
 
