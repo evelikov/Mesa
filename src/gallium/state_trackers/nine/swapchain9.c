@@ -56,6 +56,8 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     hr = ID3DPresent_GetPresentParameters(This->present, &params);
     if (FAILED(hr))
         return hr;
+    if (!params.hDeviceWindow)
+        params.hDeviceWindow = hFocusWindow;
 
     return NineSwapChain9_Resize(This, &params);
 }

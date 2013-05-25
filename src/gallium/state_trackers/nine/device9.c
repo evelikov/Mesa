@@ -366,7 +366,24 @@ NineDevice9_CreateAdditionalSwapChain( struct NineDevice9 *This,
                                        D3DPRESENT_PARAMETERS *pPresentationParameters,
                                        IDirect3DSwapChain9 **pSwapChain )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineSwapChain9 *swapchain, *tmplt = This->swapchains[0];
+    HRESULT hr;
+
+    user_assert(pPresentationParameters, D3DERR_INVALIDCALL);
+
+    hr = NineSwapChain9_new(This, tmplt->present, tmplt->ptrfunc,
+                            tmplt->params.hDeviceWindow, /* XXX */
+                            &swapchain);
+    if (FAILED(hr))
+        return hr;
+
+    /* XXX: Yes, this is wasteful ... */
+    hr = NineSwapChain9_Resize(swapchain, pPresentationParameters);
+    if (FAILED(hr))
+        return hr;
+
+    *pSwapChain = (IDirect3DSwapChain9 *)swapchain;
+    return D3D_OK;
 }
 
 HRESULT WINAPI
