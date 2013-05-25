@@ -135,7 +135,7 @@ pipe_to_d3d9_format(enum pipe_format format)
 static INLINE enum pipe_format
 d3d9_to_pipe_format(D3DFORMAT format)
 {
-    if (format < D3DFMT_A2B10G10R10_XR_BIAS)
+    if (format <= D3DFMT_A2B10G10R10_XR_BIAS)
         return nine_d3d9_to_pipe_format_map[format];
     switch (format) {
     case D3DFMT_DXT1: return PIPE_FORMAT_DXT1_RGBA;
@@ -150,8 +150,9 @@ d3d9_to_pipe_format(D3DFORMAT format)
     case D3DFMT_BINARYBUFFER: return PIPE_FORMAT_NONE; /* not a format */
     case D3DFMT_MULTI2_ARGB8: return PIPE_FORMAT_NONE; /* not supported */
     default:
-       assert(0);
-       return PIPE_FORMAT_NONE;
+        DBG_FLAG(DBG_UNKNOWN, "unknown D3DFORMAT: 0x%x\n", format);
+        assert(0);
+        return PIPE_FORMAT_NONE;
     }
 }
 
