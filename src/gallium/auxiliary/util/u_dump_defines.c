@@ -74,10 +74,11 @@ util_dump_flags(unsigned flags, const char *prefix,
    pos = snprintf(str, Elements(str), "%s_", prefix);
 
    for (i = 0; (i < num_names) && flags; flags >>= 1, ++i) {
-      if (flags & 1)
-         pos += snprintf(str, Elements(str) - pos, "%s", names[i]);
-      if (flags & ~1)
-         pos += snprintf(str, Elements(str) - pos, "|");
+      if (flags & 1) {
+         pos += snprintf(&str[pos], Elements(str) - pos, "%s", names[i]);
+         if (flags & ~1)
+            pos += snprintf(&str[pos], Elements(str) - pos, "|");
+      }
    }
    return str;
 }
