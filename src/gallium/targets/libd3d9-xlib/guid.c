@@ -56,6 +56,9 @@ GUID_equal( const GUID *a,
 {
     unsigned i;
 
+    if (!a || !b)
+       return FALSE;
+
     if (a->Data1 != b->Data1 ||
         a->Data2 != b->Data2 ||
         a->Data3 != b->Data3) { return FALSE; }
