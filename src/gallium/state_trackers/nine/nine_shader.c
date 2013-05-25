@@ -438,7 +438,9 @@ struct shader_translator
     unsigned *input_map; /* reg -> NINE_DECLUSAGE_x, in nine_shader_info */
     struct {
         struct ureg_dst *r;
-        struct ureg_dst o;
+        struct ureg_dst oPos;
+        struct ureg_dst oFog;
+        struct ureg_dst oPts;
         struct ureg_dst oCol[4];
         struct ureg_dst oDepth;
         struct ureg_src v; /* XXX: color semantic is automatically centroid ? */
@@ -915,14 +917,37 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
         dst = tx->regs.a;
         break;
     case D3DSPR_RASTOUT:
-    case D3DSPR_ATTROUT:
-        DBG("FIXME: RASTOUT/ATTROUT\n");
+        assert(!param->rel);
+        switch (param->idx) {
+        case 0:
+            if (ureg_dst_is_undef(tx->regs.oPos))
+                tx->regs.oPos =
+                    ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_POSITION, 0);
+            dst = tx->regs.oPos;
+            break;
+        case 1:
+            if (ureg_dst_is_undef(tx->regs.oFog))
+                tx->regs.oFog =
+                    ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_FOG, 0);
+            dst = tx->regs.oFog;
+            break;
+        case 2:
+            if (ureg_dst_is_undef(tx->regs.oPts))
+                tx->regs.oPts =
+                    ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_PSIZE, 0);
+            dst = tx->regs.oPts;
+            break;
+        default:
+            assert(0);
+            break;
+        }
         break;
  /* case D3DSPR_TEXCRDOUT: == D3DSPR_OUTPUT */
     case D3DSPR_OUTPUT:
         dst = nine_ureg_dst_register(TGSI_FILE_OUTPUT, param->idx);
         break;
-    case D3DSPR_COLOROUT:
+    case D3DSPR_ATTROUT: /* VS */
+    case D3DSPR_COLOROUT: /* PS */
         assert(param->idx >= 0 && param->idx < 4);
         assert(!param->rel);
         if (ureg_dst_is_undef(tx->regs.oCol[param->idx]))
@@ -2266,7 +2291,7 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         return E_OUTOFMEMORY;
     tx_ctor(tx, info);
 
-    if (tx->version.major > 3 || tx->version.minor > 0) {
+    if (((tx->version.major << 16) | tx->version.minor) > 0x00030000) {
         hr = D3DERR_INVALIDCALL;
         DBG("Unsupported shader version: %u.%u !\n",
             tx->version.major, tx->version.minor);

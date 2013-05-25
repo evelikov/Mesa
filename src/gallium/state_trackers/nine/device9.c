@@ -285,7 +285,7 @@ NineDevice9_GetCaps( struct NineDevice9 *This )
 HRESULT WINAPI
 NineDevice9_TestCooperativeLevel( struct NineDevice9 *This )
 {
-    STUB(D3DERR_INVALIDCALL);
+    STUB(D3D_OK);
 }
 
 UINT WINAPI
