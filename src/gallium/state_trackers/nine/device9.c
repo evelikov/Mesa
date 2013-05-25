@@ -75,6 +75,9 @@ NineDevice9_SetDefaultState( struct NineDevice9 *This )
 
     if (This->nswapchains && This->swapchains[0]->params.EnableAutoDepthStencil)
         This->state.rs[D3DRS_ZENABLE] = TRUE;
+    if (This->state.rs[D3DRS_ZENABLE])
+        NineDevice9_SetDepthStencilSurface(
+            This, (IDirect3DSurface9 *)This->swapchains[0]->zsbuf);
 }
 
 HRESULT
@@ -128,6 +131,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
                                           (IDirect3DSurface9 **)
                                           &This->state.rt[i]);
         if (FAILED(hr)) { return hr; }
+        This->state.rt[i]->base.bind_count = 1;
     }
 
     /* Create constant buffers. */
