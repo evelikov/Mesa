@@ -74,6 +74,13 @@ NineUnknown_ctor( struct NineUnknown *This,
 void
 NineUnknown_dtor( struct NineUnknown *This );
 
+/* nine private */
+static INLINE ULONG
+NineUnknown_GetRefCount( struct NineUnknown *This )
+{
+    return This->refs;
+}
+
 /* Methods */
 HRESULT WINAPI
 NineUnknown_QueryInterface( struct NineUnknown *This,
