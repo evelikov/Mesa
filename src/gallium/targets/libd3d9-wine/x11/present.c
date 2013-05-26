@@ -285,6 +285,11 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
             return D3DERR_DRIVERINTERNALERROR;
         }
 
+        _MESSAGE("pAnc=%u,%u\n", panc.x, panc.y);
+        _MESSAGE("pWnd=%u,%u\n", pwnd.x, pwnd.y);
+        _MESSAGE("rWnd=(%u..%u)x(%u..%u)\n", rwnd.left, rwnd.right,
+                 rwnd.top, rwnd.bottom);
+
         pRect->left = pwnd.x-panc.x;
         pRect->top = pwnd.y-panc.y;
         pRect->right = pRect->left+rwnd.right;

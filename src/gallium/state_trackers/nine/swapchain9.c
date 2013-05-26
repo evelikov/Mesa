@@ -250,40 +250,69 @@ present( struct NineSwapChain9 *This,
         return D3D_OK;
     }
 
+    DBG(">>>\npresent: This=%p pSourceRect=%p pDestRect=%p "
+        "pDirtyRegion=%p rgndata=%p\n",
+        This, pSourceRect, pDestRect, pDirtyRegion, rgndata);
+    if (pSourceRect)
+        DBG("pSourceRect = (%u..%u)x(%u..%u)\n",
+            pSourceRect->left, pSourceRect->right,
+            pSourceRect->top, pSourceRect->bottom);
+    if (pDestRect)
+        DBG("pDestRect = (%u..%u)x(%u..%u)\n",
+            pDestRect->left, pDestRect->right,
+            pDestRect->top, pDestRect->bottom);
+
     if (rgndata) {
         /* TODO */
     } else {
         struct pipe_blit_info blit;
 
-        /* blit (and possibly stretch/convert) pixels from This->buffers[0] to
-         * emusurf using u_blit. Windows appears to use NEAREST */
-        DBG("Blitting %ux%u surface to (%u, %u)-(%u, %u).\n",
-            This->buffers[0]->surface->width, This->buffers[0]->surface->height,
-            rect.left, rect.top, rect.right, rect.bottom);
-
         blit.dst.resource = resource;
         blit.dst.level = 0;
-        blit.dst.box.x = rect.left;
-        blit.dst.box.y = rect.top;
-        blit.dst.box.z = 0;
-        blit.dst.box.width = rect.right - rect.left;
-        blit.dst.box.height = rect.bottom - rect.top;
-        blit.dst.box.depth = 1;
         blit.dst.format = resource->format;
+        blit.dst.box.z = 0;
+        blit.dst.box.depth = 1;
+        if (pDestRect) {
+            rect_to_pipe_box_xy_only(&blit.dst.box, pDestRect);
+            blit.dst.box.x += rect.left;
+            blit.dst.box.y += rect.top;
+            if (u_box_clip_2d(&blit.dst.box, rect.right - rect.left,
+                              rect.bottom - rect.top) < 0) {
+                DBG("Dest region clipped.\n");
+                return D3D_OK;
+            }
+        } else {
+            rect_to_pipe_box_xy_only(&blit.dst.box, &rect);
+        }
 
+        assert(This->buffers[0]->surface);
         blit.src.resource = This->buffers[0]->surface->texture;
         blit.src.level = This->buffers[0]->level;
-        blit.src.box.x = 0;
-        blit.src.box.y = 0;
-        blit.src.box.z = 0;
-        blit.src.box.width = This->buffers[0]->surface->width;;
-        blit.src.box.height = This->buffers[0]->surface->height;
-        blit.src.box.depth = 1;
         blit.src.format = blit.src.resource->format;
+        blit.src.box.z = 0;
+        blit.src.box.depth = 1;
+        if (pSourceRect) {
+            rect_to_pipe_box_xy_only(&blit.src.box, pSourceRect);
+            u_box_clip_2d(&blit.src.box, This->buffers[0]->surface->width,
+                          This->buffers[0]->surface->height);
+        } else {
+            blit.src.box.x = 0;
+            blit.src.box.y = 0;
+            blit.src.box.width = This->buffers[0]->surface->width;
+            blit.src.box.height = This->buffers[0]->surface->height;
+        }
 
         blit.mask = PIPE_MASK_RGBA;
         blit.filter = PIPE_TEX_FILTER_NEAREST;
         blit.scissor_enable = FALSE;
+
+        /* blit (and possibly stretch/convert) pixels from This->buffers[0] to
+         * emusurf using u_blit. Windows appears to use NEAREST */
+        DBG("Blitting (%u..%u)x(%u..%u) to (%u..%u)x(%u..%u).\n",
+            blit.src.box.x, blit.src.box.x + blit.src.box.width,
+            blit.src.box.y, blit.src.box.y + blit.src.box.height,
+            blit.dst.box.x, blit.dst.box.x + blit.dst.box.width,
+            blit.dst.box.y, blit.dst.box.y + blit.dst.box.height);
 
         This->pipe->blit(This->pipe, &blit);
     }
