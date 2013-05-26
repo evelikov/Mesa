@@ -70,6 +70,8 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
 void
 NinePixelShader9_dtor( struct NinePixelShader9 *This )
 {
+    DBG("This=%p cso=%p\n", This, This->cso);
+
     if (This->device) {
         struct pipe_context *pipe = This->device->pipe;
         if (This->cso)

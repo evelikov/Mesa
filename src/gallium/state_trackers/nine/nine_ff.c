@@ -1479,10 +1479,11 @@ nine_ff_update(struct NineDevice9 *device)
 {
     struct nine_state *state = &device->state;
 
+    /* NOTE: the only reference belongs to the hash table */
     if (!device->state.vs)
-        nine_reference(&device->ff.vs, nine_ff_get_vs(device));
+        device->ff.vs = nine_ff_get_vs(device);
     if (!device->state.ps)
-        nine_reference(&device->ff.ps, nine_ff_get_ps(device));
+        device->ff.ps = nine_ff_get_ps(device);
 
     if (!device->state.vs) {
         nine_ff_upload_vs_transforms(device);
@@ -1536,13 +1537,22 @@ nine_ff_fini(struct NineDevice9 *device)
 static void
 nine_ff_prune(struct NineDevice9 *device)
 {
-    if ((device->ff.num_vs + device->ff.num_vs) > 200) {
+    DBG("device=%p num_vs=%u num_ps=%u\n", device, device->ff.num_vs, device->ff.num_ps);
+
+    if ((device->ff.num_vs + device->ff.num_ps) > 200) {
         if (device->ff.num_ps > device->ff.num_vs) {
+            /* could destroy the bound one here, so unbind */
+            device->pipe->bind_fs_state(device->pipe, NULL);
             util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
+            util_hash_table_clear(device->ff.ht_ps);
             device->ff.num_ps = 0;
+            device->state.changed.group |= NINE_STATE_PS;
         } else {
+            device->pipe->bind_vs_state(device->pipe, NULL);
             util_hash_table_foreach(device->ff.ht_vs, nine_ff_ht_delete_cb, NULL);
+            util_hash_table_clear(device->ff.ht_vs);
             device->ff.num_vs = 0;
+            device->state.changed.group |= NINE_STATE_VS;
         }
         nine_ff_prune(device);
     }

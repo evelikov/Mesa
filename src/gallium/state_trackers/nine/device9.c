@@ -221,16 +221,15 @@ NineDevice9_dtor( struct NineDevice9 *This )
 {
     unsigned i;
 
+    DBG("This=%p\n", This);
+
+    nine_pipe_context_reset(This->cso, This->pipe);
     nine_ff_fini(This);
+    nine_state_reset(&This->state, This);
 
     util_destroy_gen_mipmap(This->gen_mipmap);
 
     nine_reference(&This->record, NULL);
-
-    nine_state_reset(&This->state, This);
-
-    nine_reference(&This->ff.vs, NULL);
-    nine_reference(&This->ff.ps, NULL);
 
     pipe_resource_reference(&This->constbuf_vs, NULL);
     pipe_resource_reference(&This->constbuf_ps, NULL);
@@ -418,6 +417,7 @@ NineDevice9_Reset( struct NineDevice9 *This,
     if (FAILED(hr))
         return (hr == D3DERR_OUTOFVIDEOMEMORY) ? hr : D3DERR_DEVICELOST;
 
+    nine_pipe_context_reset(This->cso, This->pipe);
     nine_state_reset(&This->state, This);
     NineDevice9_SetDefaultState(This);
     NineDevice9_SetRenderTarget(
@@ -2169,7 +2169,7 @@ NineDevice9_SetVertexShader( struct NineDevice9 *This,
     DBG("This=%p pShader=%p\n", This, pShader);
 
     if (state->vs != NineVertexShader9(pShader)) {
-        /* Don't destroy a bound shader cso. */
+        /* Clear the bound cso if there's a chance that we're destroying it. */
         if (state->vs && NineUnknown_GetRefCount(&state->vs->base) == 1)
             This->pipe->bind_vs_state(This->pipe, NULL);
     }
@@ -2459,7 +2459,7 @@ NineDevice9_SetPixelShader( struct NineDevice9 *This,
     DBG("This=%p pShader=%p\n", This, pShader);
 
     if (state->ps != NinePixelShader9(pShader)) {
-        /* Don't destroy a bound shader cso. */
+        /* Clear the bound cso if there's a chance that we're destroying it. */
         if (state->ps && NineUnknown_GetRefCount(&state->ps->base) == 1)
             This->pipe->bind_fs_state(This->pipe, NULL);
     }

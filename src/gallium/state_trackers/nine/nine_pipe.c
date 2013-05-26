@@ -189,6 +189,26 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
 }
 
+void
+nine_pipe_context_reset(struct cso_context *cso, struct pipe_context *pipe)
+{
+    pipe->bind_vs_state(pipe, NULL);
+    pipe->bind_fs_state(pipe, NULL);
+
+    /* Don't unbind constant buffers, they're device-private and
+     * do not change on Reset.
+     */
+
+    cso_set_samplers(cso, PIPE_SHADER_VERTEX, PIPE_MAX_SAMPLERS, NULL);
+    cso_set_samplers(cso, PIPE_SHADER_FRAGMENT, PIPE_MAX_SAMPLERS, NULL);
+
+    pipe->set_fragment_sampler_views(pipe, 0, NULL);
+    pipe->set_vertex_sampler_views(pipe, 0, NULL);
+
+    pipe->set_vertex_buffers(pipe, 0, PIPE_MAX_ATTRIBS, NULL);
+    pipe->set_index_buffer(pipe, NULL);
+}
+
 const enum pipe_format nine_d3d9_to_pipe_format_map[120] =
 {
    [D3DFMT_UNKNOWN] = PIPE_FORMAT_NONE,

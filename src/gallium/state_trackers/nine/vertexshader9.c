@@ -70,6 +70,8 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
 void
 NineVertexShader9_dtor( struct NineVertexShader9 *This )
 {
+    DBG("This=%p cso=%p\n", This, This->cso);
+
     if (This->device) {
         struct pipe_context *pipe = This->device->pipe;
         if (This->cso)
