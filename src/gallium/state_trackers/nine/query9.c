@@ -123,12 +123,17 @@ NineQuery9_ctor( struct NineQuery9 *This,
         if (!This->pq)
             return E_OUTOFMEMORY;
     } else {
-        DBG("Returning dummy NineQuery9.\n");
+        DBG("Returning dummy NineQuery9 for %s.\n",
+            nine_D3DQUERYTYPE_to_str(Type));
     }
 
     This->instant =
-       Type == D3DQUERYTYPE_EVENT ||
-       Type == D3DQUERYTYPE_TIMESTAMP;
+        Type == D3DQUERYTYPE_EVENT ||
+        Type == D3DQUERYTYPE_RESOURCEMANAGER ||
+        Type == D3DQUERYTYPE_TIMESTAMP ||
+        Type == D3DQUERYTYPE_TIMESTAMPFREQ ||
+        Type == D3DQUERYTYPE_VCACHE ||
+        Type == D3DQUERYTYPE_VERTEXSTATS;
 
     This->result_size = nine_query_result_size(Type);
 
@@ -206,6 +211,7 @@ union nine_query_result
     D3DDEVINFO_D3D9PIPELINETIMINGS pipe;
     D3DDEVINFO_D3D9STAGETIMINGS stage;
     D3DDEVINFO_D3D9INTERFACETIMINGS iface;
+    D3DDEVINFO_D3D9CACHEUTILIZATION cacheu;
     DWORD dw;
     BOOL b;
     UINT64 u64;
@@ -325,6 +331,10 @@ NineQuery9_GetData( struct NineQuery9 *This,
         nresult.iface.WaitingForGPUToStayWithinLatencyTimePercent = 0.0f;
         nresult.iface.WaitingForGPUExclusiveResourceTimePercent = 0.0f;
         nresult.iface.WaitingForGPUOtherTimePercent = 0.0f;
+        break;
+    case D3DQUERYTYPE_CACHEUTILIZATION:
+        nresult.cacheu.TextureCacheHitRate = 0.9f;
+        nresult.cacheu.PostTransformVertexCacheHitRate = 0.3f;
         break;
     default:
         assert(0);
