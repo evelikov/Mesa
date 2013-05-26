@@ -151,7 +151,7 @@ NineVolumeTexture9_LockBox( struct NineVolumeTexture9 *This,
                             DWORD Flags )
 {
     user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
-    user_assert(Level == 0 && !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
                 D3DERR_INVALIDCALL);
 
     return NineVolume9_LockBox(This->volumes[Level], pLockedVolume, pBox,
