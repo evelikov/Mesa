@@ -1121,7 +1121,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
 
     key.lighting = !!state->rs[D3DRS_LIGHTING] &&  state->ff.num_lights_active;
     key.darkness = !!state->rs[D3DRS_LIGHTING] && !state->ff.num_lights_active;
-    if (key.lighting) {
+    if ((key.lighting | key.darkness) && state->rs[D3DRS_COLORVERTEX]) {
         key.mtl_diffuse = state->rs[D3DRS_DIFFUSEMATERIALSOURCE];
         key.mtl_ambient = state->rs[D3DRS_AMBIENTMATERIALSOURCE];
         key.mtl_specular = state->rs[D3DRS_SPECULARMATERIALSOURCE];
