@@ -296,7 +296,10 @@ NineDevice9_GetAvailableTextureMem( struct NineDevice9 *This )
 HRESULT WINAPI
 NineDevice9_EvictManagedResources( struct NineDevice9 *This )
 {
-    STUB(D3DERR_INVALIDCALL);
+    /* We don't really need to do anything here, but might want to free up
+     * the GPU virtual address space by killing pipe_resources.
+     */
+    STUB(D3D_OK);
 }
 
 HRESULT WINAPI
