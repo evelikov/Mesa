@@ -955,6 +955,8 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
                                             src_res->nr_samples,
                                             PIPE_BIND_SAMPLER_VIEW),
                 D3DERR_INVALIDCALL);
+    user_assert(dst->base.pool == D3DPOOL_DEFAULT &&
+                src->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
     blit.dst.resource = dst_res;
     blit.dst.level = dst->level;

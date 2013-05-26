@@ -276,10 +276,14 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         pRect ? pRect->left : 0, pRect ? pRect->top : 0,
         pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
 
+#ifdef NINE_STRICTNESS
     user_assert(This->base.pool != D3DPOOL_DEFAULT ||
                 (This->base.usage == 0 && This->base.type == D3DRTYPE_SURFACE),
                 D3DERR_INVALIDCALL);
-
+#else
+    user_warn(This->base.pool == D3DPOOL_DEFAULT &&
+              (This->base.usage != 0 || This->base.type != D3DRTYPE_SURFACE));
+#endif
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
                             D3DLOCK_DONOTWAIT |
                             D3DLOCK_NO_DIRTY_UPDATE |
@@ -591,6 +595,9 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
     return D3D_OK;
 }
 
+/* Gladly, rendering to a MANAGED surface is not permitted, so we will
+ * never have to do the reverse, i.e. download the surface.
+ */
 HRESULT
 NineSurface9_UploadSelf( struct NineSurface9 *This )
 {
