@@ -149,16 +149,20 @@ d3d9_to_pipe_format(D3DFORMAT format)
     case D3DFMT_DXT5: return PIPE_FORMAT_DXT5_RGBA;
     case D3DFMT_UYVY: return PIPE_FORMAT_UYVY;
     case D3DFMT_YUY2: return PIPE_FORMAT_YUYV; /* XXX check */
+    case D3DFMT_NV12: return PIPE_FORMAT_NV12;
     case D3DFMT_G8R8_G8B8: return PIPE_FORMAT_G8R8_G8B8_UNORM; /* XXX order ? */
     case D3DFMT_R8G8_B8G8: return PIPE_FORMAT_R8G8_B8G8_UNORM; /* XXX order ? */
     case D3DFMT_BINARYBUFFER: return PIPE_FORMAT_NONE; /* not a format */
     case D3DFMT_MULTI2_ARGB8: return PIPE_FORMAT_NONE; /* not supported */
-    case D3DFMT_NULL: return PIPE_FORMAT_NONE; /* ? */
+    case D3DFMT_Y210: /* XXX */
+    case D3DFMT_Y216:
+    case D3DFMT_NV11:
+    case D3DFMT_NULL: /* ? */
+        return PIPE_FORMAT_NONE;
     default:
         DBG_FLAG(DBG_UNKNOWN, "unknown D3DFORMAT: 0x%x/%c%c%c%c\n",
                  format, (char)format, (char)(format >> 8),
                  (char)(format >> 16), (char)(format >> 24));
-        assert(0);
         return PIPE_FORMAT_NONE;
     }
 }
