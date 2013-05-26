@@ -144,6 +144,11 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
         This->maps = newmaps;
     }
 
+    if (SizeToLock == 0) {
+        SizeToLock = This->desc.Size - OffsetToLock;
+        user_warn(OffsetToLock != 0);
+    }
+
     u_box_1d(OffsetToLock, SizeToLock, &box);
 
     data = This->pipe->transfer_map(This->pipe, This->base.resource, 0,

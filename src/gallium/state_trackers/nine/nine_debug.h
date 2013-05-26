@@ -93,6 +93,13 @@ _nine_stub( const char *file,
 #define user_error(x) (!(x) ? TRUE : FALSE)
 #endif
 
+#ifdef DEBUG
+#define user_warn(x) \
+    if ((x)) { DBG_FLAG(DBG_USER, "User warning: `%s'\n", #x); }
+#else
+#define user_warn(x)
+#endif
+
 /* nonfatal assert */
 #define user_assert(x, r) \
     do { \

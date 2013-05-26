@@ -124,6 +124,11 @@ NineIndexBuffer9_Lock( struct NineIndexBuffer9 *This,
     user_assert(!This->transfer, D3DERR_INVALIDCALL);
     user_assert(ppbData, E_POINTER);
 
+    if (SizeToLock == 0) {
+        SizeToLock = This->desc.Size - OffsetToLock;
+        user_warn(OffsetToLock != 0);
+    }
+
     u_box_1d(OffsetToLock, SizeToLock, &box);
 
     data = This->pipe->transfer_map(This->pipe, This->base.resource, 0,
