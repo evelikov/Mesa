@@ -2633,6 +2633,9 @@ NineDevice9_CreateQuery( struct NineDevice9 *This,
     struct NineQuery9 *query;
     HRESULT hr;
 
+    if (!ppQuery)
+        return nine_is_query_supported(Type);
+
     hr = NineQuery9_new(This, &query, Type);
     if (FAILED(hr))
         return hr;

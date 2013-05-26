@@ -49,6 +49,9 @@ NineQuery9( void *data )
 }
 
 HRESULT
+nine_is_query_supported(D3DQUERYTYPE);
+
+HRESULT
 NineQuery9_new( struct NineDevice9 *Device,
                 struct NineQuery9 **ppOut,
                 D3DQUERYTYPE);

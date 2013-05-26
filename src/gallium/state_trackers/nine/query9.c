@@ -25,6 +25,7 @@
 #include "nine_helpers.h"
 #include "pipe/p_context.h"
 #include "util/u_math.h"
+#include "nine_dump.h"
 
 #define DBG_CHANNEL DBG_QUERY
 
@@ -80,6 +81,21 @@ nine_query_result_size(D3DQUERYTYPE type)
         assert(0);
         return 0;
     }
+}
+
+HRESULT
+nine_is_query_supported(D3DQUERYTYPE type)
+{
+    const unsigned ptype = d3dquerytype_to_pipe_query(type);
+
+    user_assert(ptype != ~0, D3DERR_INVALIDCALL);
+
+    if (ptype == PIPE_QUERY_TYPES) {
+        DBG("Query type %u (%s) not supported.\n",
+            type, nine_D3DQUERYTYPE_to_str(type));
+        return D3DERR_NOTAVAILABLE;
+    }
+    return D3D_OK;
 }
 
 HRESULT

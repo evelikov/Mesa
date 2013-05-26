@@ -6,6 +6,7 @@
 #include "d3d9caps.h"
 
 const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE);
+const char *nine_D3DQUERYTYPE_to_str(D3DQUERYTYPE);
 
 #ifdef DEBUG
 
