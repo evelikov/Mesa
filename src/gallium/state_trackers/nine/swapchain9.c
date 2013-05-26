@@ -170,10 +170,12 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
         }
         if (This->buffers[i]) {
             NineSurface9_SetResource(This->buffers[i], resource, 0);
+            pipe_resource_reference(&resource, NULL);
         } else {
             desc.Usage = D3DUSAGE_RENDERTARGET;
             hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
                                   0, 0, &desc, &This->buffers[i]);
+            pipe_resource_reference(&resource, NULL);
             if (FAILED(hr)) {
                 DBG("Failed to create RT surface.\n");
                 return hr;
@@ -192,10 +194,12 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
         }
         if (This->zsbuf) {
             NineSurface9_SetResource(This->zsbuf, resource, 0);
+            pipe_resource_reference(&resource, NULL);
         } else {
             desc.Usage = D3DUSAGE_DEPTHSTENCIL;
             hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
                                   0, 0, &desc, &This->zsbuf);
+            pipe_resource_reference(&resource, NULL);
             if (FAILED(hr)) {
                 DBG("Failed to create ZS surface.\n");
                 return hr;
