@@ -89,7 +89,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             "AutoDepthStencilFormat: %s\n"
             "Flags: %x\n"
             "FullScreen_RefreshRateInHz: %u\n"
-            "PresentationInterval: %u\n", pParams,
+            "PresentationInterval: %x\n", pParams,
             pParams->BackBufferWidth, pParams->BackBufferHeight,
             d3dformat_to_string(pParams->BackBufferFormat),
             pParams->BackBufferCount,
