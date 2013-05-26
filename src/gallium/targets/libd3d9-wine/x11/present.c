@@ -222,7 +222,7 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
         XCB_DRI2_ATTACHMENT_BUFFER_BACK_LEFT
     };
 
-    _MESSAGE("%s(This=%p hWndOverride=%p pBuffer=%p pRect=%p ppRegion=%p\n",
+    _MESSAGE("%s(This=%p hWndOverride=%p pBuffer=%p pRect=%p ppRegion=%p)\n",
              __FUNCTION__, This, hWndOverride, pBuffer, pRect, ppRegion);
 
     if (This->rgndata) {
@@ -279,7 +279,7 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
         POINT panc, pwnd;
         RECT rwnd;
         if (!GetDCOrgEx(GetDC(This->current_window.ancestor), &panc) ||
-            !GetDCOrgEx(GetDC(This->current_window.real), &panc) ||
+            !GetDCOrgEx(GetDC(This->current_window.real), &pwnd) ||
             !GetClientRect(This->current_window.real, &rwnd)) {
             _ERROR("Unable to get fake subwindow coordinates.\n");
             return D3DERR_DRIVERINTERNALERROR;
