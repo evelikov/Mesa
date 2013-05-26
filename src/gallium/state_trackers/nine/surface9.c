@@ -108,6 +108,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
                             D3DRTYPE_SURFACE, pDesc->Pool);
     if (FAILED(hr))
         return hr;
+    This->base.usage = pDesc->Usage;
 
     /* Stand-alone surfaces should hold a reference to the device. */
     if (!pContainer)
@@ -275,7 +276,9 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         pRect ? pRect->left : 0, pRect ? pRect->top : 0,
         pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
 
-    user_assert(This->base.pool != D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(This->base.pool != D3DPOOL_DEFAULT ||
+                (This->base.usage == 0 && This->base.type == D3DRTYPE_SURFACE),
+                D3DERR_INVALIDCALL);
 
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
                             D3DLOCK_DONOTWAIT |

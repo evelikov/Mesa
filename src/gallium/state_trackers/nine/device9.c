@@ -669,7 +669,7 @@ NineDevice9_CreateIndexBuffer( struct NineDevice9 *This,
 
 static HRESULT
 create_zs_or_rt_surface(struct NineDevice9 *This,
-                        boolean zs,
+                        unsigned type, /* 0 = RT, 1 = ZS, 2 = plain */
                         UINT Width, UINT Height,
                         D3DFORMAT Format,
                         D3DMULTISAMPLE_TYPE MultiSample,
@@ -685,9 +685,9 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     D3DSURFACE_DESC desc;
     struct pipe_resource templ;
 
-    DBG("This=%p zs=%i Width=%u Height=%u Format=%s MS=%u Quality=%u "
+    DBG("This=%p type=%u Width=%u Height=%u Format=%s MS=%u Quality=%u "
         "Discard_or_Lockable=%i ppSurface=%p pSharedHandle=%p\n",
-        This, zs, Width, Height, d3dformat_to_string(Format),
+        This, type, Width, Height, d3dformat_to_string(Format),
         MultiSample, MultisampleQuality,
         Discard_or_Lockable, ppSurface, pSharedHandle);
 
@@ -703,8 +703,10 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     templ.last_level = 0;
     templ.nr_samples = (unsigned)MultiSample;
     templ.usage = PIPE_USAGE_STATIC;
-    templ.bind = zs ? PIPE_BIND_DEPTH_STENCIL : PIPE_BIND_RENDER_TARGET;
+    templ.bind = PIPE_BIND_SAMPLER_VIEW; /* StretchRect */
     templ.flags = 0;
+    templ.bind |= /* we need it to be renderable for ColorFill */
+        (type == 1) ? PIPE_BIND_DEPTH_STENCIL : PIPE_BIND_RENDER_TARGET;
 
     /* since resource_create doesn't return an error code, check format here */
     user_assert(screen->is_format_supported(screen, templ.format, templ.target,
@@ -716,12 +718,19 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
 
     desc.Format = Format;
     desc.Type = D3DRTYPE_SURFACE;
-    desc.Usage = zs ? D3DUSAGE_DEPTHSTENCIL : D3DUSAGE_RENDERTARGET;
+    desc.Usage = 0;
     desc.Pool = D3DPOOL_DEFAULT;
     desc.MultiSampleType = MultiSample;
     desc.MultiSampleQuality = MultisampleQuality;
     desc.Width = Width;
     desc.Height = Height;
+    switch (type) {
+    case 0: desc.Usage = D3DUSAGE_RENDERTARGET; break;
+    case 1: desc.Usage = D3DUSAGE_DEPTHSTENCIL; break;
+    default:
+        assert(type == 2);
+        break;
+    }
 
     hr = NineSurface9_new(This, NULL, resource, 0, 0, &desc, &surface);
     pipe_resource_reference(&resource, NULL);
@@ -1032,16 +1041,19 @@ NineDevice9_CreateOffscreenPlainSurface( struct NineDevice9 *This,
                                          IDirect3DSurface9 **ppSurface,
                                          HANDLE *pSharedHandle )
 {
-    /* Can be used with StretchRect and ColorFill, just create an RT and
-     * hope it works.
+    HRESULT hr;
+
+    user_assert(Pool != D3DPOOL_MANAGED, D3DERR_INVALIDCALL);
+
+    /* Can be used with StretchRect and ColorFill. It's also always lockable.
      */
-    HRESULT hr = create_zs_or_rt_surface(This, FALSE, Width, Height,
-                                         Format,
-                                         D3DMULTISAMPLE_NONE, 0,
-                                         TRUE,
-                                         ppSurface, pSharedHandle);
+    hr = create_zs_or_rt_surface(This, 2, Width, Height,
+                                 Format,
+                                 D3DMULTISAMPLE_NONE, 0,
+                                 TRUE,
+                                 ppSurface, pSharedHandle);
     if (FAILED(hr))
-        DBG("Could not create surface, remove RT bind flag ?\n");
+        DBG("Could not create surface, get rid of RT bind flag ?\n");
     return hr;
 }
 

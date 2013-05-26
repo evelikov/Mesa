@@ -88,6 +88,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
                                D3DRTYPE_TEXTURE, Pool);
     if (FAILED(hr))
         return hr;
+    This->base.base.usage = Usage;
 
     /* Create all the surfaces right away.
      * They manage backing storage, and transfers (LockRect) are deferred

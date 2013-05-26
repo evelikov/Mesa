@@ -83,6 +83,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
                                D3DRTYPE_TEXTURE, Pool);
     if (FAILED(hr))
         return hr;
+    This->base.base.usage = Usage;
 
     voldesc.Format = Format;
     voldesc.Type = D3DRTYPE_VOLUMETEXTURE;
