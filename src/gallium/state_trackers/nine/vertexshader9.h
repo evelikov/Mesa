@@ -41,6 +41,8 @@ struct NineVertexShader9
     } byte_code;
     struct NineDevice9 *device;
 
+    boolean position_t;
+
     struct nine_lconstf lconstf;
 
     const struct pipe_stream_output_info *so;

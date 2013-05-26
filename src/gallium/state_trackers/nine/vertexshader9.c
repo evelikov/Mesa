@@ -63,6 +63,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     This->byte_code.size = info.byte_size;
     This->cso = info.cso;
     This->lconstf = info.lconstf;
+    This->position_t = info.position_t;
 
     return D3D_OK;
 }

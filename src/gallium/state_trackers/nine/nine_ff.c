@@ -1171,6 +1171,8 @@ nine_ff_get_vs(struct NineDevice9 *device)
         vs->num_inputs = bld.num_inputs;
         for (n = 0; n < bld.num_inputs; ++n)
             vs->input_map[n].ndecl = bld.input[n];
+
+        vs->position_t = key.position_t;
     }
     return vs;
 }

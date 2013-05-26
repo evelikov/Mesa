@@ -48,6 +48,8 @@ struct nine_shader_info
 
     unsigned input_map[32]; /* VS input -> NINE_DECLUSAGE_x */
 
+    boolean position_t;
+
     struct nine_lconstf lconstf; /* members to be free'd by user */
 };
 

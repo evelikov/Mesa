@@ -61,6 +61,9 @@ struct NineDevice9
     struct NineStateBlock9 *record;
     struct nine_state *update; /* state to update (&state / &record->state) */
     struct nine_state state;   /* device state */
+    struct {
+        boolean vport_identity;
+    } pipe_state;
 
     boolean in_scene;
 

@@ -473,6 +473,8 @@ struct shader_translator
     struct sm1_local_const lconstb[NINE_MAX_CONST_B];
 
     boolean indirect_const_access;
+
+    struct nine_shader_info *info;
 };
 
 #define IS_VS (tx->processor == TGSI_PROCESSOR_VERTEX)
@@ -1557,6 +1559,8 @@ DECL_SPECIAL(DCL)
             tx->input_map[sem.reg.idx] = sm1_to_nine_declusage(&sem);
         } else {
             assert(sem.reg.mask != 0);
+            if (sem.usage == D3DDECLUSAGE_POSITIONT)
+                tx->info->position_t = TRUE;
             ureg_DECL_output_masked(ureg, tgsi.Name, tgsi.Index, sem.reg.mask);
         }
     } else {
@@ -2229,6 +2233,8 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
 {
    unsigned i;
 
+   tx->info = info;
+
    tx->byte_code = info->byte_code;
    tx->parse = info->byte_code;
    tx->input_map = info->input_map;
@@ -2285,6 +2291,8 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     unsigned i;
 
     user_assert(processor != ~0, D3DERR_INVALIDCALL);
+
+    info->position_t = FALSE;
 
     tx = CALLOC_STRUCT(shader_translator);
     if (!tx)
