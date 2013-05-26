@@ -7,6 +7,8 @@
 
 const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE);
 const char *nine_D3DQUERYTYPE_to_str(D3DQUERYTYPE);
+const char *nine_D3DTSS_to_str(D3DTEXTURESTAGESTATETYPE);
+const char *nine_D3DTOP_to_str(D3DTEXTUREOP);
 
 #ifdef DEBUG
 
@@ -14,6 +16,12 @@ void
 nine_dump_D3DADAPTER_IDENTIFIER9(unsigned, const D3DADAPTER_IDENTIFIER9 *);
 void
 nine_dump_D3DCAPS9(unsigned, const D3DCAPS9 *);
+void
+nine_dump_D3DLIGHT9(unsigned, const D3DLIGHT9 *);
+void
+nine_dump_D3DMATERIAL9(unsigned, const D3DMATERIAL9 *);
+void
+nine_dump_D3DTSS_value(unsigned, D3DTEXTURESTAGESTATETYPE, DWORD);
 
 #else /* !DEBUG */
 
@@ -21,7 +29,10 @@ static INLINE void
 nine_dump_D3DADAPTER_IDENTIFIER9(unsigned, const D3DADAPTER_IDENTIFIER9 *)
 { }
 static INLINE void
-nine_dump_D3DCAPS9(unsigned, const D3DCAPS9 *);
+nine_dump_D3DCAPS9(unsigned, const D3DCAPS9 *)
+{ }
+static INLINE void
+nine_dump_D3DLIGHT9(unsigned, const D3DLIGHT9 *)
 { }
 
 #endif /* DEBUG */

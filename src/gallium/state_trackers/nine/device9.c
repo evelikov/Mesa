@@ -36,6 +36,7 @@
 #include "nine_helpers.h"
 #include "nine_pipe.h"
 #include "nine_ff.h"
+#include "nine_dump.h"
 
 #include "pipe/p_screen.h"
 #include "pipe/p_context.h"
@@ -1308,6 +1309,11 @@ NineDevice9_SetMaterial( struct NineDevice9 *This,
                          const D3DMATERIAL9 *pMaterial )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p pMaterial=%p\n", This, pMaterial);
+    if (pMaterial)
+        nine_dump_D3DMATERIAL9(DBG_FF, pMaterial);
+
     user_assert(pMaterial, E_POINTER);
 
     state->ff.material = *pMaterial;
@@ -1334,6 +1340,8 @@ NineDevice9_SetLight( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
 
     DBG("This=%p Index=%u pLight=%p\n", This, Index, pLight);
+    if (pLight)
+        nine_dump_D3DLIGHT9(DBG_FF, pLight);
 
     user_assert(pLight, D3DERR_INVALIDCALL);
     user_assert(pLight->Type < NINED3DLIGHT_INVALID, D3DERR_INVALIDCALL);
@@ -1699,6 +1707,7 @@ NineDevice9_SetTextureStageState( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
 
     DBG("Stage=%u Type=%u Value=%08x\n", Stage, Type, Value);
+    nine_dump_D3DTSS_value(DBG_FF, Type, Value);
 
     user_assert(Stage < Elements(state->ff.tex_stage), D3DERR_INVALIDCALL);
     user_assert(Type < Elements(state->ff.tex_stage[0]), D3DERR_INVALIDCALL);

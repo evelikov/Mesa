@@ -1,9 +1,13 @@
 
 #include "nine_dump.h"
 #include "nine_debug.h"
+#include "nine_pipe.h"
 
 #include <stdio.h>
 #include "util/u_memory.h"
+#include "util/u_math.h"
+
+#ifdef DEBUG
 
 const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE type)
 {
@@ -13,7 +17,7 @@ const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE type)
     case D3DDEVTYPE_REF: return "REF";
     case D3DDEVTYPE_SW: return "SW";
     default:
-       return "(D3DDEVTYPE:?)";
+       return "(D3DDEVTYPE_?)";
     }
 }
 
@@ -35,7 +39,221 @@ const char *nine_D3DQUERYTYPE_to_str(D3DQUERYTYPE type)
     case D3DQUERYTYPE_BANDWIDTHTIMINGS: return "BANDWIDTHTIMINGS";
     case D3DQUERYTYPE_CACHEUTILIZATION: return "CACHEUTILIZATION";
     default:
-        return "(D3DQUERYTYPE:?)";
+        return "(D3DQUERYTYPE_?)";
+    }
+}
+
+const char *nine_D3DTSS_to_str(D3DTEXTURESTAGESTATETYPE type)
+{
+    switch (type) {
+    case D3DTSS_COLOROP: return "COLOROP";
+    case D3DTSS_ALPHAOP: return "ALPHAOP";
+    case D3DTSS_COLORARG0: return "COLORARG0";
+    case D3DTSS_COLORARG1: return "COLORARG1";
+    case D3DTSS_COLORARG2: return "COLORARG2";
+    case D3DTSS_ALPHAARG0: return "ALPHAARG0";
+    case D3DTSS_ALPHAARG1: return "ALPHAARG1";
+    case D3DTSS_ALPHAARG2: return "ALPHAARG2";
+    case D3DTSS_RESULTARG: return "RESULTARG";
+    case D3DTSS_BUMPENVMAT00: return "BUMPENVMAT00";
+    case D3DTSS_BUMPENVMAT01: return "BUMPENVMAT01";
+    case D3DTSS_BUMPENVMAT10: return "BUMPENVMAT10";
+    case D3DTSS_BUMPENVMAT11: return "BUMPENVMAT11";
+    case D3DTSS_BUMPENVLSCALE: return "BUMPENVLSCALE";
+    case D3DTSS_BUMPENVLOFFSET: return "BUMPENVLOFFSET";
+    case D3DTSS_TEXCOORDINDEX: return "TEXCOORDINDEX";
+    case D3DTSS_TEXTURETRANSFORMFLAGS: return "TEXTURETRANSFORMFLAGS";
+    case D3DTSS_CONSTANT: return "CONSTANT";
+    default:
+        return "(D3DTSS_?)";
+    }
+}
+
+#define D3DTOP_TO_STR_CASE(n) case D3DTOP_##n: return #n
+const char *nine_D3DTOP_to_str(D3DTEXTUREOP top)
+{
+    switch (top) {
+    D3DTOP_TO_STR_CASE(DISABLE);
+    D3DTOP_TO_STR_CASE(SELECTARG1);
+    D3DTOP_TO_STR_CASE(SELECTARG2);
+    D3DTOP_TO_STR_CASE(MODULATE);
+    D3DTOP_TO_STR_CASE(MODULATE2X);
+    D3DTOP_TO_STR_CASE(MODULATE4X);
+    D3DTOP_TO_STR_CASE(ADD);
+    D3DTOP_TO_STR_CASE(ADDSIGNED);
+    D3DTOP_TO_STR_CASE(ADDSIGNED2X);
+    D3DTOP_TO_STR_CASE(SUBTRACT);
+    D3DTOP_TO_STR_CASE(ADDSMOOTH);
+    D3DTOP_TO_STR_CASE(BLENDDIFFUSEALPHA);
+    D3DTOP_TO_STR_CASE(BLENDTEXTUREALPHA);
+    D3DTOP_TO_STR_CASE(BLENDFACTORALPHA);
+    D3DTOP_TO_STR_CASE(BLENDTEXTUREALPHAPM);
+    D3DTOP_TO_STR_CASE(BLENDCURRENTALPHA);
+    D3DTOP_TO_STR_CASE(PREMODULATE);
+    D3DTOP_TO_STR_CASE(MODULATEALPHA_ADDCOLOR);
+    D3DTOP_TO_STR_CASE(MODULATECOLOR_ADDALPHA);
+    D3DTOP_TO_STR_CASE(MODULATEINVALPHA_ADDCOLOR);
+    D3DTOP_TO_STR_CASE(MODULATEINVCOLOR_ADDALPHA);
+    D3DTOP_TO_STR_CASE(BUMPENVMAP);
+    D3DTOP_TO_STR_CASE(BUMPENVMAPLUMINANCE);
+    D3DTOP_TO_STR_CASE(DOTPRODUCT3);
+    D3DTOP_TO_STR_CASE(MULTIPLYADD);
+    D3DTOP_TO_STR_CASE(LERP);
+    default:
+        return "(D3DTOP_?)";
+    }
+}
+
+static const char *
+nine_D3DLIGHTTYPE_to_str(D3DLIGHTTYPE type)
+{
+    switch (type) {
+    case D3DLIGHT_POINT: return "POINT";
+    case D3DLIGHT_SPOT: return "SPOT";
+    case D3DLIGHT_DIRECTIONAL: return "DIRECTIONAL";
+    default:
+        return "(D3DLIGHT_?)";
+    }
+}
+
+static const char *
+nine_D3DTA_to_str(DWORD value)
+{
+    switch (value & D3DTA_SELECTMASK) {
+    case D3DTA_DIFFUSE: return "DIFFUSE";
+    case D3DTA_CURRENT: return "CURRENT";
+    case D3DTA_TEXTURE: return "TEXTURE";
+    case D3DTA_TFACTOR: return "TFACTOR";
+    case D3DTA_SPECULAR: return "SPECULAR";
+    case D3DTA_TEMP: return "TEMP";
+    case D3DTA_CONSTANT: return "CONSTANT";
+    default:
+        return "(D3DTA_?)";
+    }
+}
+
+static const char *
+nine_D3DTSS_TCI_to_str(DWORD value)
+{
+    switch (value & 0xf0000) {
+    case D3DTSS_TCI_PASSTHRU: return "PASSTHRU";
+    case D3DTSS_TCI_CAMERASPACENORMAL: return "CAMERASPACENORMAL";
+    case D3DTSS_TCI_CAMERASPACEPOSITION: return "CAMERASPACEPOSITION";
+    case D3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
+        return "CAMERASPACEREFLECTIONVECTOR";
+    case D3DTSS_TCI_SPHEREMAP: return "SPHEREMAP";
+    default:
+        return "(D3DTSS_TCI_?)";
+    }
+}
+
+static const char *
+nine_D3DTTFF_to_str(DWORD value)
+{
+    switch (value) {
+    case D3DTTFF_DISABLE: return "DISABLE";
+    case D3DTTFF_COUNT1: return "COUNT1";
+    case D3DTTFF_COUNT2: return "COUNT2";
+    case D3DTTFF_COUNT3: return "COUNT3";
+    case D3DTTFF_COUNT4: return "COUNT4";
+    case D3DTTFF_PROJECTED: return "PROJECTED";
+    default:
+        return "(D3DTTFF_?)";
+    }
+}
+
+void
+nine_dump_D3DLIGHT9(unsigned ch, const D3DLIGHT9 *lit)
+{
+    DBG_FLAG(ch, "D3DLIGHT9(%p):\n"
+             "Type: %s\n"
+             "Diffuse: (%f %f %f %f)\n"
+             "Specular: (%f %f %f %f)\n"
+             "Ambient: (%f %f %f %f)\n"
+             "Position: (%f %f %f)\n"
+             "Direction: (%f %f %f)\n"
+             "Range: %f\n"
+             "Falloff: %f\n"
+             "Attenuation: %f + %f * d + %f * d^2\n"
+             "Theta: %f deg\n"
+             "Phi: %f deg\n", lit,
+             nine_D3DLIGHTTYPE_to_str(lit->Type),
+             lit->Diffuse.r,lit->Diffuse.r,lit->Diffuse.g,lit->Diffuse.a,
+             lit->Specular.r,lit->Specular.r,lit->Specular.g,lit->Specular.a,
+             lit->Ambient.r,lit->Ambient.r,lit->Ambient.g,lit->Ambient.a,
+             lit->Position.x,lit->Position.y,lit->Position.z,
+             lit->Direction.x,lit->Direction.y,lit->Direction.z,
+             lit->Range,lit->Falloff,
+             lit->Attenuation0,lit->Attenuation1,lit->Attenuation2,
+             lit->Theta * 360.0f / M_PI,lit->Phi * 360.0f / M_PI);
+}
+
+void
+nine_dump_D3DMATERIAL9(unsigned ch, const D3DMATERIAL9 *mat)
+{
+    DBG_FLAG(ch, "D3DMATERIAL9(%p):\n"
+             "Diffuse: (%f %f %f %f)\n"
+             "Specular: (%f %f %f %f)\n"
+             "Ambient: (%f %f %f %f)\n"
+             "Emissive: (%f %f %f %f)\n"
+             "Power: %f\n", mat,
+             mat->Diffuse.r,mat->Diffuse.r,mat->Diffuse.g,mat->Diffuse.a,
+             mat->Specular.r,mat->Specular.r,mat->Specular.g,mat->Specular.a,
+             mat->Ambient.r,mat->Ambient.r,mat->Ambient.g,mat->Ambient.a,
+             mat->Emissive.r,mat->Emissive.r,mat->Emissive.g,mat->Emissive.a,
+             mat->Power);
+}
+
+void
+nine_dump_D3DTSS_value(unsigned ch, D3DTEXTURESTAGESTATETYPE type, DWORD value)
+{
+    float rgba[4];
+
+    switch (type) {
+    case D3DTSS_COLOROP:
+    case D3DTSS_ALPHAOP:
+        DBG_FLAG(ch, "D3DTSS_%s = %s\n",
+                 nine_D3DTSS_to_str(type), nine_D3DTOP_to_str(value));
+        break;
+    case D3DTSS_COLORARG0:
+    case D3DTSS_COLORARG1:
+    case D3DTSS_COLORARG2:
+    case D3DTSS_ALPHAARG0:
+    case D3DTSS_ALPHAARG1:
+    case D3DTSS_ALPHAARG2:
+    case D3DTSS_RESULTARG:
+        DBG_FLAG(ch, "D3DTSS_%s = %s%s%s\n",
+                 nine_D3DTSS_to_str(type),
+                 (value & D3DTA_COMPLEMENT) ? "COMPLEMENT " : "",
+                 (value & D3DTA_ALPHAREPLICATE) ? "ALPHAREPLICATE " : "",
+                 nine_D3DTA_to_str(value));
+        break;
+    case D3DTSS_BUMPENVMAT00:
+    case D3DTSS_BUMPENVMAT01:
+    case D3DTSS_BUMPENVMAT10:
+    case D3DTSS_BUMPENVMAT11:
+    case D3DTSS_BUMPENVLSCALE:
+    case D3DTSS_BUMPENVLOFFSET:
+        DBG_FLAG(ch, "D3DTSS_%s = %f\n",
+                 nine_D3DTSS_to_str(type), asfloat(value));
+        break;
+    case D3DTSS_TEXCOORDINDEX:
+        DBG_FLAG(ch, "D3DTSS_TEXCOORDINDEX = %s %u\n",
+                 nine_D3DTSS_TCI_to_str(value),
+                 value & 0xffff);
+        break;
+    case D3DTSS_TEXTURETRANSFORMFLAGS:
+        DBG_FLAG(ch, "D3DTSS_TEXTURETRANSFORMFLAGS = %s\n",
+                 nine_D3DTTFF_to_str(value));
+        break;
+    case D3DTSS_CONSTANT:
+        d3dcolor_to_rgba(rgba, value);
+        DBG_FLAG(ch, "D3DTSS_CONSTANT = %f %f %f %F\n",
+                 rgba[0],rgba[1],rgba[2],rgba[3]);
+        break;
+    default:
+        DBG_FLAG(ch, "D3DTSS_? = 0x%08x\n", value);
+        break;
     }
 }
 
@@ -470,3 +688,5 @@ nine_dump_D3DCAPS9(unsigned ch, const D3DCAPS9 *caps)
 
     FREE(s);
 }
+
+#endif /* DEBUG */
