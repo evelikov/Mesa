@@ -295,6 +295,7 @@ nvc0_create(struct pipe_screen *pscreen, void *priv)
    nvc0_program_library_upload(nvc0);
 
    nvc0->state.rasterizer_api = 0x2; /* upper left origin */
+   nvc0->state.vport_enable = TRUE;
 
    /* add permanently resident buffers to bufctxts */
 
