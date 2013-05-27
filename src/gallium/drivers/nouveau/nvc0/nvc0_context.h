@@ -121,6 +121,7 @@ struct nvc0_context {
       boolean rasterizer_discard;
       boolean early_z_forced;
       boolean prim_restart;
+      boolean vport_enable;
       uint32_t instance_elts; /* bitmask of per-instance elements */
       uint32_t instance_base;
       uint32_t constant_vbos;
