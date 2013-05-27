@@ -229,7 +229,9 @@ const enum pipe_format nine_d3d9_to_pipe_format_map[120] =
    [D3DFMT_A2R10G10B10]  = PIPE_FORMAT_B10G10R10A2_UNORM,
    [D3DFMT_A16B16G16R16] = PIPE_FORMAT_R16G16B16A16_UNORM,
 
-   [D3DFMT_P8] = PIPE_FORMAT_R8_UINT,
+    /* palette texture formats not supported by gallium/hardware, TODO ? */
+   [D3DFMT_P8]   = PIPE_FORMAT_NONE,
+   [D3DFMT_A8P8] = PIPE_FORMAT_NONE,
 
    [D3DFMT_L8]   = PIPE_FORMAT_L8_UNORM,
    [D3DFMT_A8L8] = PIPE_FORMAT_L8A8_UNORM,
@@ -277,12 +279,10 @@ const enum pipe_format nine_d3d9_to_pipe_format_map[120] =
    [D3DFMT_A16B16G16R16F] = PIPE_FORMAT_R16G16B16A16_FLOAT,
    [D3DFMT_A32B32G32R32F] = PIPE_FORMAT_R32G32B32A32_FLOAT,
 
-   /* non-1:1 formats */
-   [D3DFMT_R8G8B8]   = PIPE_FORMAT_B8G8R8X8_UNORM,
-   [D3DFMT_A8R3G3B2] = PIPE_FORMAT_B8G8R8A8_UNORM,
-
-   [D3DFMT_A8P8]     = PIPE_FORMAT_R8A8_UINT,
-
+   /* non-1:1 formats (don't support because we'd have to convert) */
+   [D3DFMT_R8G8B8]   = PIPE_FORMAT_NONE, /* XXX order */
+   [D3DFMT_A8R3G3B2] = PIPE_FORMAT_NONE, /* XXX alpha */
+   /* This is ok because they're not lockable: */
    [D3DFMT_D15S1]    = PIPE_FORMAT_Z24_UNORM_S8_UINT,
    [D3DFMT_D24X4S4]  = PIPE_FORMAT_Z24_UNORM_S8_UINT,
    [D3DFMT_D24FS8]   = PIPE_FORMAT_Z32_FLOAT_S8X24_UINT,
