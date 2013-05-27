@@ -1001,11 +1001,15 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
             }
         }
     }
-if (key->specular)
+    if (key->specular)
         ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
     oCol = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
 
+    if (key->ts[0].colorop == D3DTOP_DISABLE &&
+        key->ts[0].alphaop == D3DTOP_DISABLE)
+        ureg_MOV(ureg, ps.rCur, ps.vC[0]);
+    /* Or is it undefined then ? */
 
     /* Run stages.
      */
@@ -1046,7 +1050,9 @@ if (key->specular)
         }
 
         if (s == 0 &&
-            (key->ts[0].resultarg != 0 /* current */ ||
+            (key->ts[0].resultarg != 0 /* not current */ ||
+             key->ts[0].colorop == D3DTOP_DISABLE ||
+             key->ts[0].alphaop == D3DTOP_DISABLE ||
              key->ts[0].colorarg0 == D3DTA_CURRENT ||
              key->ts[0].colorarg1 == D3DTA_CURRENT ||
              key->ts[0].colorarg2 == D3DTA_CURRENT ||
