@@ -15,6 +15,7 @@
 #include "nine_defines.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "nine_dump.h"
 
 #include "pipe/p_context.h"
 #include "tgsi/tgsi_ureg.h"
@@ -87,7 +88,7 @@ struct nine_ff_ps_key
                 uint32_t alphaarg0 : 3;
                 uint32_t alphaarg1 : 3;
                 uint32_t alphaarg2 : 3;
-                uint32_t resultarg : 1;
+                uint32_t resultarg : 1; /* CURRENT:0 or TEMP:1 */
                 uint32_t textarget : 2; /* 1D/2D/3D/CUBE */
                 uint32_t projected : 1;
                 /* that's 32 bit exactly */
@@ -816,6 +817,24 @@ ps_get_ts_dst(struct ps_build_ctx *ps, unsigned ta)
     }
 }
 
+static uint8_t ps_d3dtop_args_mask(D3DTEXTUREOP top)
+{
+    switch (top) {
+    case D3DTOP_DISABLE:
+        return 0x0;
+    case D3DTOP_SELECTARG1:
+    case D3DTOP_PREMODULATE:
+        return 0x2;
+    case D3DTOP_SELECTARG2:
+        return 0x4;
+    case D3DTOP_MULTIPLYADD:
+    case D3DTOP_LERP:
+        return 0x7;
+    default:
+        return 0x6;
+    }
+}
+
 static void
 ps_do_ts_op(struct ps_build_ctx *ps, unsigned top, struct ureg_dst dst, struct ureg_src *arg)
 {
@@ -912,10 +931,10 @@ ps_do_ts_op(struct ps_build_ctx *ps, unsigned top, struct ureg_dst dst, struct u
         ureg_DP3(ureg, dst, arg[1], arg[2]);
         break;
     case D3DTOP_MULTIPLYADD:
-        ureg_MAD(ureg, dst, arg[2], arg[3], arg[1]);
+        ureg_MAD(ureg, dst, arg[2], arg[0], arg[1]);
         break;
     case D3DTOP_LERP:
-        ureg_LRP(ureg, dst, arg[1], arg[2], arg[3]);
+        ureg_LRP(ureg, dst, arg[1], arg[2], arg[0]);
         break;
     case D3DTOP_DISABLE:
         /* no-op ? */
@@ -954,14 +973,16 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         ps.s[s] = ureg_src_undef();
 
         if (key->ts[s].colorop != D3DTOP_DISABLE) {
-            if (key->ts[s].colorarg0 == D3DTA_SPECULAR ||
-                key->ts[s].colorarg1 == D3DTA_SPECULAR ||
-                key->ts[s].colorarg2 == D3DTA_SPECULAR)
+            const uint8_t used = ps_d3dtop_args_mask(key->ts[s].colorop);
+
+            if (((used & 0x1) && (key->ts[s].colorarg0 == D3DTA_SPECULAR)) ||
+                ((used & 0x2) && (key->ts[s].colorarg1 == D3DTA_SPECULAR)) ||
+                ((used & 0x4) && (key->ts[s].colorarg2 == D3DTA_SPECULAR)))
                 ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
-            if (key->ts[s].colorarg0 == D3DTA_TEXTURE ||
-                key->ts[s].colorarg1 == D3DTA_TEXTURE ||
-                key->ts[s].colorarg2 == D3DTA_TEXTURE) {
+            if (((used & 0x1) && (key->ts[s].colorarg0 == D3DTA_TEXTURE)) ||
+                ((used & 0x2) && (key->ts[s].colorarg1 == D3DTA_TEXTURE)) ||
+                ((used & 0x4) && (key->ts[s].colorarg2 == D3DTA_TEXTURE))) {
                 ps.s[s] = ureg_DECL_sampler(ureg, s);
                 ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
             }
@@ -971,14 +992,16 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         }
 
         if (key->ts[s].alphaop != D3DTOP_DISABLE) {
-            if (key->ts[s].alphaarg0 == D3DTA_SPECULAR ||
-                key->ts[s].alphaarg1 == D3DTA_SPECULAR ||
-                key->ts[s].alphaarg2 == D3DTA_SPECULAR)
+            const uint8_t used = ps_d3dtop_args_mask(key->ts[s].colorop);
+
+            if (((used & 0x1) && (key->ts[s].alphaarg0 == D3DTA_SPECULAR)) ||
+                ((used & 0x2) && (key->ts[s].alphaarg1 == D3DTA_SPECULAR)) ||
+                ((used & 0x4) && (key->ts[s].alphaarg2 == D3DTA_SPECULAR)))
                 ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
-            if (key->ts[s].alphaarg0 == D3DTA_TEXTURE ||
-                key->ts[s].alphaarg1 == D3DTA_TEXTURE ||
-                key->ts[s].alphaarg2 == D3DTA_TEXTURE) {
+            if (((used & 0x1) && (key->ts[s].alphaarg0 == D3DTA_TEXTURE)) ||
+                ((used & 0x2) && (key->ts[s].alphaarg1 == D3DTA_TEXTURE)) ||
+                ((used & 0x4) && (key->ts[s].alphaarg2 == D3DTA_TEXTURE))) {
                 ps.s[s] = ureg_DECL_sampler(ureg, s);
                 ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
             }
@@ -993,6 +1016,8 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
     /* Run stages.
      */
     for (s = 0; s < 8; ++s) {
+        const uint8_t used_c = ps_d3dtop_args_mask(key->ts[s].colorop);
+        const uint8_t used_a = ps_d3dtop_args_mask(key->ts[s].alphaop);
         struct ureg_dst dst;
         struct ureg_src arg[3];
 
@@ -1001,6 +1026,10 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
             continue;
         ps.stage.index = s;
         ps.stage.num_regs = 3;
+
+        DBG("STAGE[%u]: colorop=%s alphaop=%s\n", s,
+            nine_D3DTOP_to_str(key->ts[s].colorop),
+            nine_D3DTOP_to_str(key->ts[s].alphaop));
 
         if (!ureg_src_is_undef(ps.s[s])) {
             unsigned target;
@@ -1022,7 +1051,16 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
                 ureg_TEX(ureg, ps.rTex, target, ps.vT[s], ps.s[s]);
         }
 
-        if (s == 0) {
+        if (s == 0 &&
+            ((key->ts[0].resultarg != 0 /* current */) ||
+             ((used_c & 0x1) && (key->ts[0].colorarg0 == D3DTA_CURRENT)) ||
+             ((used_c & 0x2) && (key->ts[0].colorarg1 == D3DTA_CURRENT)) ||
+             ((used_c & 0x4) && (key->ts[0].colorarg2 == D3DTA_CURRENT)) ||
+             ((used_a & 0x1) && (key->ts[0].alphaarg0 == D3DTA_CURRENT)) ||
+             ((used_a & 0x2) && (key->ts[0].alphaarg1 == D3DTA_CURRENT)) ||
+             ((used_a & 0x4) && (key->ts[0].alphaarg2 == D3DTA_CURRENT))
+            )
+           ) {
             /* Initialize D3DTA_CURRENT.
              * (Yes we can do this before the loop but not until
              *  NVE4 has an instruction scheduling pass.)
@@ -1038,22 +1076,22 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         }
 
         if (key->ts[s].colorop != key->ts[s].alphaop ||
-            key->ts[s].colorarg0 != key->ts[s].alphaarg0 ||
-            key->ts[s].colorarg1 != key->ts[s].alphaarg1 ||
-            key->ts[s].colorarg2 != key->ts[s].alphaarg2)
+            ((used_c & 0x1) && (key->ts[s].colorarg0 != key->ts[s].alphaarg0)) ||
+            ((used_c & 0x2) && (key->ts[s].colorarg1 != key->ts[s].alphaarg1)) ||
+            ((used_c & 0x4) && (key->ts[s].colorarg2 != key->ts[s].alphaarg2)))
             dst.WriteMask = TGSI_WRITEMASK_XYZ;
 
-        arg[0] = ps_get_ts_arg(&ps, key->ts[s].colorarg0);
-        arg[1] = ps_get_ts_arg(&ps, key->ts[s].colorarg1);
-        arg[2] = ps_get_ts_arg(&ps, key->ts[s].colorarg2);
+        if (used_c & 0x1) arg[0] = ps_get_ts_arg(&ps, key->ts[s].colorarg0);
+        if (used_c & 0x2) arg[1] = ps_get_ts_arg(&ps, key->ts[s].colorarg1);
+        if (used_c & 0x4) arg[2] = ps_get_ts_arg(&ps, key->ts[s].colorarg2);
         ps_do_ts_op(&ps, key->ts[s].colorop, dst, arg);
 
         if (dst.WriteMask != TGSI_WRITEMASK_XYZW) {
             dst.WriteMask = TGSI_WRITEMASK_W;
 
-            arg[0] = ps_get_ts_arg(&ps, key->ts[s].alphaarg0);
-            arg[1] = ps_get_ts_arg(&ps, key->ts[s].alphaarg1);
-            arg[2] = ps_get_ts_arg(&ps, key->ts[s].alphaarg2);
+            if (used_a & 0x1) arg[0] = ps_get_ts_arg(&ps, key->ts[s].alphaarg0);
+            if (used_a & 0x2) arg[1] = ps_get_ts_arg(&ps, key->ts[s].alphaarg1);
+            if (used_a & 0x4) arg[2] = ps_get_ts_arg(&ps, key->ts[s].alphaarg2);
             ps_do_ts_op(&ps, key->ts[s].alphaop, dst, arg);
         }
     }
@@ -1124,7 +1162,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
     key.lighting = !!state->rs[D3DRS_LIGHTING] &&  state->ff.num_lights_active;
     key.darkness = !!state->rs[D3DRS_LIGHTING] && !state->ff.num_lights_active;
     if (key.position_t) {
-        key.darkness |= key.lighting;
+        key.darkness = 0; /* |= key.lighting; */ /* XXX ? */
         key.lighting = 0;
     }
     if ((key.lighting | key.darkness) && state->rs[D3DRS_COLORVERTEX]) {
@@ -1199,7 +1237,7 @@ nine_ff_get_ps(struct NineDevice9 *device)
         /* MSDN says D3DTOP_DISABLE disables this and all subsequent stages. */
         if (key.ts[s].alphaop == D3DTOP_DISABLE &&
             key.ts[s].colorop == D3DTOP_DISABLE)
-            continue; /* XXX continue ? */
+            break; /* XXX continue ? */
         if (key.ts[s].colorop != D3DTOP_DISABLE) {
             key.ts[s].colorarg0 = state->ff.tex_stage[s][D3DTSS_COLORARG0];
             key.ts[s].colorarg1 = state->ff.tex_stage[s][D3DTSS_COLORARG1];
@@ -1225,6 +1263,8 @@ nine_ff_get_ps(struct NineDevice9 *device)
             key.ts[s].textarget = 1;
         }
     }
+    for (; s < 8; ++s)
+        key.ts[s].colorop = key.ts[s].alphaop = D3DTOP_DISABLE;
     if (state->rs[D3DRS_FOGENABLE]) {
         if (state->rs[D3DRS_RANGEFOGENABLE]) {
             key.fog = !!state->rs[D3DRS_FOGVERTEXMODE];
