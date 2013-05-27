@@ -971,16 +971,14 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         ps.s[s] = ureg_src_undef();
 
         if (key->ts[s].colorop != D3DTOP_DISABLE) {
-            const uint8_t used = ps_d3dtop_args_mask(key->ts[s].colorop);
-
-            if (((used & 0x1) && (key->ts[s].colorarg0 == D3DTA_SPECULAR)) ||
-                ((used & 0x2) && (key->ts[s].colorarg1 == D3DTA_SPECULAR)) ||
-                ((used & 0x4) && (key->ts[s].colorarg2 == D3DTA_SPECULAR)))
+            if (key->ts[s].colorarg0 == D3DTA_SPECULAR ||
+                key->ts[s].colorarg1 == D3DTA_SPECULAR ||
+                key->ts[s].colorarg2 == D3DTA_SPECULAR)
                 ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
-            if (((used & 0x1) && (key->ts[s].colorarg0 == D3DTA_TEXTURE)) ||
-                ((used & 0x2) && (key->ts[s].colorarg1 == D3DTA_TEXTURE)) ||
-                ((used & 0x4) && (key->ts[s].colorarg2 == D3DTA_TEXTURE))) {
+            if (key->ts[s].colorarg0 == D3DTA_TEXTURE ||
+                key->ts[s].colorarg1 == D3DTA_TEXTURE ||
+                key->ts[s].colorarg2 == D3DTA_TEXTURE) {
                 ps.s[s] = ureg_DECL_sampler(ureg, s);
                 ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
             }
@@ -990,22 +988,20 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         }
 
         if (key->ts[s].alphaop != D3DTOP_DISABLE) {
-            const uint8_t used = ps_d3dtop_args_mask(key->ts[s].colorop);
-
-            if (((used & 0x1) && (key->ts[s].alphaarg0 == D3DTA_SPECULAR)) ||
-                ((used & 0x2) && (key->ts[s].alphaarg1 == D3DTA_SPECULAR)) ||
-                ((used & 0x4) && (key->ts[s].alphaarg2 == D3DTA_SPECULAR)))
+            if (key->ts[s].alphaarg0 == D3DTA_SPECULAR ||
+                key->ts[s].alphaarg1 == D3DTA_SPECULAR ||
+                key->ts[s].alphaarg2 == D3DTA_SPECULAR)
                 ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
-            if (((used & 0x1) && (key->ts[s].alphaarg0 == D3DTA_TEXTURE)) ||
-                ((used & 0x2) && (key->ts[s].alphaarg1 == D3DTA_TEXTURE)) ||
-                ((used & 0x4) && (key->ts[s].alphaarg2 == D3DTA_TEXTURE))) {
+            if (key->ts[s].alphaarg0 == D3DTA_TEXTURE ||
+                key->ts[s].alphaarg1 == D3DTA_TEXTURE ||
+                key->ts[s].alphaarg2 == D3DTA_TEXTURE) {
                 ps.s[s] = ureg_DECL_sampler(ureg, s);
                 ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
             }
         }
     }
-    if (key->specular)
+if (key->specular)
         ps.vC[1] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_COLOR, 1, TGSI_INTERPOLATE_PERSPECTIVE);
 
     oCol = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
@@ -1050,14 +1046,13 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         }
 
         if (s == 0 &&
-            ((key->ts[0].resultarg != 0 /* current */) ||
-             ((used_c & 0x1) && (key->ts[0].colorarg0 == D3DTA_CURRENT)) ||
-             ((used_c & 0x2) && (key->ts[0].colorarg1 == D3DTA_CURRENT)) ||
-             ((used_c & 0x4) && (key->ts[0].colorarg2 == D3DTA_CURRENT)) ||
-             ((used_a & 0x1) && (key->ts[0].alphaarg0 == D3DTA_CURRENT)) ||
-             ((used_a & 0x2) && (key->ts[0].alphaarg1 == D3DTA_CURRENT)) ||
-             ((used_a & 0x4) && (key->ts[0].alphaarg2 == D3DTA_CURRENT))
-            )
+            (key->ts[0].resultarg != 0 /* current */ ||
+             key->ts[0].colorarg0 == D3DTA_CURRENT ||
+             key->ts[0].colorarg1 == D3DTA_CURRENT ||
+             key->ts[0].colorarg2 == D3DTA_CURRENT ||
+             key->ts[0].alphaarg0 == D3DTA_CURRENT ||
+             key->ts[0].alphaarg1 == D3DTA_CURRENT ||
+             key->ts[0].alphaarg2 == D3DTA_CURRENT)
            ) {
             /* Initialize D3DTA_CURRENT.
              * (Yes we can do this before the loop but not until
@@ -1074,9 +1069,9 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
         }
 
         if (key->ts[s].colorop != key->ts[s].alphaop ||
-            ((used_c & 0x1) && (key->ts[s].colorarg0 != key->ts[s].alphaarg0)) ||
-            ((used_c & 0x2) && (key->ts[s].colorarg1 != key->ts[s].alphaarg1)) ||
-            ((used_c & 0x4) && (key->ts[s].colorarg2 != key->ts[s].alphaarg2)))
+            key->ts[s].colorarg0 != key->ts[s].alphaarg0 ||
+            key->ts[s].colorarg1 != key->ts[s].alphaarg1 ||
+            key->ts[s].colorarg2 != key->ts[s].alphaarg2)
             dst.WriteMask = TGSI_WRITEMASK_XYZ;
 
         if (used_c & 0x1) arg[0] = ps_get_ts_arg(&ps, key->ts[s].colorarg0);
@@ -1237,14 +1232,16 @@ nine_ff_get_ps(struct NineDevice9 *device)
             key.ts[s].colorop == D3DTOP_DISABLE)
             break; /* XXX continue ? */
         if (key.ts[s].colorop != D3DTOP_DISABLE) {
-            key.ts[s].colorarg0 = state->ff.tex_stage[s][D3DTSS_COLORARG0];
-            key.ts[s].colorarg1 = state->ff.tex_stage[s][D3DTSS_COLORARG1];
-            key.ts[s].colorarg2 = state->ff.tex_stage[s][D3DTSS_COLORARG2];
+            uint8_t used_c = ps_d3dtop_args_mask(key.ts[s].colorop);
+            if (used_c & 0x1) key.ts[s].colorarg0 = state->ff.tex_stage[s][D3DTSS_COLORARG0];
+            if (used_c & 0x2) key.ts[s].colorarg1 = state->ff.tex_stage[s][D3DTSS_COLORARG1];
+            if (used_c & 0x4) key.ts[s].colorarg2 = state->ff.tex_stage[s][D3DTSS_COLORARG2];
         }
         if (key.ts[s].alphaop != D3DTOP_DISABLE) {
-            key.ts[s].alphaarg0 = state->ff.tex_stage[s][D3DTSS_ALPHAARG0];
-            key.ts[s].alphaarg1 = state->ff.tex_stage[s][D3DTSS_ALPHAARG1];
-            key.ts[s].alphaarg2 = state->ff.tex_stage[s][D3DTSS_ALPHAARG2];
+            uint8_t used_a = ps_d3dtop_args_mask(key.ts[s].alphaop);
+            if (used_a & 0x1) key.ts[s].alphaarg0 = state->ff.tex_stage[s][D3DTSS_ALPHAARG0];
+            if (used_a & 0x2) key.ts[s].alphaarg1 = state->ff.tex_stage[s][D3DTSS_ALPHAARG1];
+            if (used_a & 0x4) key.ts[s].alphaarg2 = state->ff.tex_stage[s][D3DTSS_ALPHAARG2];
         }
         key.ts[s].resultarg = state->ff.tex_stage[s][D3DTSS_RESULTARG] == D3DTA_TEMP;
 
