@@ -94,14 +94,7 @@ update_viewport(struct NineDevice9 *device)
     device->pipe_state.vport_identity = disable;
 
     if (unlikely(disable)) {
-        pvport.scale[0] = 1.0f;
-        pvport.scale[1] = 1.0f;
-        pvport.scale[2] = 1.0f;
-        pvport.scale[3] = 1.0f;
-        pvport.translate[0] = 0.0f;
-        pvport.translate[1] = 0.0f;
-        pvport.translate[2] = 0.0f;
-        pvport.translate[3] = 0.0f;
+        memset(&pvport, 0, sizeof(pvport)); /* driver cheat */
     } else {
         /* XXX:
          * I hope D3D clip coordinates are still
