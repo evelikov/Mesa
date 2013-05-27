@@ -111,4 +111,12 @@ NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This )
     return This->view;
 }
 
+#ifdef DEBUG
+void
+NineBaseTexture9_Dump( struct NineBaseTexture9 *This );
+#else
+static INLINE void
+NineBaseTexture9_Dump( truct NineBaseTexture9 *This ) { }
+#endif
+
 #endif /* _NINE_BASETEXTURE9_H_ */

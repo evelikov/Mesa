@@ -21,6 +21,33 @@ const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE type)
     }
 }
 
+const char *nine_D3DPOOL_to_str(D3DPOOL pool)
+{
+    switch (pool) {
+    case D3DPOOL_DEFAULT: return "DEFAULT";
+    case D3DPOOL_MANAGED: return "MANAGED";
+    case D3DPOOL_SYSTEMMEM: return "SYSTEMMEM";
+    case D3DPOOL_SCRATCH: return "SCRATCH";
+    default:
+        return "(D3DPOOL_?)";
+    }
+}
+
+const char *nine_D3DRTYPE_to_str(D3DRESOURCETYPE type)
+{
+    switch (type) {
+    case D3DRTYPE_SURFACE: return "SURFACE";
+    case D3DRTYPE_VOLUME: return "VOLUME";
+    case D3DRTYPE_TEXTURE: return "TEXTURE";
+    case D3DRTYPE_VOLUMETEXTURE: return "VOLUMETEXTURE";
+    case D3DRTYPE_CUBETEXTURE: return "CUBETEXTURE";
+    case D3DRTYPE_VERTEXBUFFER: return "VERTEXBUFFER";
+    case D3DRTYPE_INDEXBUFFER: return "INDEXBUFFER";
+    default:
+        return "(D3DRTYPE_?)";
+    }
+}
+
 const char *nine_D3DQUERYTYPE_to_str(D3DQUERYTYPE type)
 {
     switch (type) {

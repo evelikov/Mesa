@@ -9,6 +9,8 @@ const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE);
 const char *nine_D3DQUERYTYPE_to_str(D3DQUERYTYPE);
 const char *nine_D3DTSS_to_str(D3DTEXTURESTAGESTATETYPE);
 const char *nine_D3DTOP_to_str(D3DTEXTUREOP);
+const char *nine_D3DPOOL_to_str(D3DPOOL);
+const char *nine_D3DRTYPE_to_str(D3DRESOURCETYPE);
 
 #ifdef DEBUG
 

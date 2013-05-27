@@ -28,6 +28,11 @@
 #include "cubetexture9.h"
 #include "volumetexture9.h"
 
+#ifdef DEBUG
+#include "nine_pipe.h"
+#include "nine_dump.h"
+#endif
+
 #include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
 
@@ -332,4 +337,18 @@ NineBaseTexture9_PreLoad( struct NineBaseTexture9 *This )
 {
     if (This->dirty && This->base.pool == D3DPOOL_MANAGED)
         NineBaseTexture9_UploadSelf(This);
+}
+
+void
+NineBaseTexture9_Dump( struct NineBaseTexture9 *This )
+{
+    DBG("\nNineBaseTexture9(%p->%p/%p): Pool=%s Type=%s\n"
+        "Format=%s Dims=%ux%ux%u/%u LastLevel=%u Lod=%u(%u)\n", This,
+        This->base.resource, This->base.data,
+        nine_D3DPOOL_to_str(This->base.pool),
+        nine_D3DRTYPE_to_str(This->base.type),
+        d3dformat_to_string(This->format),
+        This->base.info.width0, This->base.info.height0, This->base.info.depth0,
+        This->base.info.array_size, This->base.info.last_level,
+        This->lod, This->lod_resident);
 }

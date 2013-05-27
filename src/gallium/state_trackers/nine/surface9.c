@@ -26,6 +26,7 @@
 
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "nine_dump.h"
 
 #include "pipe/p_context.h"
 #include "pipe/p_screen.h"
@@ -175,6 +176,27 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
     return This->surface;
 }
 
+static void
+NineSurface9_Dump( struct NineSurface9 *This )
+{
+    struct NineBaseTexture9 *tex;
+    GUID id = IID_IDirect3DBaseTexture9;
+    REFIID ref = &id;
+
+    DBG("\nNineSurface9(%p->%p/%p): Pool=%s Type=%s\n"
+        "Dims=%ux%u Format=%s Stride=%u\n"
+        "Level=%u(%u), Layer=%u\n", This, This->base.resource, This->base.data,
+        nine_D3DPOOL_to_str(This->desc.Pool),
+        nine_D3DRTYPE_to_str(This->desc.Type),
+        This->desc.Width, This->desc.Height,
+        d3dformat_to_string(This->desc.Format), This->stride,
+        This->level, This->level_actual, This->layer);
+
+    NineUnknown_QueryInterface(This->base.base.container, ref, (void **)&tex);
+    if (tex)
+        NineBaseTexture9_Dump(tex);
+}
+
 HRESULT WINAPI
 NineSurface9_GetContainer( struct NineSurface9 *This,
                            REFIID riid,
@@ -275,6 +297,7 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         pLockedRect, pRect,
         pRect ? pRect->left : 0, pRect ? pRect->top : 0,
         pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
+    NineSurface9_Dump(This);
 
 #ifdef NINE_STRICTNESS
     user_assert(This->base.pool != D3DPOOL_DEFAULT ||
