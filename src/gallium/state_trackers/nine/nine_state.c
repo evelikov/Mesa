@@ -94,11 +94,8 @@ update_viewport(struct NineDevice9 *device)
     device->pipe_state.vport_identity = disable;
 
     if (unlikely(disable)) {
-        /* There's no way to tell the drivers to disable clipping, so we just
-         * scale the vertex position by 1 / 65536.0 and then revert that here.
-         */
-        pvport.scale[0] = 65536.0f;
-        pvport.scale[1] = 65536.0f;
+        pvport.scale[0] = 1.0f;
+        pvport.scale[1] = 1.0f;
         pvport.scale[2] = 1.0f;
         pvport.scale[3] = 1.0f;
         pvport.translate[0] = 0.0f;

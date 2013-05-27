@@ -406,9 +406,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MAD(ureg, oPos, _W(r[1]), _CONST(11), ureg_src(r[0]));
     } else
     if (key->position_t) {
-        /* Cheat because we can't disable clipping to (-1 .. 1) */
-        const float s = 1.0f / 65536.0f;
-        ureg_MUL(ureg, oPos, vs->aVtx, ureg_imm4f(ureg, s, s, 1.0f, 1.0f));
+        ureg_MOV(ureg, oPos, vs->aVtx);
     } else {
         /* position = vertex * WORLD_VIEW_PROJ */
         ureg_MUL(ureg, r[0], _XXXX(vs->aVtx), _CONST(0));
