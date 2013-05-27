@@ -85,7 +85,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
         return E_OUTOFMEMORY;
 
     hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
-                               D3DRTYPE_TEXTURE, Pool);
+                               D3DRTYPE_CUBETEXTURE, Pool);
     if (FAILED(hr))
         return hr;
     This->base.base.usage = Usage;

@@ -80,7 +80,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
         return E_OUTOFMEMORY;
 
     hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
-                               D3DRTYPE_TEXTURE, Pool);
+                               D3DRTYPE_VOLUMETEXTURE, Pool);
     if (FAILED(hr))
         return hr;
     This->base.base.usage = Usage;
