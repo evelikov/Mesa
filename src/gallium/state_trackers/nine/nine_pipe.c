@@ -78,9 +78,9 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
     rast.cull_face = d3dcull_to_pipe_face(rs[D3DRS_CULLMODE]);
     rast.fill_front = d3dfillmode_to_pipe_polygon_mode(rs[D3DRS_FILLMODE]);
     rast.fill_back = rast.fill_front;
- /* rast.offset_point = 0; */ /* XXX */
- /* rast.offset_line = 0; */ /* XXX */
     rast.offset_tri = !!(rs[D3DRS_DEPTHBIAS] | rs[D3DRS_SLOPESCALEDEPTHBIAS]);
+    rast.offset_line = rast.offset_tri; /* triangles in wireframe mode */
+    rast.offset_point = 0; /* XXX ? */
     rast.scissor = !!rs[D3DRS_SCISSORTESTENABLE];
  /* rast.poly_smooth = 0; */
  /* rast.poly_stipple_enable = 0; */
