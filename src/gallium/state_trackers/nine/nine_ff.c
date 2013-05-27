@@ -405,7 +405,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MAD(ureg, oPos, _W(r[1]), _CONST(11), ureg_src(r[0]));
     } else
     if (key->position_t) {
-        ureg_MOV(ureg, oPos, vs->aVtx);
+        /* Cheat because we can't disable clipping to (-1 .. 1) */
+        const float s = 1.0f / 65536.0f;
+        ureg_MUL(ureg, oPos, vs->aVtx, ureg_imm4f(ureg, s, s, 1.0f, 1.0f));
     } else {
         /* position = vertex * WORLD_VIEW_PROJ */
         ureg_MUL(ureg, r[0], _XXXX(vs->aVtx), _CONST(0));
@@ -1121,6 +1123,10 @@ nine_ff_get_vs(struct NineDevice9 *device)
 
     key.lighting = !!state->rs[D3DRS_LIGHTING] &&  state->ff.num_lights_active;
     key.darkness = !!state->rs[D3DRS_LIGHTING] && !state->ff.num_lights_active;
+    if (key.position_t) {
+        key.darkness |= key.lighting;
+        key.lighting = 0;
+    }
     if ((key.lighting | key.darkness) && state->rs[D3DRS_COLORVERTEX]) {
         key.mtl_diffuse = state->rs[D3DRS_DIFFUSEMATERIALSOURCE];
         key.mtl_ambient = state->rs[D3DRS_AMBIENTMATERIALSOURCE];
