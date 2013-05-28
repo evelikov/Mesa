@@ -323,7 +323,8 @@ struct sm1_op_info
 {
     /* NOTE: 0 is a valid TGSI opcode, but if handler is set, this parameter
      * should be ignored completely */
-    unsigned opcode;
+    unsigned sio;
+    unsigned opcode; /* TGSI_OPCODE_x */
 
     /* versions are still set even handler is set */
     struct {
@@ -449,6 +450,7 @@ struct shader_translator
         struct ureg_src s;
         struct ureg_dst p;
         struct ureg_dst a;
+        struct ureg_dst tS[8]; /* texture stage registers */
         struct ureg_dst t[5]; /* scratch TEMPs */
         struct ureg_src vC[2]; /* PS color in */
         struct ureg_src vT[8]; /* PS texcoord in */
@@ -475,6 +477,8 @@ struct shader_translator
     boolean indirect_const_access;
 
     struct nine_shader_info *info;
+
+    int16_t op_info_map[D3DSIO_BREAKP + 1];
 };
 
 #define IS_VS (tx->processor == TGSI_PROCESSOR_VERTEX)
@@ -749,8 +753,13 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
             tx_addr_alloc(tx, param->idx);
             src = ureg_src(tx->regs.a);
         } else {
-            tx_texcoord_alloc(tx, param->idx);
-            src = tx->regs.vT[param->idx];
+            if (tx->version.major < 2) {
+                /* no subroutines, so should be defined */
+                src = ureg_src(tx->regs.tS[param->idx]);
+            } else {
+                tx_texcoord_alloc(tx, param->idx);
+                src = tx->regs.vT[param->idx];
+            }
         }
         break;
     case D3DSPR_INPUT:
@@ -913,10 +922,17 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
         tx_temp_alloc(tx, param->idx);
         dst = tx->regs.r[param->idx];
         break;
+ /* case D3DSPR_TEXTURE: == D3DSPR_ADDR */
     case D3DSPR_ADDR:
         assert(!param->rel);
-        tx_addr_alloc(tx, param->idx);
-        dst = tx->regs.a;
+        if (tx->version.major < 2) {
+            if (ureg_dst_is_undef(tx->regs.tS[param->idx]))
+                tx->regs.tS[param->idx] = ureg_DECL_temporary(tx->ureg);
+            dst = tx->regs.tS[param->idx];
+        } else {
+            tx_addr_alloc(tx, param->idx);
+            dst = tx->regs.a;
+        }
         break;
     case D3DSPR_RASTOUT:
         assert(!param->rel);
@@ -1713,7 +1729,7 @@ DECL_SPECIAL(BEM)
     return D3DERR_INVALIDCALL;
 }
 
-DECL_SPECIAL(TEX)
+DECL_SPECIAL(TEXLD)
 {
     struct ureg_program *ureg = tx->ureg;
     unsigned target;
@@ -1740,6 +1756,31 @@ DECL_SPECIAL(TEX)
         assert(0);
         return D3DERR_INVALIDCALL;
     }
+    return D3D_OK;
+}
+
+DECL_SPECIAL(TEXLD_14)
+{
+    return D3DERR_INVALIDCALL;
+}
+
+DECL_SPECIAL(TEX)
+{
+    struct ureg_program *ureg = tx->ureg;
+    const unsigned s = tx->insn.dst[0].idx;
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_src src[2];
+
+    if (ureg_src_is_undef(tx->regs.vT[s]))
+        tx->regs.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
+
+    src[0] = tx->regs.vT[s];
+    src[1] = ureg_DECL_sampler(ureg, s);
+
+    /* XXX TODO: Need shader variants because target depends on outside state.
+     */
+    ureg_TEX(ureg, dst, TGSI_TEXTURE_2D, src[0], src[1]);
+
     return D3D_OK;
 }
 
@@ -1797,135 +1838,144 @@ DECL_SPECIAL(COMMENT)
     return D3D_OK; /* nothing to do */
 }
 
+
+#define _OPI(o,t,vv1,vv2,pv1,pv2,d,s,h) \
+    { D3DSIO_##o, TGSI_OPCODE_##t, { vv1, vv2 }, { pv1, pv2, }, d, s, h }
+
 struct sm1_op_info inst_table[] =
 {
-    { TGSI_OPCODE_NOP, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 0, 0, NULL },
-    { TGSI_OPCODE_MOV, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL },
-    { TGSI_OPCODE_ADD, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_SUB, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_MAD, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 3, NULL },
-    { TGSI_OPCODE_MUL, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_RCP, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL },
-    { TGSI_OPCODE_RSQ, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL },
-    { TGSI_OPCODE_DP3, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_DP4, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_MIN, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_MAX, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_SLT, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_SGE, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_EX2, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL }, /* XXX: EXP */
-    { TGSI_OPCODE_LG2, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL }, /* XXX: LOG */
-    { TGSI_OPCODE_LIT, { V(0,0), V(3,0) }, { VNOTSUPPORTED  }, 1, 1, NULL },
-    { TGSI_OPCODE_DST, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_LRP, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 3, NULL },
-    { TGSI_OPCODE_FRC, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL },
+    _OPI(NOP, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 0, 0, NULL), /* 0 */
+    _OPI(MOV, MOV, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 1 */
+    _OPI(ADD, ADD, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 2 */
+    _OPI(SUB, SUB, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 3 */
+    _OPI(MAD, MAD, V(0,0), V(3,0), V(0,0), V(3,0), 1, 3, NULL), /* 4 */
+    _OPI(MUL, MUL, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 5 */
+    _OPI(RCP, RCP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 6 */
+    _OPI(RSQ, RSQ, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 7 */
+    _OPI(DP3, DP3, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 8 */
+    _OPI(DP4, DP4, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 9 */
+    _OPI(MIN, MIN, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 10 */
+    _OPI(MAX, MAX, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 11 */
+    _OPI(SLT, SLT, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 12 */
+    _OPI(SGE, SGE, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 13 */
+    _OPI(EXP, EX2, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 14 */
+    _OPI(LOG, LG2, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 15 */
+    _OPI(LIT, LIT, V(0,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL), /* 16 */
+    _OPI(DST, DST, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 17 */
+    _OPI(LRP, LRP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 3, NULL), /* 18 */
+    _OPI(FRC, FRC, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 19 */
 
-    /* Matrix multiplication */
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, SPECIAL(M4x4) },
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, SPECIAL(M4x3) },
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, SPECIAL(M3x4) },
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, SPECIAL(M3x3) },
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, SPECIAL(M3x2) },
+    _OPI(M4x4, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, SPECIAL(M4x4)),
+    _OPI(M4x3, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, SPECIAL(M4x3)),
+    _OPI(M3x4, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, SPECIAL(M3x4)),
+    _OPI(M3x3, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, SPECIAL(M3x3)),
+    _OPI(M3x2, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, SPECIAL(M3x2)),
 
-    /* Functions and loops */
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(CALL) },
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(CALLNZ) },
-    { 0, { V(3,0), V(3,0) }, { V(3,0), V(3,0) }, 0, 2, SPECIAL(LOOP) },
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(RET) },
-    { 0, { V(3,0), V(3,0) }, { V(3,0), V(3,0) }, 0, 0, SPECIAL(ENDLOOP) },
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(LABEL) },
+    _OPI(CALL,    CAL,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(CALL)),
+    _OPI(CALLNZ,  CAL,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(CALLNZ)),
+    _OPI(LOOP,    BGNLOOP, V(3,0), V(3,0), V(3,0), V(3,0), 0, 2, SPECIAL(LOOP)),
+    _OPI(RET,     RET,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(RET)),
+    _OPI(ENDLOOP, ENDLOOP, V(3,0), V(3,0), V(3,0), V(3,0), 0, 0, SPECIAL(ENDLOOP)),
+    _OPI(LABEL,   NOP,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(LABEL)),
 
-    /* Input/output declaration */
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 0, 0, SPECIAL(DCL) },
+    _OPI(DCL, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 0, 0, SPECIAL(DCL)),
 
-    { TGSI_OPCODE_POW, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL },
-    { TGSI_OPCODE_XPD, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 2, NULL }, /* XXX: .w */
-    { TGSI_OPCODE_SSG, { V(2,0), V(3,0) }, { VNOTSUPPORTED  }, 0, 0, NULL }, /* XXX: special ? */
-    { TGSI_OPCODE_ABS, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL },
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, SPECIAL(NRM) }, /* TGSI_OPCODE_NRM doesn't fit */
-    { 0, { V(2,0), V(3,0) }, { V(2,0), V(3,0) }, 1, 1, SPECIAL(SINCOS) },
+    _OPI(POW, POW, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL),
+    _OPI(CRS, XPD, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* XXX: .w */
+    _OPI(SGN, SSG, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL), /* XXX: special ? */
+    _OPI(ABS, ABS, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL),
+    _OPI(NRM, NRM, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, SPECIAL(NRM)), /* NRM doesn't fit */
+
+    _OPI(SINCOS, SCS, V(2,0), V(3,0), V(2,0), V(3,0), 1, 1, SPECIAL(SINCOS)),
 
     /* More flow control */
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 1, SPECIAL(REP) },
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(ENDREP) },
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 1, SPECIAL(IF) },
-    { 0, { V(2,1), V(3,0) }, { V(2,1), V(3,0) }, 0, 2, SPECIAL(IFC) },
-    { 0, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(ELSE) },
-    { TGSI_OPCODE_ENDIF, { V(2,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(ENDIF) },
-    { TGSI_OPCODE_BRK,   { V(2,1), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, NULL },
-    { 0, { V(2,1), V(3,0) }, { V(2,1), V(3,0) }, 0, 1, SPECIAL(BREAKC) },
+    _OPI(REP,    NOP,    V(2,0), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(REP)),
+    _OPI(ENDREP, NOP,    V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(ENDREP)),
+    _OPI(IF,     IF,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(IF)),
+    _OPI(IFC,    IF,     V(2,1), V(3,0), V(2,1), V(3,0), 0, 2, SPECIAL(IFC)),
+    _OPI(ELSE,   ELSE,   V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(ELSE)),
+    _OPI(ENDIF,  ENDIF,  V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(ENDIF)),
+    _OPI(BREAK,  BRK,    V(2,1), V(3,0), V(2,1), V(3,0), 0, 0, NULL),
+    _OPI(BREAKC, BREAKC, V(2,1), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(BREAKC)),
 
-    /* Special integer MOV to ADDRESS file */
-    { TGSI_OPCODE_ARL, { V(2,0), V(3,0) }, { VNOTSUPPORTED  }, 0, 0, NULL }, /* XXX: special ? */
+    _OPI(MOVA, ARL, V(2,0), V(3,0), V(0,0), V(0,0), 0, 0, NULL), /* XXX: special ? */
 
-    /* Non-float immediates */
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 0, SPECIAL(DEFB) },
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 0, SPECIAL(DEFI) },
+    _OPI(DEFB, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFB)),
+    _OPI(DEFI, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFI)),
 
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
-    NULL_INSTRUCTION,
+    _OPI(TEXCOORD,     NOP, V(0,0), V(0,0), V(0,0), V(1,4), 0, 0, SPECIAL(TEXCOORD)),
+    _OPI(TEXKILL,      KIL, V(0,0), V(0,0), V(0,0), V(3,0), 1, 0, SPECIAL(TEXKILL)),
+    _OPI(TEX,          TEX, V(0,0), V(0,0), V(0,0), V(1,3), 1, 0, SPECIAL(TEX)),
+    _OPI(TEX,          TEX, V(0,0), V(0,0), V(1,4), V(1,4), 1, 1, SPECIAL(TEXLD_14)),
+    _OPI(TEX,          TEX, V(0,0), V(0,0), V(2,0), V(3,0), 1, 2, SPECIAL(TEXLD)),
+    _OPI(TEXBEM,       TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXBEM)),
+    _OPI(TEXBEML,      TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXBEML)),
+    _OPI(TEXREG2AR,    TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXREG2AR)),
+    _OPI(TEXREG2GB,    TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXREG2GB)),
+    _OPI(TEXM3x2PAD,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x2PAD)),
+    _OPI(TEXM3x2TEX,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x2TEX)),
+    _OPI(TEXM3x3PAD,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3PAD)),
+    _OPI(TEXM3x3TEX,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3TEX)),
+    _OPI(TEXM3x3SPEC,  TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3SPEC)),
+    _OPI(TEXM3x3VSPEC, TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3VSPEC)),
 
-    /* Tex stuff */
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,4) }, 0, 0, SPECIAL(TEXCOORD) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(3,0) }, 1, 0, SPECIAL(TEXKILL) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(3,0) }, 1, 2, SPECIAL(TEX) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXBEM) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXBEML) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXREG2AR) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXREG2GB) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXM3x2PAD) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXM3x2TEX) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXM3x3PAD) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXM3x3TEX) },
-    NULL_INSTRUCTION,
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXM3x3SPEC) },
-    { 0, { VNOTSUPPORTED  }, { V(0,0), V(1,3) }, 0, 0, SPECIAL(TEXM3x3VSPEC) },
+    _OPI(EXPP, EXP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* XXX: EX2 ? */
+    _OPI(LOGP, LOG, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* XXX: LG2 ? */
+    _OPI(CND,  CND, V(0,0), V(0,0), V(0,0), V(1,4), 1, 1, NULL),
 
-    { TGSI_OPCODE_EXP, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL }, /* XXX: EX2 ? */
-    { TGSI_OPCODE_LOG, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 1, NULL }, /* XXX: LG2 ? */
-    { TGSI_OPCODE_CND, { VNOTSUPPORTED  }, { V(0,0), V(1,4) }, 1, 1, NULL },
-
-    /* Float immediates */
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 1, 0, SPECIAL(DEF) },
+    _OPI(DEF, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 0, SPECIAL(DEF)),
 
     /* More tex stuff */
-    { 0, { VNOTSUPPORTED  }, { V(1,2), V(1,3) }, 0, 0, SPECIAL(TEXREG2RGB) },
-    { 0, { VNOTSUPPORTED  }, { V(1,2), V(1,3) }, 0, 0, SPECIAL(TEXDP3TEX) },
-    { 0, { VNOTSUPPORTED  }, { V(1,3), V(1,3) }, 0, 0, SPECIAL(TEXM3x2DEPTH) },
-    { 0, { VNOTSUPPORTED  }, { V(1,2), V(1,3) }, 0, 0, SPECIAL(TEXDP3) },
-    { 0, { VNOTSUPPORTED  }, { V(1,2), V(1,3) }, 0, 0, SPECIAL(TEXM3x3) },
-    { 0, { VNOTSUPPORTED  }, { V(1,4), V(1,4) }, 0, 0, SPECIAL(TEXDEPTH) },
+    _OPI(TEXREG2RGB,   TEX, V(0,0), V(0,0), V(1,2), V(1,3), 0, 0, SPECIAL(TEXREG2RGB)),
+    _OPI(TEXDP3TEX,    TEX, V(0,0), V(0,0), V(1,2), V(1,3), 0, 0, SPECIAL(TEXDP3TEX)),
+    _OPI(TEXM3x2DEPTH, TEX, V(0,0), V(0,0), V(1,3), V(1,3), 0, 0, SPECIAL(TEXM3x2DEPTH)),
+    _OPI(TEXDP3,       TEX, V(0,0), V(0,0), V(1,2), V(1,3), 0, 0, SPECIAL(TEXDP3)),
+    _OPI(TEXM3x3,      TEX, V(0,0), V(0,0), V(1,2), V(1,3), 0, 0, SPECIAL(TEXM3x3)),
+    _OPI(TEXDEPTH,     TEX, V(0,0), V(0,0), V(1,4), V(1,4), 0, 0, SPECIAL(TEXDEPTH)),
 
     /* Misc */
-    { TGSI_OPCODE_CMP, { VNOTSUPPORTED  }, { V(1,2), V(3,0) }, 1, 3, NULL },
-    { 0, { VNOTSUPPORTED  }, { V(1,4), V(1,4) }, 0, 0, SPECIAL(BEM) },
-    { TGSI_OPCODE_DP2A, { VNOTSUPPORTED  }, { V(2,0), V(3,0) }, 1, 3, NULL },
-    { TGSI_OPCODE_DDX, { VNOTSUPPORTED  }, { V(2,1), V(3,0) }, 1, 1, NULL },
-    { TGSI_OPCODE_DDY, { VNOTSUPPORTED  }, { V(2,1), V(3,0) }, 1, 1, NULL },
-    { 0, { VNOTSUPPORTED  }, { V(2,1), V(3,0) }, 1, 4, SPECIAL(TEXLDD) },
-    { 0, { V(0,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(SETP) },
-    { 0, { V(3,0), V(3,0) }, { V(3,0), V(3,0) }, 1, 2, SPECIAL(TEXLDL) },
-    { 0, { V(0,0), V(3,0) }, { V(2,1), V(3,0) }, 0, 0, SPECIAL(BREAKP) }
+    _OPI(CMP,    CMP,  V(0,0), V(0,0), V(1,2), V(3,0), 1, 3, NULL),
+    _OPI(BEM,    NOP,  V(0,0), V(0,0), V(1,4), V(1,4), 0, 0, SPECIAL(BEM)),
+    _OPI(DP2ADD, DP2A, V(0,0), V(0,0), V(2,0), V(3,0), 1, 3, NULL),
+    _OPI(DSX,    DDX,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 1, NULL),
+    _OPI(DSY,    DDY,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 1, NULL),
+    _OPI(TEXLDD, TXD,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 4, SPECIAL(TEXLDD)),
+    _OPI(SETP,   NOP,  V(0,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(SETP)),
+    _OPI(TEXLDL, TXL,  V(3,0), V(3,0), V(3,0), V(3,0), 1, 2, SPECIAL(TEXLDL)),
+    _OPI(BREAKP, BRK,  V(0,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(BREAKP))
 };
 
 struct sm1_op_info inst_phase =
-    { 0, { VNOTSUPPORTED  }, { V(1,4), V(1,4) }, 0, 0, SPECIAL(PHASE) };
+    _OPI(PHASE, NOP, V(0,0), V(0,0), V(1,4), V(1,4), 0, 0, SPECIAL(PHASE));
 
 struct sm1_op_info inst_comment =
-    { 0, { V(0,0), V(3,0) }, { V(0,0), V(3,0) }, 0, 0, SPECIAL(COMMENT) };
+    _OPI(COMMENT, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 0, 0, SPECIAL(COMMENT));
+
+static void
+create_op_info_map(struct shader_translator *tx)
+{
+    const unsigned version = (tx->version.major << 8) | tx->version.minor;
+    unsigned i;
+
+    for (i = 0; i < Elements(tx->op_info_map); ++i)
+        tx->op_info_map[i] = -1;
+
+    if (tx->processor == TGSI_PROCESSOR_VERTEX) {
+        for (i = 0; i < Elements(inst_table); ++i) {
+            assert(inst_table[i].sio < Elements(tx->op_info_map));
+            if (inst_table[i].vert_version.min <= version &&
+                inst_table[i].vert_version.max >= version)
+                tx->op_info_map[inst_table[i].sio] = i;
+        }
+    } else {
+        for (i = 0; i < Elements(inst_table); ++i) {
+            assert(inst_table[i].sio < Elements(tx->op_info_map));
+            if (inst_table[i].frag_version.min <= version &&
+                inst_table[i].frag_version.max >= version)
+                tx->op_info_map[inst_table[i].sio] = i;
+        }
+    }
+}
 
 static INLINE HRESULT
 NineTranslateInstruction_Generic(struct shader_translator *tx)
@@ -2176,9 +2226,12 @@ sm1_parse_instruction(struct shader_translator *tx)
     insn->coissue = !!(tok & D3DSI_COISSUE);
     insn->predicated = !!(tok & NINED3DSHADER_INST_PREDICATED);
 
-    if (insn->opcode < Elements(inst_table)) {
-        if (IS_VALID_INSTRUCTION(inst_table[insn->opcode]))
-            info = &inst_table[insn->opcode];
+    if (insn->opcode < Elements(tx->op_info_map)) {
+        int k = tx->op_info_map[insn->opcode];
+        if (k >= 0) {
+            assert(k < Elements(inst_table));
+            info = &inst_table[k];
+        }
     } else {
        if (insn->opcode == D3DSIO_PHASE)   info = &inst_phase;
        if (insn->opcode == D3DSIO_COMMENT) info = &inst_comment;
@@ -2231,27 +2284,29 @@ sm1_parse_instruction(struct shader_translator *tx)
 static void
 tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
 {
-   unsigned i;
+    unsigned i;
 
-   tx->info = info;
+    tx->info = info;
 
-   tx->byte_code = info->byte_code;
-   tx->parse = info->byte_code;
-   tx->input_map = info->input_map;
+    tx->byte_code = info->byte_code;
+    tx->parse = info->byte_code;
+    tx->input_map = info->input_map;
 
-   tx->regs.a = ureg_dst_undef();
-   tx->regs.p = ureg_dst_undef();
-   tx->regs.oDepth = ureg_dst_undef();
-   tx->regs.vPos = ureg_src_undef();
-   tx->regs.vFace = ureg_src_undef();
-   for (i = 0; i < Elements(tx->regs.oCol); ++i)
-      tx->regs.oCol[i] = ureg_dst_undef();
-   for (i = 0; i < Elements(tx->regs.vC); ++i)
-      tx->regs.vC[i] = ureg_src_undef();
-   for (i = 0; i < Elements(tx->regs.vT); ++i)
-      tx->regs.vT[i] = ureg_src_undef();
+    tx->regs.a = ureg_dst_undef();
+    tx->regs.p = ureg_dst_undef();
+    tx->regs.oDepth = ureg_dst_undef();
+    tx->regs.vPos = ureg_src_undef();
+    tx->regs.vFace = ureg_src_undef();
+    for (i = 0; i < Elements(tx->regs.oCol); ++i)
+        tx->regs.oCol[i] = ureg_dst_undef();
+    for (i = 0; i < Elements(tx->regs.vC); ++i)
+        tx->regs.vC[i] = ureg_src_undef();
+    for (i = 0; i < Elements(tx->regs.vT); ++i)
+        tx->regs.vT[i] = ureg_src_undef();
 
-   sm1_read_version(tx);
+    sm1_read_version(tx);
+
+    create_op_info_map(tx);
 }
 
 static void
