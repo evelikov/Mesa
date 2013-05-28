@@ -35,6 +35,8 @@ NineDevice9Ex_ctor( struct NineDevice9Ex *This,
                     ID3DPresentFactory *pPresentationFactory,
                     PPRESENT_TO_RESOURCE pPTR )
 {
+    This->base.ex = TRUE;
+
     return NineDevice9_ctor(&This->base, pParams,
                             pScreen, pCreationParameters, pCaps,
                             (IDirect3D9 *)pD3D9Ex, pPresentationFactory, pPTR);

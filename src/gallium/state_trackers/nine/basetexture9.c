@@ -45,8 +45,9 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        D3DRESOURCETYPE Type,
                        D3DPOOL Pool )
 {
-    HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice,
-                                    Pool == D3DPOOL_DEFAULT, Type, Pool);
+    BOOL alloc = (Pool == D3DPOOL_DEFAULT) && !This->base.resource;
+
+    HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice, alloc, Type, Pool);
     if (FAILED(hr))
         return hr;
 

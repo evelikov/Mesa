@@ -25,6 +25,7 @@
 #include "texture9.h"
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "nine_dump.h"
 
 #include "pipe/p_state.h"
 #include "pipe/p_context.h"
@@ -44,21 +45,26 @@ NineTexture9_ctor( struct NineTexture9 *This,
                    D3DPOOL Pool,
                    HANDLE *pSharedHandle )
 {
+    struct pipe_screen *screen = pDevice->screen;
     struct pipe_resource *info = &This->base.base.info;
     unsigned l;
     D3DSURFACE_DESC sfdesc;
     HRESULT hr;
+    const boolean shared_create = pSharedHandle && !*pSharedHandle;
 
-    DBG("(%p) Width=%u Height=%u Levels=%u Usage=%x Format=%s Pool=%u\n",
-        This,
-        Width, Height, Levels, Usage, d3dformat_to_string(Format), Pool);
+    DBG("(%p) Width=%u Height=%u Levels=%u Usage=%x Format=%s Pool=%s "
+        "pSharedHandle=%p\n", This, Width, Height, Levels, Usage,
+        d3dformat_to_string(Format), nine_D3DPOOL_to_str(Pool), pSharedHandle);
 
     user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
                 Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
                 Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
 
-    user_assert(!pSharedHandle, D3DERR_INVALIDCALL); /* TODO */
+    /* Won't work, handle is a void * and winsys_handle will be unsigned[3].
+     */
+    user_assert(!pSharedHandle ||
+                Pool == D3DPOOL_SYSTEMMEM, D3DERR_DRIVERINTERNALERROR);
 
     This->base.format = Format;
 
@@ -89,9 +95,25 @@ NineTexture9_ctor( struct NineTexture9 *This,
             PIPE_BIND_TRANSFER_READ |
             PIPE_BIND_TRANSFER_WRITE;
     }
+    if (pSharedHandle)
+        info->bind |= PIPE_BIND_SHARED;
 
     if (Pool == D3DPOOL_SYSTEMMEM)
         info->usage = PIPE_USAGE_STAGING;
+
+    if (pSharedHandle && !shared_create) {
+        if (Pool == D3DPOOL_SYSTEMMEM) {
+            /* Hack for surface creation. */
+            This->base.base.resource = (struct pipe_resource *)*pSharedHandle;
+        } else {
+            struct pipe_resource *res;
+            res = screen->resource_from_handle(screen, info,
+                                      (struct winsys_handle *)pSharedHandle);
+            if (!res)
+                return D3DERR_NOTFOUND;
+            This->base.base.resource = res;
+        }
+    }
 
     This->surfaces = CALLOC(info->last_level + 1, sizeof(*This->surfaces));
     if (!This->surfaces)
@@ -125,6 +147,21 @@ NineTexture9_ctor( struct NineTexture9 *This,
     }
 
     This->dirty_rect.depth = 1; /* widht == 0 means empty, depth stays 1 */
+
+    if (pSharedHandle) {
+        if (Pool == D3DPOOL_SYSTEMMEM) {
+            This->base.base.resource = NULL;
+            if (shared_create)
+                *pSharedHandle = This->surfaces[0]->base.data;
+        } else
+        if (shared_create) {
+            boolean ok;
+            ok = screen->resource_get_handle(screen, This->base.base.resource,
+                                         (struct winsys_handle *)pSharedHandle);
+            if (!ok)
+                return D3DERR_DRIVERINTERNALERROR;
+        }
+    }
 
     return D3D_OK;
 }

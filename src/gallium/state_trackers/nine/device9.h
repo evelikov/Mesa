@@ -42,6 +42,7 @@ struct NineStateBlock9;
 struct NineDevice9
 {
     struct NineUnknown base;
+    boolean ex;
 
     /* G3D context */
     struct pipe_screen *screen;

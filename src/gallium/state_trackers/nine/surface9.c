@@ -100,10 +100,13 @@ NineSurface9_ctor( struct NineSurface9 *This,
     if (pDesc->Usage & D3DUSAGE_DEPTHSTENCIL)
         This->base.info.bind |= PIPE_BIND_DEPTH_STENCIL;
 
-    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
+    if (pDesc->Pool == D3DPOOL_SYSTEMMEM) {
         This->base.info.usage = PIPE_USAGE_STAGING;
-
-    pipe_resource_reference(&This->base.resource, pResource);
+        if (pResource)
+            This->base.data = (uint8_t *)pResource; /* this is *pSharedHandle */
+    } else {
+        pipe_resource_reference(&This->base.resource, pResource);
+    }
 
     hr = NineResource9_ctor(&This->base, pParams, pDevice, FALSE,
                             D3DRTYPE_SURFACE, pDesc->Pool);

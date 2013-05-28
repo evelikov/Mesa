@@ -526,6 +526,7 @@ NineDevice9_CreateTexture( struct NineDevice9 *This,
     user_assert(Width && Height, D3DERR_INVALIDCALL);
     user_assert(!pSharedHandle || Pool != D3DPOOL_SYSTEMMEM || Levels == 1,
                 D3DERR_INVALIDCALL);
+    user_assert(!pSharedHandle || This->ex, D3DERR_INVALIDCALL);
 
     hr = NineTexture9_new(This, Width, Height, Levels, Usage, Format, Pool,
                           &tex, pSharedHandle);
