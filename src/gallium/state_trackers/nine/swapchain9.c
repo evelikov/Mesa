@@ -200,6 +200,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             NineSurface9_SetResource(This->zsbuf, resource, 0);
             pipe_resource_reference(&resource, NULL);
         } else {
+            /* XXX wine thinks the container of this should the the device */
             desc.Usage = D3DUSAGE_DEPTHSTENCIL;
             hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
                                   0, 0, &desc, &This->zsbuf);

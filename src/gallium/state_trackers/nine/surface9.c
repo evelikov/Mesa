@@ -205,9 +205,13 @@ NineSurface9_GetContainer( struct NineSurface9 *This,
                            REFIID riid,
                            void **ppContainer )
 {
+    HRESULT hr;
     if (!NineUnknown(This)->container)
         return E_NOINTERFACE;
-    return NineUnknown_QueryInterface(NineUnknown(This)->container, riid, ppContainer);
+    hr = NineUnknown_QueryInterface(NineUnknown(This)->container, riid, ppContainer);
+    if (FAILED(hr))
+        DBG("QueryInterface FAILED!\n");
+    return hr;
 }
 
 static INLINE void
