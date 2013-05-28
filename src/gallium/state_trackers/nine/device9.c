@@ -125,6 +125,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
         hr = NineSwapChain9_new(This, present, pPTR,
                                 This->params.hFocusWindow,
                                 &This->swapchains[i]);
+        ID3DPresent_Release(present);
         if (FAILED(hr)) { return hr; }
 
         hr = NineSwapChain9_GetBackBuffer(This->swapchains[i], 0,

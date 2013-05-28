@@ -43,6 +43,9 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     D3DPRESENT_PARAMETERS params;
     HRESULT hr;
 
+    DBG("This=%p pDevice=%p pPresent=%p pPTR=%p hFocusWindow=%p\n",
+        This, pDevice, pPresent, pPTR, hFocusWindow);
+
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
@@ -53,6 +56,7 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     This->device = pDevice;
     This->ptrfunc = pPTR;
     This->present = pPresent;
+    ID3DPresent_AddRef(pPresent);
     hr = ID3DPresent_GetPresentParameters(This->present, &params);
     if (FAILED(hr))
         return hr;
@@ -216,6 +220,8 @@ void
 NineSwapChain9_dtor( struct NineSwapChain9 *This )
 {
     unsigned i;
+
+    DBG("This=%p\n", This);
 
     if (This->buffers) {
         for (i = 0; i < This->params.BackBufferCount; i++)
