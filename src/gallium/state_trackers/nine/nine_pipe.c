@@ -199,8 +199,8 @@ nine_pipe_context_reset(struct cso_context *cso, struct pipe_context *pipe)
      * do not change on Reset.
      */
 
-    cso_set_samplers(cso, PIPE_SHADER_VERTEX, PIPE_MAX_SAMPLERS, NULL);
-    cso_set_samplers(cso, PIPE_SHADER_FRAGMENT, PIPE_MAX_SAMPLERS, NULL);
+    cso_set_samplers(cso, PIPE_SHADER_VERTEX, 0, NULL);
+    cso_set_samplers(cso, PIPE_SHADER_FRAGMENT, 0, NULL);
 
     pipe->set_fragment_sampler_views(pipe, 0, NULL);
     pipe->set_vertex_sampler_views(pipe, 0, NULL);
