@@ -279,6 +279,12 @@ nv50_screen_get_paramf(struct pipe_screen *pscreen, enum pipe_capf param)
       return 16.0f;
    case PIPE_CAPF_MAX_TEXTURE_LOD_BIAS:
       return 4.0f;
+   case PIPE_CAPF_GUARD_BAND_LEFT:
+   case PIPE_CAPF_GUARD_BAND_TOP:
+      return 0.0f;
+   case PIPE_CAPF_GUARD_BAND_RIGHT:
+   case PIPE_CAPF_GUARD_BAND_BOTTOM:
+      return 0.0f; /* that or infinity */
    default:
       NOUVEAU_ERR("unknown PIPE_CAP %d\n", param);
       return 0.0f;
