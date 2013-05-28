@@ -395,6 +395,8 @@ NineDevice9_GetSwapChain( struct NineDevice9 *This,
                           IDirect3DSwapChain9 **pSwapChain )
 {
     user_assert(pSwapChain != NULL, D3DERR_INVALIDCALL);
+
+    *pSwapChain = NULL;
     user_assert(iSwapChain < This->nswapchains, D3DERR_INVALIDCALL);
 
     NineUnknown_AddRef(NineUnknown(This->swapchains[iSwapChain]));
