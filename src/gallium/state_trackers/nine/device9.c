@@ -2375,8 +2375,10 @@ NineDevice9_SetStreamSource( struct NineDevice9 *This,
     user_assert(StreamNumber < This->caps.MaxStreams, D3DERR_INVALIDCALL);
     user_assert(Stride <= This->caps.MaxStreamStride, D3DERR_INVALIDCALL);
 
-    state->vtxbuf[i].stride = Stride;
-    state->vtxbuf[i].buffer_offset = OffsetInBytes;
+    if (pStreamData) {
+        state->vtxbuf[i].stride = Stride;
+        state->vtxbuf[i].buffer_offset = OffsetInBytes;
+    }
     state->vtxbuf[i].buffer = pStreamData ? pVBuf9->base.resource : NULL;
 
     nine_reference(&state->stream[i], pStreamData);
