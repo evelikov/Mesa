@@ -225,17 +225,32 @@ nv50_validate_viewport(struct nv50_context *nv50)
    struct nouveau_pushbuf *push = nv50->base.pushbuf;
    float zmin, zmax;
 
-   BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSLATE_X(0)), 3);
-   PUSH_DATAf(push, nv50->viewport.translate[0]);
-   PUSH_DATAf(push, nv50->viewport.translate[1]);
-   PUSH_DATAf(push, nv50->viewport.translate[2]);
-   BEGIN_NV04(push, NV50_3D(VIEWPORT_SCALE_X(0)), 3);
-   PUSH_DATAf(push, nv50->viewport.scale[0]);
-   PUSH_DATAf(push, nv50->viewport.scale[1]);
-   PUSH_DATAf(push, nv50->viewport.scale[2]);
+   if (nv50->viewport.scale[3] != 0.0f) {
+      if (nv50->state.vport_bypass) {
+         BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSFORM_EN), 1);
+         PUSH_DATA (push, 1);
+         nv50->state.vport_bypass = FALSE;
+      }
+      BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSLATE_X(0)), 3);
+      PUSH_DATAf(push, nv50->viewport.translate[0]);
+      PUSH_DATAf(push, nv50->viewport.translate[1]);
+      PUSH_DATAf(push, nv50->viewport.translate[2]);
+      BEGIN_NV04(push, NV50_3D(VIEWPORT_SCALE_X(0)), 3);
+      PUSH_DATAf(push, nv50->viewport.scale[0]);
+      PUSH_DATAf(push, nv50->viewport.scale[1]);
+      PUSH_DATAf(push, nv50->viewport.scale[2]);
 
-   zmin = nv50->viewport.translate[2] - fabsf(nv50->viewport.scale[2]);
-   zmax = nv50->viewport.translate[2] + fabsf(nv50->viewport.scale[2]);
+      zmin = nv50->viewport.translate[2] - fabsf(nv50->viewport.scale[2]);
+      zmax = nv50->viewport.translate[2] + fabsf(nv50->viewport.scale[2]);
+   } else {
+      if (!nv50->state.vport_bypass) {
+         BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSFORM_EN), 1);
+         PUSH_DATA (push, 0);
+         nv50->state.vport_bypass = TRUE;
+      }
+      zmin = 0.0f;
+      zmax = 1.0f;
+   }
 
 #ifdef NV50_SCISSORS_CLIPPING
    BEGIN_NV04(push, NV50_3D(DEPTH_RANGE_NEAR(0)), 2);
