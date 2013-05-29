@@ -1077,12 +1077,32 @@ NineDevice9_SetRenderTarget( struct NineDevice9 *This,
                              DWORD RenderTargetIndex,
                              IDirect3DSurface9 *pRenderTarget )
 {
+    struct NineSurface9 *rt = NineSurface9(pRenderTarget);
     const unsigned i = RenderTargetIndex;
 
     DBG("This=%p RenderTargetIndex=%u pRenderTarget=%p\n", This,
         RenderTargetIndex, pRenderTarget);
 
     user_assert(i < This->caps.NumSimultaneousRTs, D3DERR_INVALIDCALL);
+    user_assert(i != 0 || pRenderTarget, D3DERR_INVALIDCALL);
+    user_assert(!pRenderTarget ||
+                rt->desc.Usage & D3DUSAGE_RENDERTARGET, D3DERR_INVALIDCALL);
+
+    if (i == 0) {
+        This->state.viewport.X = 0;
+        This->state.viewport.Y = 0;
+        This->state.viewport.Width = rt->desc.Width;
+        This->state.viewport.Height = rt->desc.Height;
+        This->state.viewport.MinZ = 0.0f;
+        This->state.viewport.MaxZ = 1.0f;
+
+        This->state.scissor.minx = 0;
+        This->state.scissor.miny = 0;
+        This->state.scissor.maxx = rt->desc.Width;
+        This->state.scissor.maxy = rt->desc.Height;
+
+        This->state.changed.group |= NINE_STATE_VIEWPORT | NINE_STATE_SCISSOR;
+    }
 
     if (This->state.rt[i] != NineSurface9(pRenderTarget)) {
        This->state.changed.group |= NINE_STATE_FB;
