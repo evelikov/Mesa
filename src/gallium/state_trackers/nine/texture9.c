@@ -255,7 +255,7 @@ NineTexture9_AddDirtyRect( struct NineTexture9 *This,
                         This->base.base.info.height0, &This->dirty_rect);
     } else {
         struct pipe_box box;
-        rect_to_pipe_box(&box, pDirtyRect);
+        rect_to_pipe_box_clamp(&box, pDirtyRect);
         u_box_cover_2d(&This->dirty_rect, &This->dirty_rect, &box);
     }
     return D3D_OK;

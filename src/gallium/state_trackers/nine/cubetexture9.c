@@ -211,7 +211,7 @@ NineCubeTexture9_AddDirtyRect( struct NineCubeTexture9 *This,
                         &This->dirty_rect[FaceType]);
     } else {
         struct pipe_box box;
-        rect_to_pipe_box(&box, pDirtyRect);
+        rect_to_pipe_box_clamp(&box, pDirtyRect);
         u_box_cover_2d(&This->dirty_rect[FaceType], &This->dirty_rect[FaceType],
                        &box);
     }

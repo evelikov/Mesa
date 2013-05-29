@@ -334,7 +334,7 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         usage |= PIPE_TRANSFER_DONTBLOCK;
 
     if (pRect) {
-        rect_to_pipe_box(&box, pRect);
+        rect_to_pipe_box_clamp(&box, pRect);
         if (u_box_clip_2d(&box, This->desc.Width, This->desc.Height) < 0) {
             DBG("pRect clipped by Width=%u Height=%u\n",
                 This->desc.Width, This->desc.Height);
