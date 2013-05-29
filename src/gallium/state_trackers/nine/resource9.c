@@ -129,6 +129,12 @@ NineResource9_SetPrivateData( struct NineResource9 *This,
     struct pheader *header;
     const void *user_data = pData;
 
+    DBG("This=%p refguid=%p pData=%p SizeOfData=%u Flags=%x\n",
+        This, refguid, pData, SizeOfData, Flags);
+
+    if (Flags & D3DSPD_IUNKNOWN)
+        user_assert(SizeOfData == sizeof(IUnknown *), D3DERR_INVALIDCALL);
+
     /* data consists of a header and the actual data. avoiding 2 mallocs */
     header = CALLOC_VARIANT_LENGTH_STRUCT(pheader, SizeOfData-1);
     if (!header) { return E_OUTOFMEMORY; }
@@ -139,9 +145,6 @@ NineResource9_SetPrivateData( struct NineResource9 *This,
 
     /* IUnknown special case */
     if (header->unknown) {
-        if (user_error(SizeOfData == sizeof(IUnknown *))) {
-            SizeOfData = sizeof(IUnknown *);
-        }
         /* here the pointer doesn't point to the data we want, so point at the
          * pointer making what we eventually copy is the pointer itself */
         user_data = &pData;
@@ -170,6 +173,9 @@ NineResource9_GetPrivateData( struct NineResource9 *This,
 {
     struct pheader *header;
 
+    DBG("This=%p refguid=%p pData=%p pSizeOfData=%p\n",
+        This, refguid, pData, pSizeOfData);
+
     user_assert(pSizeOfData, E_POINTER);
 
     header = util_hash_table_get(This->pdata, refguid);
@@ -195,10 +201,14 @@ NineResource9_FreePrivateData( struct NineResource9 *This,
 {
     struct pheader *header;
 
+    DBG("This=%p refguid=%p\n", This, refguid);
+
     header = util_hash_table_get(This->pdata, refguid);
-    if (!header) { return D3DERR_NOTFOUND; }
+    if (!header)
+        return D3DERR_NOTFOUND;
 
     ht_guid_delete(NULL, header, NULL);
+    util_hash_table_remove(This->pdata, refguid);
 
     return D3D_OK;
 }
