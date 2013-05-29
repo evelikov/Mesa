@@ -188,6 +188,8 @@ NineSurface9_Dump( struct NineSurface9 *This )
         d3dformat_to_string(This->desc.Format), This->stride,
         This->level, This->level_actual, This->layer);
 
+    if (!This->base.base.container)
+        return;
     NineUnknown_QueryInterface(This->base.base.container, ref, (void **)&tex);
     if (tex)
         NineBaseTexture9_Dump(tex);
