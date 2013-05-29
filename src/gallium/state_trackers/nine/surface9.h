@@ -104,7 +104,12 @@ NineSurface9_SetResource( struct NineSurface9 *This,
 {
     This->level = level;
     pipe_resource_reference(&This->base.resource, resource);
+    pipe_surface_reference(&This->surface, NULL);
 }
+
+void
+NineSurface9_SetResourceResize( struct NineSurface9 *This,
+                                struct pipe_resource *resource );
 
 void
 NineSurface9_AddDirtyRect( struct NineSurface9 *This,

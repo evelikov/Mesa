@@ -653,6 +653,29 @@ NineSurface9_UploadSelf( struct NineSurface9 *This )
     return D3D_OK;
 }
 
+void
+NineSurface9_SetResourceResize( struct NineSurface9 *This,
+                                struct pipe_resource *resource )
+{
+    assert(This->level == 0 && This->level_actual == 0);
+    assert(!This->lock_count);
+    assert(This->desc.Pool == D3DPOOL_DEFAULT);
+    assert(This->desc.Type == D3DRTYPE_SURFACE);
+
+    pipe_resource_reference(&This->base.resource, resource);
+
+    This->desc.Width = This->base.info.width0 = resource->width0;
+    This->desc.Height = This->base.info.height0 = resource->height0;
+
+    This->stride = util_format_get_stride(This->base.info.format,
+                                          This->desc.Width);
+
+    if (This->surface) {
+        pipe_surface_reference(&This->surface, NULL);
+        NineSurface9_CreatePipeSurface(This);
+    }
+}
+
 
 static const GUID *NineSurface9_IIDs[] = {
     &IID_IDirect3DSurface9,
