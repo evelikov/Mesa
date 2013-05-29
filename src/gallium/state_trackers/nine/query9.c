@@ -113,7 +113,7 @@ NineQuery9_ctor( struct NineQuery9 *This,
         return hr;
     nine_reference_set(&This->device, pDevice);
 
-    This->state = NINE_QUERY_STATE_IDLE;
+    This->state = NINE_QUERY_STATE_FRESH;
     This->type = Type;
 
     user_assert(ptype != ~0, D3DERR_INVALIDCALL);
@@ -199,7 +199,7 @@ NineQuery9_Issue( struct NineQuery9 *This,
         This->state = NINE_QUERY_STATE_RUNNING;
     } else {
         pipe->end_query(pipe, This->pq);
-        This->state = NINE_QUERY_STATE_IDLE;
+        This->state = NINE_QUERY_STATE_ENDED;
     }
     return D3D_OK;
 }
@@ -231,7 +231,7 @@ NineQuery9_GetData( struct NineQuery9 *This,
     union pipe_query_result presult;
     union nine_query_result nresult;
 
-    user_assert(This->state != NINE_QUERY_STATE_RUNNING, D3DERR_INVALIDCALL);
+    user_assert(This->state >= NINE_QUERY_STATE_ENDED, D3DERR_INVALIDCALL);
     user_assert(dwSize == 0 || pData, D3DERR_INVALIDCALL);
     user_assert(dwGetDataFlags == 0 ||
                 dwGetDataFlags == D3DGETDATA_FLUSH, D3DERR_INVALIDCALL);
