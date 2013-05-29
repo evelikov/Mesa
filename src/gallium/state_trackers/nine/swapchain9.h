@@ -46,6 +46,7 @@ struct NineSwapChain9
     ID3DPresent *present;
     D3DPRESENT_PARAMETERS params;
     PPRESENT_TO_RESOURCE ptrfunc;
+    BOOL implicit;
 
     /* parent device */
     struct NineDevice9 *device;
@@ -62,6 +63,7 @@ NineSwapChain9( void *data )
 
 HRESULT
 NineSwapChain9_new( struct NineDevice9 *pDevice,
+                    BOOL implicit,
                     ID3DPresent *pPresent,
                     PPRESENT_TO_RESOURCE pPTR,
                     HWND hFocusWindow,
@@ -71,6 +73,7 @@ HRESULT
 NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      struct NineUnknownParams *pParams,
                      struct NineDevice9 *pDevice,
+                     BOOL implicit,
                      ID3DPresent *pPresent,
                      PPRESENT_TO_RESOURCE pPTR,
                      HWND hFocusWindow );

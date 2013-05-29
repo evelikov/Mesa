@@ -111,8 +111,8 @@ NineQuery9_ctor( struct NineQuery9 *This,
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
+    nine_reference_set(&This->device, pDevice);
 
-    This->device = pDevice;
     This->state = NINE_QUERY_STATE_IDLE;
     This->type = Type;
 
@@ -150,6 +150,8 @@ NineQuery9_dtor( struct NineQuery9 *This )
             pipe->end_query(pipe, This->pq);
         pipe->destroy_query(pipe, This->pq);
     }
+    nine_reference(&This->device, NULL);
+
     NineUnknown_dtor(&This->base);
 }
 

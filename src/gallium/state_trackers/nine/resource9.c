@@ -51,6 +51,8 @@ NineResource9_ctor( struct NineResource9 *This,
         return hr;
 
     This->device = pDevice;
+    if (!NineUnknown(This)->container)
+        NineUnknown_AddRef(NineUnknown(This->device));
 
     This->info.screen = screen;
 
@@ -87,6 +89,9 @@ NineResource9_dtor( struct NineResource9 *This )
     /* release allocated system memory for non-D3DPOOL_DEFAULT resources */
     if (This->data)
         FREE(This->data);
+
+    if (!This->base.container)
+        NineUnknown_Release(NineUnknown(This->device));
 
     NineUnknown_dtor(&This->base);
 }

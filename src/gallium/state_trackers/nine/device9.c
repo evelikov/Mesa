@@ -122,7 +122,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
         hr = ID3DPresentFactory_GetPresent(This->present, i, &present);
         if (FAILED(hr)) { return hr; }
 
-        hr = NineSwapChain9_new(This, present, pPTR,
+        hr = NineSwapChain9_new(This, TRUE, present, pPTR,
                                 This->params.hFocusWindow,
                                 &This->swapchains[i]);
         ID3DPresent_Release(present);
@@ -375,7 +375,7 @@ NineDevice9_CreateAdditionalSwapChain( struct NineDevice9 *This,
 
     user_assert(pPresentationParameters, D3DERR_INVALIDCALL);
 
-    hr = NineSwapChain9_new(This, tmplt->present, tmplt->ptrfunc,
+    hr = NineSwapChain9_new(This, FALSE, tmplt->present, tmplt->ptrfunc,
                             tmplt->params.hDeviceWindow, /* XXX */
                             &swapchain);
     if (FAILED(hr))

@@ -61,6 +61,10 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
     if (!This->byte_code.tokens)
         return E_OUTOFMEMORY;
     This->byte_code.size = info.byte_size;
+
+    /* FF shaders shouldn't hold references to the device. */
+    NineUnknown_AddRef(NineUnknown(This->device));
+
     This->cso = info.cso;
     This->lconstf = info.lconstf;
 
@@ -76,6 +80,9 @@ NinePixelShader9_dtor( struct NinePixelShader9 *This )
         struct pipe_context *pipe = This->device->pipe;
         if (This->cso)
             pipe->delete_fs_state(pipe, This->cso);
+
+        if (This->byte_code.tokens)
+            NineUnknown_Release(NineUnknown(This->device));
     }
 
     if (This->byte_code.tokens)

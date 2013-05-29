@@ -114,10 +114,6 @@ NineSurface9_ctor( struct NineSurface9 *This,
         return hr;
     This->base.usage = pDesc->Usage;
 
-    /* Stand-alone surfaces should hold a reference to the device. */
-    if (!pContainer)
-        NineUnknown_AddRef(NineUnknown(NineResource9(This)->device));
-
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->transfer = NULL;
 
@@ -152,9 +148,6 @@ NineSurface9_dtor( struct NineSurface9 *This )
     NineSurface9_ClearDirtyRects(This);
 
     pipe_surface_reference(&This->surface, NULL);
-
-    if (!NineUnknown(This)->container)
-        NineUnknown_Release(NineUnknown(NineResource9(This)->device));
 
     NineResource9_dtor(&This->base);
 }

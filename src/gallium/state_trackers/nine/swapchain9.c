@@ -36,6 +36,7 @@ HRESULT
 NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      struct NineUnknownParams *pParams,
                      struct NineDevice9 *pDevice,
+                     BOOL implicit,
                      ID3DPresent *pPresent,
                      PPRESENT_TO_RESOURCE pPTR,
                      HWND hFocusWindow )
@@ -54,6 +55,9 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->cso = NineDevice9_GetCSO(pDevice);
     This->device = pDevice;
+    This->implicit = implicit;
+    if (!implicit)
+        NineUnknown_AddRef(NineUnknown(This->device));
     This->ptrfunc = pPTR;
     This->present = pPresent;
     ID3DPresent_AddRef(pPresent);
@@ -234,6 +238,9 @@ NineSwapChain9_dtor( struct NineSwapChain9 *This )
     if (This->present) {
         ID3DPresent_Release(This->present);
     }
+
+    if (!This->implicit)
+        NineUnknown_Release(NineUnknown(This->device));
 
     NineUnknown_dtor(&This->base);
 }
@@ -471,11 +478,12 @@ static const GUID *NineSwapChain9_IIDs[] = {
 
 HRESULT
 NineSwapChain9_new( struct NineDevice9 *pDevice,
+                    BOOL implicit,
                     ID3DPresent *pPresent,
                     PPRESENT_TO_RESOURCE pPTR,
                     HWND hFocusWindow,
                     struct NineSwapChain9 **ppOut )
 {
     NINE_NEW(NineSwapChain9, ppOut, /* args */
-             pDevice, pPresent, pPTR, hFocusWindow);
+             pDevice, implicit, pPresent, pPTR, hFocusWindow);
 }

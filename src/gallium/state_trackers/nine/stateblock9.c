@@ -36,7 +36,8 @@ NineStateBlock9_ctor( struct NineStateBlock9 *This,
     if (FAILED(hr))
         return hr;
 
-    This->device = pDevice;
+    nine_reference_set(&This->device, pDevice);
+
     This->type = type;
 
     This->state.vs_const_f = MALLOC(pDevice->constbuf_vs->width0);
@@ -69,6 +70,8 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
         FREE(state->vs_const_f);
     if (state->ps_const_f)
         FREE(state->ps_const_f);
+
+    nine_reference(&This->device, NULL);
 
     NineUnknown_dtor(&This->base);
 }
