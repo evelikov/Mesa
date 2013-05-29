@@ -90,7 +90,7 @@ NineResource9_dtor( struct NineResource9 *This )
     if (This->data)
         FREE(This->data);
 
-    if (!This->base.container)
+    if (!This->base.container && This->device)
         NineUnknown_Release(NineUnknown(This->device));
 
     NineUnknown_dtor(&This->base);
