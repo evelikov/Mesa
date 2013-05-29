@@ -1461,14 +1461,22 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
     user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
 
     for (i = 0; i < state->ff.num_lights_active; ++i) {
-        if (Enable && state->ff.active_light[i] == Index)
-            return D3D_OK;
+        if (state->ff.active_light[i] == Index)
+            break;
     }
+
     if (Enable) {
+        if (i < state->ff.num_lights_active)
+            return D3D_OK;
+        /* XXX wine thinks this should still succeed:
+         */
         user_assert(i < NINE_MAX_LIGHTS_ACTIVE, D3DERR_INVALIDCALL);
+
         state->ff.active_light[i] = Index;
         state->ff.num_lights_active++;
     } else {
+        if (i == state->ff.num_lights_active)
+            return D3D_OK;
         --state->ff.num_lights_active;
         for (; i < state->ff.num_lights_active; ++i)
             state->ff.active_light[i] = state->ff.active_light[i + 1];
