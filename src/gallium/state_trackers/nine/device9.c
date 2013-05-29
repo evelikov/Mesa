@@ -1942,6 +1942,8 @@ NineDevice9_DrawIndexedPrimitive( struct NineDevice9 *This,
         This, PrimitiveType, BaseVertexIndex, MinVertexIndex, NumVertices,
         StartIndex, PrimitiveCount);
 
+    user_assert(This->state.idxbuf, D3DERR_INVALIDCALL);
+
     nine_update_state(This);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
@@ -1970,6 +1972,9 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
         This, PrimitiveType, PrimitiveCount,
         pVertexStreamZeroData, VertexStreamZeroStride);
 
+    user_assert(pVertexStreamZeroData && VertexStreamZeroStride,
+                D3DERR_INVALIDCALL);
+
     nine_update_state(This);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
@@ -1986,9 +1991,10 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
     vtxbuf.user_buffer = pVertexStreamZeroData;
 
     This->pipe->set_vertex_buffers(This->pipe, 0, 1, &vtxbuf);
-    This->state.changed.vtxbuf |= 1;
 
     This->pipe->draw_vbo(This->pipe, &info);
+
+    NineDevice9_SetStreamSource(This, 0, NULL, 0, 0);
 
     return D3D_OK;
 }
@@ -2015,6 +2021,11 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
         pIndexData, IndexDataFormat,
         pVertexStreamZeroData, VertexStreamZeroStride);
 
+    user_assert(pIndexData && pVertexStreamZeroData, D3DERR_INVALIDCALL);
+    user_assert(VertexStreamZeroStride, D3DERR_INVALIDCALL);
+    user_assert(IndexDataFormat == D3DFMT_INDEX16 ||
+                IndexDataFormat == D3DFMT_INDEX32, D3DERR_INVALIDCALL);
+
     nine_update_state(This);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
@@ -2036,10 +2047,11 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
 
     This->pipe->set_vertex_buffers(This->pipe, 0, 1, &vbuf);
     This->pipe->set_index_buffer(This->pipe, &ibuf);
-    This->state.changed.vtxbuf |= 1;
-    This->state.changed.group |= NINE_STATE_IDXBUF;
 
     This->pipe->draw_vbo(This->pipe, &info);
+
+    NineDevice9_SetIndices(This, NULL);
+    NineDevice9_SetStreamSource(This, 0, NULL, 0, 0);
 
     return D3D_OK;
 }
