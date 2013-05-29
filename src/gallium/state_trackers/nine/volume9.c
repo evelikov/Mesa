@@ -41,7 +41,12 @@ NineVolume9_ctor( struct NineVolume9 *This,
                   unsigned Level,
                   D3DVOLUME_DESC *pDesc )
 {
+    HRESULT hr;
+
     assert(pContainer); /* stand-alone volumes can't be created */
+
+    DBG("This=%p pContainer=%p pDevice=%p pResource=%p Level=%u pDesc=%p\n",
+        This, pContainer, pDevice, pResource, Level, pDesc);
 
     /* Mark this as a special surface held by another internal resource. */
     pParams->container = pContainer;
@@ -50,6 +55,10 @@ NineVolume9_ctor( struct NineVolume9 *This,
                 (pDesc->Pool != D3DPOOL_MANAGED), D3DERR_INVALIDCALL);
 
     assert(pResource || pDesc->Pool != D3DPOOL_DEFAULT);
+
+    hr = NineUnknown_ctor(&This->base, pParams);
+    if (FAILED(hr))
+        return hr;
 
     This->pdata = util_hash_table_create(ht_guid_hash, ht_guid_compare);
     if (!This->pdata)
@@ -91,6 +100,8 @@ NineVolume9_ctor( struct NineVolume9 *This,
 static void
 NineVolume9_dtor( struct NineVolume9 *This )
 {
+    DBG("This=%p\n", This);
+
     if (This->transfer)
         NineVolume9_UnlockBox(This);
 
@@ -98,6 +109,8 @@ NineVolume9_dtor( struct NineVolume9 *This )
 
     if (!NineUnknown(This)->container)
         NineUnknown_Release(NineUnknown(This->device));
+
+    NineUnknown_dtor(&This->base);
 }
 
 HRESULT WINAPI
