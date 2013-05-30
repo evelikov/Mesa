@@ -33,6 +33,20 @@
 
 
 static HRESULT
+NineVolume9_AllocateData( struct NineVolume9 *This )
+{
+    unsigned size = This->layer_stride * This->desc.Depth;
+
+    DBG("(%p(This=%p),level=%u) Allocating 0x%x bytes of system memory.\n",
+        This->base.container, This, This->level, size);
+
+    This->data = (uint8_t *)MALLOC(size);
+    if (!This->data)
+        return E_OUTOFMEMORY;
+    return D3D_OK;
+}
+
+static HRESULT
 NineVolume9_ctor( struct NineVolume9 *This,
                   struct NineUnknownParams *pParams,
                   struct NineUnknown *pContainer,
@@ -95,6 +109,11 @@ NineVolume9_ctor( struct NineVolume9 *This,
     if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
         This->info.usage = PIPE_USAGE_STAGING;
 
+    if (!This->resource) {
+        hr = NineVolume9_AllocateData(This);
+        if (FAILED(hr))
+            return hr;
+    }
     return D3D_OK;
 }
 

@@ -286,6 +286,17 @@ NineSurface9_AddDirtyRect( struct NineSurface9 *This,
     }
 }
 
+static INLINE uint8_t *
+NineSurface9_GetSystemMemPointer(struct NineSurface9 *This, int x, int y)
+{
+    unsigned x_offset = util_format_get_stride(This->base.info.format, x);
+
+    y = util_format_get_nblocksy(This->base.info.format, y);
+
+    assert(This->base.data);
+    return This->base.data + (y * This->stride + x_offset);
+}
+
 HRESULT WINAPI
 NineSurface9_LockRect( struct NineSurface9 *This,
                        D3DLOCKED_RECT *pLockedRect,
@@ -349,9 +360,8 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         DBG("returning system memory\n");
 
         pLockedRect->Pitch = This->stride;
-        pLockedRect->pBits = This->base.data +
-            box.y * This->stride +
-            util_format_get_stride(This->base.info.format, box.x);
+        pLockedRect->pBits = NineSurface9_GetSystemMemPointer(This,
+                                                              box.x, box.y);
     } else {
         DBG("mapping pipe_resource %p (level=%u usage=%x)\n",
             resource, This->level, usage);
@@ -411,7 +421,12 @@ NineSurface9_AllocateData( struct NineSurface9 *This )
 {
     struct pipe_screen *screen = This->base.info.screen;
 
-    if (This->base.pool == D3DPOOL_SYSTEMMEM) {
+    /* XXX: Can't use staging resource because apparently apps expect
+     * memory offsets to be the same across locks.
+     * NV50 doesn't support direct mapping yet so only enable this if
+     * everything else works.
+     */
+    if (This->base.pool == D3DPOOL_SYSTEMMEM && 0) {
         /* Allocate a staging resource to save a copy:
          * user -> staging resource
          * staging resource -> (blit) -> video memory
@@ -490,17 +505,6 @@ static INLINE boolean
 NineSurface9_IsDirty(struct NineSurface9 *This)
 {
     return This->dirty_rects[0].x1 != 0;
-}
-
-static INLINE uint8_t *
-NineSurface9_GetSystemMemPointer(struct NineSurface9 *This, int x, int y)
-{
-    unsigned x_offset = util_format_get_stride(This->base.info.format, x);
-
-    y = util_format_get_nblocksy(This->base.info.format, y);
-
-    assert(This->base.data);
-    return This->base.data + (y * This->stride + x_offset);
 }
 
 HRESULT
