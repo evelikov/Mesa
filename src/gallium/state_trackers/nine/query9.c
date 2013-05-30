@@ -183,11 +183,9 @@ NineQuery9_Issue( struct NineQuery9 *This,
 {
     struct pipe_context *pipe = This->device->pipe;
 
-    user_assert(dwIssueFlags != D3DISSUE_BEGIN || !This->instant,
-                D3DERR_INVALIDCALL);
-    user_assert(dwIssueFlags == 0 ||
-                dwIssueFlags == D3DISSUE_END ||
-                dwIssueFlags == D3DISSUE_BEGIN, D3DERR_INVALIDCALL);
+    user_assert((dwIssueFlags == D3DISSUE_BEGIN && !This->instant) ||
+                (dwIssueFlags == 0) ||
+                (dwIssueFlags == D3DISSUE_END), D3DERR_INVALIDCALL);
 
     if (!This->pq) {
         DBG("Issued dummy query.\n");
@@ -231,7 +229,7 @@ NineQuery9_GetData( struct NineQuery9 *This,
     union pipe_query_result presult;
     union nine_query_result nresult;
 
-    user_assert(This->state >= NINE_QUERY_STATE_ENDED, D3DERR_INVALIDCALL);
+    user_assert(This->state != NINE_QUERY_STATE_RUNNING, D3DERR_INVALIDCALL);
     user_assert(dwSize == 0 || pData, D3DERR_INVALIDCALL);
     user_assert(dwGetDataFlags == 0 ||
                 dwGetDataFlags == D3DGETDATA_FLUSH, D3DERR_INVALIDCALL);
@@ -241,6 +239,8 @@ NineQuery9_GetData( struct NineQuery9 *This,
         if (!dwSize)
            return S_OK;
     }
+    if (This->state == NINE_QUERY_STATE_FRESH)
+        return S_OK;
 
     if (!dwSize) {
         ok = pipe->get_query_result(pipe, This->pq, FALSE, &presult);
