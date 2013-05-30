@@ -44,6 +44,7 @@
 #include "util/u_inlines.h"
 #include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
+#include "util/u_surface.h"
 
 #include "cso_cache/cso_context.h"
 
@@ -711,18 +712,18 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     templ.last_level = 0;
     templ.nr_samples = (unsigned)MultiSample;
     templ.usage = PIPE_USAGE_STATIC;
-    templ.bind = PIPE_BIND_SAMPLER_VIEW; /* StretchRect */
     templ.flags = 0;
-    templ.bind |= /* we need it to be renderable for ColorFill */
-        (type == 1) ? PIPE_BIND_DEPTH_STENCIL : PIPE_BIND_RENDER_TARGET;
-
+    templ.bind = PIPE_BIND_SAMPLER_VIEW; /* StretchRect */
+    switch (type) {
+    case 0: templ.bind |= PIPE_BIND_RENDER_TARGET; break;
+    case 1: templ.bind |= PIPE_BIND_DEPTH_STENCIL; break;
+    default:
+        assert(type == 2);
+        break;
+    }
     /* since resource_create doesn't return an error code, check format here */
     user_assert(screen->is_format_supported(screen, templ.format, templ.target,
                     templ.nr_samples, templ.bind), D3DERR_INVALIDCALL);
-
-    resource = screen->resource_create(screen, &templ);
-
-    user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
 
     desc.Format = Format;
     desc.Type = D3DRTYPE_SURFACE;
@@ -735,10 +736,11 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     switch (type) {
     case 0: desc.Usage = D3DUSAGE_RENDERTARGET; break;
     case 1: desc.Usage = D3DUSAGE_DEPTHSTENCIL; break;
-    default:
-        assert(type == 2);
-        break;
+    default: break;
     }
+
+    resource = screen->resource_create(screen, &templ);
+    user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
 
     hr = NineSurface9_new(This, NULL, resource, 0, 0, &desc, &surface);
     pipe_resource_reference(&resource, NULL);
@@ -1021,7 +1023,9 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
 
     user_assert(surf->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
-    /* XXX: resource usage == rt, rt texture, or off-screen plain */
+    user_assert((surf->base.usage & D3DUSAGE_RENDERTARGET) ||
+                (surf->base.usage == 0 && surf->base.type == D3DRTYPE_SURFACE),
+                D3DERR_INVALIDCALL);
 
     if (pRect) {
         x = pRect->left;
@@ -1036,8 +1040,26 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
     }
     d3dcolor_to_pipe_color_union(&rgba, color);
 
-    pipe->clear_render_target(pipe, NineSurface9_GetSurface(surf), &rgba,
-                              x, y, w, h);
+    if (This->screen->is_format_supported(This->screen, surf->base.info.format,
+                                          surf->base.info.target,
+                                          surf->base.info.nr_samples,
+                                          PIPE_BIND_RENDER_TARGET)) {
+        pipe->clear_render_target(pipe, NineSurface9_GetSurface(surf), &rgba,
+                                  x, y, w, h);
+    } else {
+        D3DLOCKED_RECT lock;
+        union util_color uc;
+        HRESULT hr;
+        /* XXX: lock pRect and fix util_fill_rect */
+        hr = NineSurface9_LockRect(surf, &lock, NULL, 0);
+        if (FAILED(hr))
+            return hr;
+        util_pack_color_ub(color >> 16, color >> 8, color >> 0, color >> 24,
+                           surf->base.info.format, &uc);
+        util_fill_rect(lock.pBits, surf->base.info.format,lock.Pitch,
+                       x, y, w, h, &uc);
+        NineSurface9_UnlockRect(surf);
+    }
 
     return D3D_OK;
 }
@@ -1068,7 +1090,7 @@ NineDevice9_CreateOffscreenPlainSurface( struct NineDevice9 *This,
                                  TRUE,
                                  ppSurface, pSharedHandle);
     if (FAILED(hr))
-        DBG("Could not create surface, get rid of RT bind flag ?\n");
+        DBG("Failed to create surface.\n");
     return hr;
 }
 
