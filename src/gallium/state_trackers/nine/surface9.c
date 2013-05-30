@@ -336,6 +336,15 @@ NineSurface9_LockRect( struct NineSurface9 *This,
     user_assert(This->desc.MultiSampleType == D3DMULTISAMPLE_NONE,
                 D3DERR_INVALIDCALL);
 
+    if (pRect && This->base.pool == D3DPOOL_DEFAULT &&
+        util_format_is_compressed(This->base.info.format)) {
+        const unsigned w = util_format_get_blockwidth(This->base.info.format);
+        const unsigned h = util_format_get_blockheight(This->base.info.format);
+        user_assert(!(pRect->left % w) && !(pRect->right % w) &&
+                    !(pRect->top % h) && !(pRect->bottom % h),
+                    D3DERR_INVALIDCALL);
+    }
+
     if (Flags & D3DLOCK_DISCARD) {
         usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     } else {

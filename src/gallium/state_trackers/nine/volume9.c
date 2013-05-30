@@ -255,6 +255,15 @@ NineVolume9_LockBox( struct NineVolume9 *This,
     user_assert(This->lock_count == 0, D3DERR_INVALIDCALL);
     user_assert(pLockedVolume, E_POINTER);
 
+    if (pBox && This->desc.Pool == D3DPOOL_DEFAULT &&
+        util_format_is_compressed(This->info.format)) {
+        const unsigned w = util_format_get_blockwidth(This->info.format);
+        const unsigned h = util_format_get_blockheight(This->info.format);
+        user_assert(!(pBox->Left % w) && !(pBox->Right % w) &&
+                    !(pBox->Top % h) && !(pBox->Bottom % h),
+                    D3DERR_INVALIDCALL);
+    }
+
     if (Flags & D3DLOCK_DISCARD) {
         usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     } else {
