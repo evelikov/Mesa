@@ -46,11 +46,15 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
     user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)),
                 D3DERR_INVALIDCALL);
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
-                Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+                (Pool != D3DPOOL_SYSTEMMEM && Levels <= 1), D3DERR_INVALIDCALL);
 
     user_assert(!pSharedHandle, D3DERR_INVALIDCALL); /* TODO */
 
+    if (Usage & D3DUSAGE_AUTOGENMIPMAP)
+        Levels = 0;
+
     This->base.format = Format;
+    This->base.base.usage = Usage;
 
     info->screen = pDevice->screen;
     info->target = PIPE_TEXTURE_3D;
@@ -83,7 +87,6 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
                                D3DRTYPE_VOLUMETEXTURE, Pool);
     if (FAILED(hr))
         return hr;
-    This->base.base.usage = Usage;
 
     voldesc.Format = Format;
     voldesc.Type = D3DRTYPE_VOLUMETEXTURE;
@@ -124,6 +127,8 @@ NineVolumeTexture9_GetLevelDesc( struct NineVolumeTexture9 *This,
                                  D3DVOLUME_DESC *pDesc )
 {
     user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
 
     *pDesc = This->volumes[Level]->desc;
 
@@ -136,6 +141,8 @@ NineVolumeTexture9_GetVolumeLevel( struct NineVolumeTexture9 *This,
                                    IDirect3DVolume9 **ppVolumeLevel )
 {
     user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
 
     NineUnknown_AddRef(NineUnknown(This->volumes[Level]));
     *ppVolumeLevel = (IDirect3DVolume9 *)This->volumes[Level];

@@ -59,14 +59,18 @@ NineTexture9_ctor( struct NineTexture9 *This,
     user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
                 Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
-                Pool != D3DPOOL_SYSTEMMEM, D3DERR_INVALIDCALL);
+                (Pool != D3DPOOL_SYSTEMMEM && Levels <= 1), D3DERR_INVALIDCALL);
 
     /* Won't work, handle is a void * and winsys_handle will be unsigned[3].
      */
     user_assert(!pSharedHandle ||
                 Pool == D3DPOOL_SYSTEMMEM, D3DERR_DRIVERINTERNALERROR);
 
+    if (Usage & D3DUSAGE_AUTOGENMIPMAP)
+        Levels = 0;
+
     This->base.format = Format;
+    This->base.base.usage = Usage;
 
     info->screen = pDevice->screen;
     info->target = PIPE_TEXTURE_2D;
@@ -123,7 +127,6 @@ NineTexture9_ctor( struct NineTexture9 *This,
                                D3DRTYPE_TEXTURE, Pool);
     if (FAILED(hr))
         return hr;
-    This->base.base.usage = Usage;
 
     /* Create all the surfaces right away.
      * They manage backing storage, and transfers (LockRect) are deferred
@@ -186,6 +189,8 @@ NineTexture9_GetLevelDesc( struct NineTexture9 *This,
                            D3DSURFACE_DESC *pDesc )
 {
     user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+                D3DERR_INVALIDCALL);
 
     *pDesc = This->surfaces[Level]->desc;
 

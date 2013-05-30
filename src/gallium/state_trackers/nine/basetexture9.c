@@ -52,7 +52,8 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
         return hr;
 
     This->pipe = NineDevice9_GetPipe(pDevice);
-    This->mipfilter = D3DTEXF_LINEAR;
+    This->mipfilter = (This->base.usage & D3DUSAGE_AUTOGENMIPMAP) ?
+        D3DTEXF_LINEAR : D3DTEXF_NONE;
     This->lod = 0;
 
     return D3D_OK;
@@ -97,8 +98,9 @@ HRESULT WINAPI
 NineBaseTexture9_SetAutoGenFilterType( struct NineBaseTexture9 *This,
                                        D3DTEXTUREFILTERTYPE FilterType )
 {
-    user_assert(FilterType == D3DTEXF_POINT ||
-                FilterType == D3DTEXF_LINEAR, D3DERR_INVALIDCALL);
+    if (!(This->base.usage & D3DUSAGE_AUTOGENMIPMAP))
+        return D3D_OK;
+    user_assert(FilterType != D3DTEXF_NONE, D3DERR_INVALIDCALL);
 
     This->mipfilter = FilterType;
 
