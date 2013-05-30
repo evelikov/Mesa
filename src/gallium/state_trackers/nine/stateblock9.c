@@ -101,7 +101,7 @@ nine_state_transfer_all(struct nine_state *dst,
 static void
 nine_state_transfer(struct nine_state *dst,
                     const struct nine_state *src,
-                    const struct nine_state *mask,
+                    struct nine_state *mask,
                     const boolean apply)
 {
     unsigned i, j, s;
@@ -293,10 +293,32 @@ nine_state_transfer(struct nine_state *dst,
         }
     }
     if (mask->changed.group & NINE_STATE_FF_LIGHTING) {
-        DBG("TODO: lighting state\n");
+        if (dst->ff.num_lights < mask->ff.num_lights) {
+            dst->ff.light = REALLOC(dst->ff.light,
+                                    dst->ff.num_lights * sizeof(D3DLIGHT9),
+                                    mask->ff.num_lights * sizeof(D3DLIGHT9));
+            dst->ff.num_lights = mask->ff.num_lights;
+        }
+        for (i = 0; i < mask->ff.num_lights; ++i)
+            if (mask->ff.light[i].Type != NINED3DLIGHT_INVALID)
+                dst->ff.light[i] = src->ff.light[i];
+
+        DBG("TODO: active lights\n");
     }
     if (mask->changed.group & NINE_STATE_FF_VSTRANSF) {
-        DBG("TODO: transforms\n");
+        for (i = 0; i < Elements(mask->ff.changed.transform); ++i) {
+            if (!mask->ff.changed.transform[i])
+                continue;
+            for (s = i * 32; s < (i * 32 + 32); ++s) {
+                if (!(mask->ff.changed.transform[i] & (1 << (s % 32))))
+                    continue;
+                *nine_state_access_transform(dst, s, TRUE) =
+                    *nine_state_access_transform( /* const because !alloc */
+                        (struct nine_state *)src, s, FALSE);
+            }
+            if (apply)
+                dst->ff.changed.transform[i] |= mask->ff.changed.transform[i];
+        }
     }
 }
 
