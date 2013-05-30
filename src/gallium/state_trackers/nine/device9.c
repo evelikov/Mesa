@@ -679,6 +679,7 @@ NineDevice9_CreateIndexBuffer( struct NineDevice9 *This,
 static HRESULT
 create_zs_or_rt_surface(struct NineDevice9 *This,
                         unsigned type, /* 0 = RT, 1 = ZS, 2 = plain */
+                        D3DPOOL Pool,
                         UINT Width, UINT Height,
                         D3DFORMAT Format,
                         D3DMULTISAMPLE_TYPE MultiSample,
@@ -694,14 +695,16 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     D3DSURFACE_DESC desc;
     struct pipe_resource templ;
 
-    DBG("This=%p type=%u Width=%u Height=%u Format=%s MS=%u Quality=%u "
+    DBG("This=%p type=%u Pool=%s Width=%u Height=%u Format=%s MS=%u Quality=%u "
         "Discard_or_Lockable=%i ppSurface=%p pSharedHandle=%p\n",
-        This, type, Width, Height, d3dformat_to_string(Format),
-        MultiSample, MultisampleQuality,
+        This, type, nine_D3DPOOL_to_str(Pool), Width, Height,
+        d3dformat_to_string(Format), MultiSample, MultisampleQuality,
         Discard_or_Lockable, ppSurface, pSharedHandle);
 
     assert(!pSharedHandle);
     user_assert(Width && Height, D3DERR_INVALIDCALL);
+
+    assert(Pool != D3DPOOL_MANAGED);
 
     templ.target = PIPE_TEXTURE_2D;
     templ.format = d3d9_to_pipe_format(Format);
@@ -728,7 +731,7 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     desc.Format = Format;
     desc.Type = D3DRTYPE_SURFACE;
     desc.Usage = 0;
-    desc.Pool = D3DPOOL_DEFAULT;
+    desc.Pool = Pool;
     desc.MultiSampleType = MultiSample;
     desc.MultiSampleQuality = MultisampleQuality;
     desc.Width = Width;
@@ -739,9 +742,12 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     default: break;
     }
 
-    resource = screen->resource_create(screen, &templ);
-    user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
-
+    if (Pool == D3DPOOL_DEFAULT) {
+        resource = screen->resource_create(screen, &templ);
+        user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
+    } else {
+        resource = NULL;
+    }
     hr = NineSurface9_new(This, NULL, resource, 0, 0, &desc, &surface);
     pipe_resource_reference(&resource, NULL);
 
@@ -761,7 +767,8 @@ NineDevice9_CreateRenderTarget( struct NineDevice9 *This,
                                 IDirect3DSurface9 **ppSurface,
                                 HANDLE *pSharedHandle )
 {
-    return create_zs_or_rt_surface(This, FALSE, Width, Height, Format,
+    return create_zs_or_rt_surface(This, 0, D3DPOOL_DEFAULT,
+                                   Width, Height, Format,
                                    MultiSample, MultisampleQuality,
                                    Lockable, ppSurface, pSharedHandle);
 }
@@ -777,7 +784,8 @@ NineDevice9_CreateDepthStencilSurface( struct NineDevice9 *This,
                                        IDirect3DSurface9 **ppSurface,
                                        HANDLE *pSharedHandle )
 {
-    return create_zs_or_rt_surface(This, TRUE, Width, Height, Format,
+    return create_zs_or_rt_surface(This, 1, D3DPOOL_DEFAULT,
+                                   Width, Height, Format,
                                    MultiSample, MultisampleQuality,
                                    Discard, ppSurface, pSharedHandle);
 }
@@ -1084,7 +1092,7 @@ NineDevice9_CreateOffscreenPlainSurface( struct NineDevice9 *This,
 
     /* Can be used with StretchRect and ColorFill. It's also always lockable.
      */
-    hr = create_zs_or_rt_surface(This, 2, Width, Height,
+    hr = create_zs_or_rt_surface(This, 2, Pool, Width, Height,
                                  Format,
                                  D3DMULTISAMPLE_NONE, 0,
                                  TRUE,
