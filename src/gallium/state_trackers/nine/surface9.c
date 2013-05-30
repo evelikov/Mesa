@@ -130,6 +130,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
     }
 
     This->stride = util_format_get_stride(This->base.info.format, pDesc->Width);
+    This->stride = align(This->stride, 4);
 
     if (!pResource) {
         hr = NineSurface9_AllocateData(This);
@@ -669,6 +670,7 @@ NineSurface9_SetResourceResize( struct NineSurface9 *This,
 
     This->stride = util_format_get_stride(This->base.info.format,
                                           This->desc.Width);
+    This->stride = align(This->stride, 4);
 
     if (This->surface) {
         pipe_surface_reference(&This->surface, NULL);

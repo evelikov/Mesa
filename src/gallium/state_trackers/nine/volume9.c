@@ -88,6 +88,7 @@ NineVolume9_ctor( struct NineVolume9 *This,
     This->info.flags = 0;
 
     This->stride = util_format_get_stride(This->info.format, pDesc->Width);
+    This->stride = align(This->stride, 4);
     This->layer_stride = util_format_get_2d_size(This->info.format,
                                                  This->stride, pDesc->Height);
 
