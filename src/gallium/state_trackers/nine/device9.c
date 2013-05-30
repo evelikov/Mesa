@@ -1616,6 +1616,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
     struct nine_state *dst;
     HRESULT hr;
     enum nine_stateblock_type type;
+    unsigned s;
 
     DBG("This=%p Type=%u ppSB=%p\n", This, Type, ppSB);
 
@@ -1651,6 +1652,8 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        memset(dst->changed.vs_const_f, ~0, sizeof(dst->vs_const_f));
        dst->changed.vs_const_i = 0xffff;
        dst->changed.vs_const_b = 0xffff;
+       for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
+           dst->changed.sampler[s] |= 1 << D3DSAMP_DMAPOFFSET;
     }
     if (Type == D3DSBT_ALL || Type == D3DSBT_PIXELSTATE) {
        dst->changed.group |=
@@ -1661,6 +1664,8 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        memset(dst->changed.ps_const_f, ~0, sizeof(dst->ps_const_f));
        dst->changed.ps_const_i = 0xffff;
        dst->changed.ps_const_b = 0xffff;
+       for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
+           dst->changed.sampler[s] |= 0x1ffe;
     }
     if (Type == D3DSBT_ALL) {
        dst->changed.group |=
@@ -1676,6 +1681,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        dst->changed.vtxbuf = (1ULL << This->caps.MaxStreams) - 1;
        dst->changed.stream_freq = dst->changed.vtxbuf;
        dst->changed.ucp = (1 << PIPE_MAX_CLIP_PLANES) - 1;
+       dst->changed.texture = ~0;
        memset(dst->changed.rs, ~0, sizeof(dst->changed.rs));
     }
     NineStateBlock9_Capture(NineStateBlock9(*ppSB));

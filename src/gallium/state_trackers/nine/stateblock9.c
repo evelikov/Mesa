@@ -114,7 +114,7 @@ nine_state_transfer(struct nine_state *dst,
         nine_reference(&dst->vs, src->vs);
     if (mask->changed.group & NINE_STATE_PS)
         nine_reference(&dst->ps, src->ps);
-    if (mask->changed.group & NINE_STATE_VDECL)
+    if ((mask->changed.group & NINE_STATE_VDECL) && (!apply || src->vdecl))
         nine_reference(&dst->vdecl, src->vdecl);
     if (mask->changed.group & NINE_STATE_IDXBUF)
         nine_reference(&dst->idxbuf, src->idxbuf);
