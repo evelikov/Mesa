@@ -1853,7 +1853,7 @@ NineDevice9_SetPaletteEntries( struct NineDevice9 *This,
                                UINT PaletteNumber,
                                const PALETTEENTRY *pEntries )
 {
-    STUB(D3DERR_INVALIDCALL);
+    STUB(D3D_OK); /* like wine */
 }
 
 HRESULT WINAPI
@@ -1868,7 +1868,7 @@ HRESULT WINAPI
 NineDevice9_SetCurrentTexturePalette( struct NineDevice9 *This,
                                       UINT PaletteNumber )
 {
-    STUB(D3DERR_INVALIDCALL);
+    STUB(D3D_OK); /* like wine */
 }
 
 HRESULT WINAPI
