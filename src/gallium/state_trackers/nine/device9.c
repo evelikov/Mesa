@@ -1709,7 +1709,7 @@ NineDevice9_EndStateBlock( struct NineDevice9 *This,
 
     user_assert(This->record, D3DERR_INVALIDCALL);
 
-    nine_reference(ppSB, This->record);
+    nine_reference_set(ppSB, This->record);
     nine_reference(&This->record, NULL);
 
     This->update = &This->state;
