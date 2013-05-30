@@ -112,7 +112,7 @@ nine_u_rect_to_pipe_box(struct pipe_box *dst, const struct u_rect *rect, int z)
 static INLINE void
 rect_to_pipe_box_xy_only(struct pipe_box *dst, const RECT *src)
 {
-    assert(src->left <= src->right && src->top <= src->bottom);
+    user_warn(src->left > src->right || src->top > src->bottom);
 
     dst->x = src->left;
     dst->y = src->top;
