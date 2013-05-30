@@ -134,6 +134,14 @@ static int nine_ff_ps_key_comp(void *key1, void *key2)
 
     return memcmp(a->value64, b->value64, sizeof(a->value64));
 }
+static unsigned nine_ff_fvf_key_hash(void *key)
+{
+    return *(DWORD *)key;
+}
+static int nine_ff_fvf_key_comp(void *key1, void *key2)
+{
+    return *(DWORD *)key1 == *(DWORD *)key2;
+}
 
 static void nine_ff_prune(struct NineDevice9 *device);
 
@@ -1561,7 +1569,10 @@ nine_ff_init(struct NineDevice9 *device)
     device->ff.ht_ps = util_hash_table_create(nine_ff_ps_key_hash,
                                               nine_ff_ps_key_comp);
 
-    return device->ff.ht_vs && device->ff.ht_ps;
+    device->ff.ht_fvf = util_hash_table_create(nine_ff_fvf_key_hash,
+                                               nine_ff_fvf_key_comp);
+
+    return device->ff.ht_vs && device->ff.ht_ps && device->ff.ht_fvf;
 }
 
 static enum pipe_error nine_ff_ht_delete_cb(void *key, void *value, void *data)
@@ -1580,6 +1591,10 @@ nine_ff_fini(struct NineDevice9 *device)
     if (device->ff.ht_ps) {
         util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
         util_hash_table_destroy(device->ff.ht_ps);
+    }
+    if (device->ff.ht_fvf) {
+        util_hash_table_foreach(device->ff.ht_fvf, nine_ff_ht_delete_cb, NULL);
+        util_hash_table_destroy(device->ff.ht_fvf);
     }
 }
 

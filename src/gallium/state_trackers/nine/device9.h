@@ -82,6 +82,8 @@ struct NineDevice9
         struct NinePixelShader9 *ps;
         unsigned num_vs;
         unsigned num_ps;
+
+        struct util_hash_table *ht_fvf;
     } ff;
 };
 static INLINE struct NineDevice9 *

@@ -163,7 +163,6 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
          ++This->nelems);
 
     caps = NineDevice9_GetCaps(This->device);
-    user_assert(This->nelems > 0, D3DERR_INVALIDCALL);
     user_assert(This->nelems <= caps->MaxStreams, D3DERR_INVALIDCALL);
 
     This->decls = CALLOC(This->nelems+1, sizeof(D3DVERTEXELEMENT9));

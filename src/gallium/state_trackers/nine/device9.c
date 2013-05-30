@@ -42,6 +42,7 @@
 #include "pipe/p_context.h"
 #include "util/u_math.h"
 #include "util/u_inlines.h"
+#include "util/u_hash_table.h"
 #include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
 #include "util/u_surface.h"
@@ -2251,14 +2252,16 @@ NineDevice9_SetFVF( struct NineDevice9 *This,
         return D3D_OK;
     }
 
-    /* TODO: cache FVF vdecls */
-    hr = NineVertexDeclaration9_new_from_fvf(This, FVF, &vdecl);
-    if (FAILED(hr))
-        return hr;
-    vdecl->fvf = FVF;
+    vdecl = util_hash_table_get(This->ff.ht_fvf, &FVF);
+    if (!vdecl) {
+        hr = NineVertexDeclaration9_new_from_fvf(This, FVF, &vdecl);
+        if (FAILED(hr))
+            return hr;
+        vdecl->fvf = FVF;
+        util_hash_table_set(This->ff.ht_fvf, &vdecl->fvf, vdecl);
+    }
 
-    nine_reference(&state->vdecl, NULL);
-    state->vdecl = vdecl; /* don't increase refcount */
+    nine_reference(&state->vdecl, vdecl);
     state->changed.group |= NINE_STATE_VDECL;
 
     return D3D_OK;
