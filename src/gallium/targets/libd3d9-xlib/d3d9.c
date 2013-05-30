@@ -47,7 +47,7 @@
 #include <assert.h>
 
 /* Only the header is needed. The library itself is never used */
-#include <drm/drm.h>
+#include <libdrm/drm.h>
 
 #define DRIVER_MAJOR 0
 

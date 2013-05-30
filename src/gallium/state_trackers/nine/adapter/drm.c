@@ -28,7 +28,7 @@
 
 #include "d3ddrm.h"
 
-#include <drm/drm.h>
+#include <libdrm/drm.h>
 #include <sys/ioctl.h>
 #include <sys/types.h>
 #include <sys/stat.h>
