@@ -1251,9 +1251,20 @@ NineDevice9_Clear( struct NineDevice9 *This,
     rect.x2 = This->state.viewport.Width + rect.x1;
     rect.y2 = This->state.viewport.Height + rect.y1;
 
+    if (Count) {
+        /* Maybe apps like to specify a large rect ? */
+        if (pRects[0].x1 <= rect.x1 && pRects[0].x2 >= rect.x2 &&
+            pRects[0].y1 <= rect.y1 && pRects[0].y2 >= rect.y2) {
+            DBG("First rect covers viewport.\n");
+            Count = 0;
+            pRects = NULL;
+        }
+    }
+
     if (rect.x1 >= This->state.fb.width || rect.y1 >= This->state.fb.height)
         return D3D_OK;
-    if (rect.x1 == 0 && rect.x2 >= This->state.fb.width &&
+    if (!Count &&
+        rect.x1 == 0 && rect.x2 >= This->state.fb.width &&
         rect.y1 == 0 && rect.y2 >= This->state.fb.height) {
         /* fast path, clears everything at once */
         pipe->clear(pipe, bufs, &rgba, Z, Stencil);
