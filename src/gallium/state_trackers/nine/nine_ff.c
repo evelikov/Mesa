@@ -566,9 +566,10 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 
         struct ureg_dst AL = ureg_writemask(AR, TGSI_WRITEMASK_X);
 
-        struct ureg_dst rD = r[5];
-        struct ureg_dst rA = r[6];
-        struct ureg_dst rS = r[7];
+        /* Light.*.Alpha is not used. */
+        struct ureg_dst rD = ureg_writemask(r[5], TGSI_WRITEMASK_XYZ);
+        struct ureg_dst rA = ureg_writemask(r[6], TGSI_WRITEMASK_XYZ);
+        struct ureg_dst rS = ureg_writemask(r[7], TGSI_WRITEMASK_XYZ);
 
         struct ureg_src mtlP = _XXXX(MATERIAL_CONST(4));
 
@@ -692,6 +693,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_fixup_label(ureg, label[loop_label], ureg_get_instruction_number(ureg));
         ureg_ENDLOOP(ureg, &label[loop_label]);
 
+        /* Set alpha factors of illumination to 1.0 for the multiplications. */
+        ureg_MOV(ureg, ureg_writemask(rD, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
+        ureg_MOV(ureg, ureg_writemask(rS, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
 
         /* Apply to material:
          *
@@ -701,10 +705,12 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
          * oCol[1] = material.specular * specular;
          */
         if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
+            ureg_MOV(ureg, ureg_writemask(rA, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
             ureg_MAD(ureg, tmp, ureg_src(rA), vs->mtlA, _CONST(19));
         } else {
-            ureg_ADD(ureg, tmp, ureg_src(rA), _CONST(25));
-            ureg_MAD(ureg, tmp, vs->mtlA, ureg_src(tmp), vs->mtlE);
+            ureg_ADD(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), ureg_src(rA), _CONST(25));
+            ureg_MAD(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), vs->mtlA, ureg_src(tmp), vs->mtlE);
+            ureg_ADD(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_W  ), vs->mtlA, vs->mtlE);
         }
         ureg_MAD(ureg, oCol[0], ureg_src(rD), vs->mtlD, ureg_src(tmp));
         ureg_MUL(ureg, oCol[1], ureg_src(rS), vs->mtlS);
@@ -712,11 +718,13 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     /* COLOR */
     if (key->darkness) {
         if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
-            ureg_MOV(ureg, oCol[0], _CONST(19));
+            ureg_MAD(ureg, oCol[0], vs->mtlD, ureg_imm4f(ureg, 0.0f, 0.0f, 0.0f, 1.0f), _CONST(19));
         } else {
-            ureg_MAD(ureg, oCol[0], vs->mtlA, _CONST(25), vs->mtlE);
+            ureg_MAD(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_XYZ), vs->mtlA, _CONST(25), vs->mtlE);
+            ureg_ADD(ureg, ureg_writemask(tmp,     TGSI_WRITEMASK_W), vs->mtlA, vs->mtlE);
+            ureg_ADD(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_W), vs->mtlD, _W(tmp));
         }
-        ureg_MOV(ureg, oCol[1], ureg_imm1f(ureg, 0.0f));
+        ureg_MUL(ureg, oCol[1], ureg_imm4f(ureg, 0.0f, 0.0f, 0.0f, 1.0f), vs->mtlS);
     } else {
         ureg_MOV(ureg, oCol[0], vs->aCol[0]);
         ureg_MOV(ureg, oCol[1], vs->aCol[1]);
@@ -1421,7 +1429,7 @@ nine_ff_upload_lights(struct NineDevice9 *device)
         data[0][0] = color.f[0] * mtl->Ambient.r + mtl->Emissive.r;
         data[0][1] = color.f[1] * mtl->Ambient.g + mtl->Emissive.g;
         data[0][2] = color.f[2] * mtl->Ambient.b + mtl->Emissive.b;
-        data[0][3] = color.f[3] * mtl->Ambient.a + mtl->Emissive.a;
+        data[0][3] = mtl->Ambient.a + mtl->Emissive.a;
 
         box.width = 6 * 4 * sizeof(float);
         box.x = 19 * 4 * sizeof(float);
