@@ -1644,8 +1644,9 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
 
     if (Type == D3DSBT_ALL || Type == D3DSBT_VERTEXSTATE) {
        dst->changed.group |=
-          NINE_STATE_VS | NINE_STATE_VS_CONST |
-          NINE_STATE_VDECL;
+           NINE_STATE_FF_LIGHTING |
+           NINE_STATE_VS | NINE_STATE_VS_CONST |
+           NINE_STATE_VDECL;
        /* TODO: texture/sampler state */
        memcpy(dst->changed.rs,
               nine_render_states_vertex, sizeof(dst->changed.rs));
@@ -1654,6 +1655,18 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        dst->changed.vs_const_b = 0xffff;
        for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
            dst->changed.sampler[s] |= 1 << D3DSAMP_DMAPOFFSET;
+       if (This->state.ff.num_lights) {
+           dst->ff.num_lights = This->state.ff.num_lights;
+           /* zero'd -> light type won't be NINED3DLIGHT_INVALID, so
+            * all currently existing lights will be captured
+            */
+           dst->ff.light = CALLOC(This->state.ff.num_lights,
+                                  sizeof(D3DLIGHT9));
+           if (!dst->ff.light) {
+               nine_reference(ppSB, NULL);
+               return E_OUTOFMEMORY;
+           }
+       }
     }
     if (Type == D3DSBT_ALL || Type == D3DSBT_PIXELSTATE) {
        dst->changed.group |=

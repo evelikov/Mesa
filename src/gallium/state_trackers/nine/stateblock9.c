@@ -26,6 +26,8 @@
 
 #define DBG_CHANNEL DBG_STATEBLOCK
 
+/* XXX TODO: handling of lights is broken */
+
 HRESULT
 NineStateBlock9_ctor( struct NineStateBlock9 *This,
                       struct NineUnknownParams *pParams,
