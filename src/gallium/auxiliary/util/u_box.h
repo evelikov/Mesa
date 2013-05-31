@@ -91,32 +91,86 @@ boolean u_box_contained(struct pipe_box *a, struct pipe_box *b)
 /* Clips @box to width @w and height @h.
  * Returns -1 if the resulting box would be empty (then @box is left unchanged).
  * Otherwise, returns 1/2/0/3 if width/height/neither/both have been reduced.
+ * Aliasing permitted.
  */
 static INLINE
-int u_box_clip_2d(struct pipe_box *box, int w, int h)
+int u_box_clip_2d(struct pipe_box *dst,
+                  struct pipe_box *box, int w, int h)
 {
-   int max_w = w - box->x;
-   int max_h = h - box->y;
-   int res = 0;
-   if (box->x >= w || box->y >= h)
+   int i, a[2], b[2], dim[2], res = 0;
+
+   if (!box->width || !box->height)
       return -1;
-   if (box->width  > max_w) { res |= 1; box->width  = max_w; }
-   if (box->height > max_h) { res |= 2; box->height = max_h; }
+   dim[0] = w;
+   dim[1] = h;
+   a[0] = box->x;
+   a[1] = box->y;
+   b[0] = box->x + box->width;
+   b[1] = box->y + box->height;
+
+   for (i = 0; i < 2; ++i) {
+      if (b[i] < a[i]) {
+         if (a[i] < 0 || b[i] >= dim[i])
+            return -1;
+         if (a[i] > dim[i]) { a[i] = dim[i]; res |= (1 << i); }
+         if (b[i] < 0) { b[i] = 0; res |= (1 << i); }
+      } else {
+         if (b[i] < 0 || a[i] >= dim[i])
+            return -1;
+         if (a[i] < 0) { a[i] = 0; res |= (1 << i); }
+         if (b[i] > dim[i]) { b[i] = dim[i]; res |= (1 << i); }
+      }
+   }
+
+   if (res) {
+      dst->x = a[0];
+      dst->y = a[1];
+      dst->width = b[0] - a[0];
+      dst->height = b[1] - a[1];
+   }
    return res;
 }
 
 static INLINE
-int u_box_clip_3d(struct pipe_box *box, int w, int h, int d)
+int u_box_clip_3d(struct pipe_box *dst,
+                  struct pipe_box *box, int w, int h, int d)
 {
-   int max_w = w - box->x;
-   int max_h = h - box->y;
-   int max_d = d - box->z;
-   int res = 0;
-   if (box->x >= w || box->y >= h || box->z >= d)
+   int i, a[3], b[3], dim[3], res = 0;
+
+   if (!box->width || !box->height)
       return -1;
-   if (box->width  > max_w) { res |= 1; box->width  = max_w; }
-   if (box->height > max_h) { res |= 2; box->height = max_h; }
-   if (box->depth  > max_d) { res |= 4; box->depth  = max_d; }
+   dim[0] = w;
+   dim[1] = h;
+   dim[2] = d;
+   a[0] = box->x;
+   a[1] = box->y;
+   a[2] = box->z;
+   b[0] = box->x + box->width;
+   b[1] = box->y + box->height;
+   b[2] = box->z + box->depth;
+
+   for (i = 0; i < 2; ++i) {
+      if (b[i] < a[i]) {
+         if (a[i] < 0 || b[i] >= dim[i])
+            return -1;
+         if (a[i] > dim[i]) { a[i] = dim[i]; res |= (1 << i); }
+         if (b[i] < 0) { b[i] = 0; res |= (1 << i); }
+      } else {
+         if (b[i] < 0 || a[i] >= dim[i])
+            return -1;
+         if (a[i] < 0) { a[i] = 0; res |= (1 << i); }
+         if (b[i] > dim[i]) { b[i] = dim[i]; res |= (1 << i); }
+      }
+   }
+
+   if (res) {
+      dst->x = a[0];
+      dst->y = a[1];
+      dst->z = a[2];
+      dst->width = b[0] - a[0];
+      dst->height = b[1] - a[1];
+      dst->depth = b[2] - a[2];
+   }
    return res;
 }
 

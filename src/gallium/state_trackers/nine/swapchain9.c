@@ -296,7 +296,8 @@ present( struct NineSwapChain9 *This,
             rect_to_pipe_box_xy_only(&blit.dst.box, pDestRect);
             blit.dst.box.x += rect.left;
             blit.dst.box.y += rect.top;
-            if (u_box_clip_2d(&blit.dst.box, rect.right - rect.left,
+            if (u_box_clip_2d(&blit.dst.box, &blit.dst.box,
+                              rect.right - rect.left,
                               rect.bottom - rect.top) < 0) {
                 DBG("Dest region clipped.\n");
                 return D3D_OK;
@@ -313,7 +314,8 @@ present( struct NineSwapChain9 *This,
         blit.src.box.depth = 1;
         if (pSourceRect) {
             rect_to_pipe_box_xy_only(&blit.src.box, pSourceRect);
-            u_box_clip_2d(&blit.src.box, This->buffers[0]->surface->width,
+            u_box_clip_2d(&blit.src.box, &blit.src.box,
+                          This->buffers[0]->surface->width,
                           This->buffers[0]->surface->height);
         } else {
             blit.src.box.x = 0;

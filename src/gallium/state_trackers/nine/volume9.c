@@ -275,7 +275,7 @@ NineVolume9_LockBox( struct NineVolume9 *This,
 
     if (pBox) {
         d3dbox_to_pipe_box(&box, pBox);
-        if (u_box_clip_3d(&box, This->desc.Width, This->desc.Height,
+        if (u_box_clip_3d(&box, &box, This->desc.Width, This->desc.Height,
                           This->desc.Depth) < 0) {
             DBG("Locked volume intersection empty.\n");
             return D3DERR_INVALIDCALL;

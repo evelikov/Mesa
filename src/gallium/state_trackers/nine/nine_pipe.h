@@ -143,7 +143,7 @@ rect_to_pipe_box_xy_only_clamp(struct pipe_box *dst, const RECT *src)
 static INLINE void
 rect_to_g3d_u_rect(struct u_rect *dst, const RECT *src)
 {
-    assert(src->left <= src->right && src->top <= src->bottom);
+    user_warn(src->left <= src->right && src->top <= src->bottom);
 
     dst->x0 = src->left;
     dst->x1 = src->right;
@@ -154,9 +154,9 @@ rect_to_g3d_u_rect(struct u_rect *dst, const RECT *src)
 static INLINE void
 d3dbox_to_pipe_box(struct pipe_box *dst, const D3DBOX *src)
 {
-    assert(src->Left <= src->Right);
-    assert(src->Top <= src->Bottom);
-    assert(src->Front <= src->Back);
+    user_warn(src->Left <= src->Right);
+    user_warn(src->Top <= src->Bottom);
+    user_warn(src->Front <= src->Back);
 
     dst->x = src->Left;
     dst->y = src->Top;
