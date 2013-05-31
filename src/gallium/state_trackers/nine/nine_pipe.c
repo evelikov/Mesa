@@ -163,6 +163,8 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
 {
     struct pipe_sampler_state samp;
 
+    assert(idx >= 0 && (idx <= 7 || idx >= 9) && (idx <= 12));
+
     memset(&samp, 0, sizeof(samp)); /* memcmp safety */
 
     samp.wrap_s = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSU]);
@@ -184,9 +186,11 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     samp.border_color.f[2] = ((ss[D3DSAMP_BORDERCOLOR] >> 16) & 0xff) / 255.0f;
     samp.border_color.f[3] = ((ss[D3DSAMP_BORDERCOLOR] >> 24) & 0xff) / 255.0f;
 
-    /* XXX: track shader sampler usage */
-    cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx, &samp);
-    cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
+    /* see nine_state.h */
+    if (idx < 8)
+        cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
+    else
+        cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - 9, &samp);
 }
 
 void

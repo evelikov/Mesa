@@ -83,8 +83,14 @@
 #define NINE_CONST_I_BASE_IDX  NINE_MAX_CONST_F
 #define NINE_CONST_B_BASE_IDX (NINE_MAX_CONST_F + NINE_MAX_CONST_I)
 
-#define NINE_MAX_SAMPLERS PIPE_MAX_SAMPLERS
-
+#define NINE_MAX_SAMPLERS_PS 8
+#define NINE_MAX_SAMPLERS_VS 4
+#define NINE_MAX_SAMPLERS    13 /* PS + DMAP + VS */
+#define NINE_SAMPLER_PS(s)  (0 + (s))
+#define NINE_SAMPLER_DMAP    8
+#define NINE_SAMPLER_VS(s)  (9 + (s))
+#define NINE_PS_SAMPLERS_MASK 0x00ff
+#define NINE_VS_SAMPLERS_MASK 0x1e00
 
 struct nine_state
 {
@@ -93,7 +99,7 @@ struct nine_state
         uint32_t rs[(NINED3DRS_LAST + 1 + 31) / 32];
         uint32_t vtxbuf;
         uint32_t stream_freq;
-        uint16_t texture; /* NINE_MAX_SAMPLERS == 16 */
+        uint16_t texture; /* NINE_MAX_SAMPLERS == 13 */
         uint16_t sampler[NINE_MAX_SAMPLERS];
         uint32_t vs_const_f[(NINE_MAX_CONST_F + 31) / 32]; /* ref: 224 in PS */
         uint32_t ps_const_f[(NINE_MAX_CONST_F + 31) / 32];
@@ -128,7 +134,7 @@ struct nine_state
         void *rast;
         void *dsa;
         void *blend;
-        void *samp[PIPE_MAX_SAMPLERS];
+        void *samp[NINE_MAX_SAMPLERS];
     } cso;
 
     struct NineVertexDeclaration9 *vdecl;
@@ -145,7 +151,7 @@ struct nine_state
 
     DWORD rs[NINED3DRS_LAST + 1];
 
-    struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS];
+    struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS]; /* PS, DMAP, VS */
 
     DWORD samp[NINE_MAX_SAMPLERS][NINED3DSAMP_LAST + 1];
 

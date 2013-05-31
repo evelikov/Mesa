@@ -370,32 +370,49 @@ update_textures_and_samplers(struct NineDevice9 *device)
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
     struct pipe_sampler_view *view[NINE_MAX_SAMPLERS];
-    unsigned num_textures = 0;
+    unsigned num_textures;
     unsigned i;
 
     /* TODO: Can we reduce iterations here ? */
-    for (i = 0; i < NINE_MAX_SAMPLERS; ++i) {
-        if (!state->texture[i])
+
+    for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_PS; ++i) {
+        const unsigned s = NINE_SAMPLER_PS(i);
+        if (!state->texture[s])
             continue;
-        view[i] = NineBaseTexture9_GetSamplerView(state->texture[i]);
+        view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
 
         num_textures = i + 1;
 
-        if (state->changed.sampler[i]) {
-            state->changed.sampler[i] = 0;
-            nine_convert_sampler_state(device->cso, i, state->samp[i]);
+        if (state->changed.sampler[s]) {
+            state->changed.sampler[s] = 0;
+            nine_convert_sampler_state(device->cso, s, state->samp[s]);
         }
     }
+    if (state->changed.texture & NINE_PS_SAMPLERS_MASK)
+        pipe->set_fragment_sampler_views(pipe, num_textures, view);
+
+    for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_VS; ++i) {
+        const unsigned s = NINE_SAMPLER_VS(i);
+        if (!state->texture[s])
+            continue;
+        view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
+
+        num_textures = i + 1;
+
+        if (state->changed.sampler[s]) {
+            state->changed.sampler[s] = 0;
+            nine_convert_sampler_state(device->cso, s, state->samp[s]);
+        }
+    }
+    if (state->changed.texture & NINE_VS_SAMPLERS_MASK)
+        pipe->set_vertex_sampler_views(pipe, num_textures, view);
+
     if (state->changed.group & NINE_STATE_SAMPLER) {
         cso_single_sampler_done(device->cso, PIPE_SHADER_VERTEX);
         cso_single_sampler_done(device->cso, PIPE_SHADER_FRAGMENT);
     }
 
-    if (state->changed.texture) {
-        state->changed.texture = 0;
-        pipe->set_fragment_sampler_views(pipe, num_textures, view);
-        pipe->set_vertex_sampler_views(pipe, num_textures, view);
-    }
+    state->changed.texture = 0;
 }
 
 #define NINE_STATE_FREQ_GROUP_0 \

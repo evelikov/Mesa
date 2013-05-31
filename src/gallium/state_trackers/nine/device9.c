@@ -1681,7 +1681,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        dst->changed.vtxbuf = (1ULL << This->caps.MaxStreams) - 1;
        dst->changed.stream_freq = dst->changed.vtxbuf;
        dst->changed.ucp = (1 << PIPE_MAX_CLIP_PLANES) - 1;
-       dst->changed.texture = ~0;
+       dst->changed.texture = (1 << NINE_MAX_SAMPLERS) - 1;
        memset(dst->changed.rs, ~0, sizeof(dst->changed.rs));
     }
     NineStateBlock9_Capture(NineStateBlock9(*ppSB));
@@ -1743,8 +1743,14 @@ NineDevice9_GetTexture( struct NineDevice9 *This,
                         IDirect3DBaseTexture9 **ppTexture )
 {
     NINESTATEPOINTER_GET(This);
-    user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+    user_assert(Stage < This->caps.MaxSimultaneousTextures ||
+                Stage == D3DDMAPSAMPLER ||
+                (Stage >= D3DVERTEXTEXTURESAMPLER0 &&
+                 Stage <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
     user_assert(ppTexture, D3DERR_INVALIDCALL);
+
+    if (Stage >= D3DDMAPSAMPLER)
+        Stage = Stage - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
     *ppTexture = (IDirect3DBaseTexture9 *)state->texture[Stage];
 
@@ -1762,7 +1768,13 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
 
     DBG("This=%p Stage=%u pTexture=%p\n", This, Stage, pTexture);
 
-    user_assert(Stage < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+    user_assert(Stage < This->caps.MaxSimultaneousTextures ||
+                Stage == D3DDMAPSAMPLER ||
+                (Stage >= D3DVERTEXTEXTURESAMPLER0 &&
+                 Stage <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
+
+    if (Stage >= D3DDMAPSAMPLER)
+        Stage = Stage - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
     if (!This->record) {
         if (state->texture[Stage] == NineBaseTexture9(pTexture))
@@ -1824,7 +1836,15 @@ NineDevice9_GetSamplerState( struct NineDevice9 *This,
                              DWORD *pValue )
 {
     NINESTATEPOINTER_GET(This);
-    user_assert(Sampler < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+
+    user_assert(Sampler < This->caps.MaxSimultaneousTextures ||
+                Sampler == D3DDMAPSAMPLER ||
+                (Sampler >= D3DVERTEXTEXTURESAMPLER0 &&
+                 Sampler <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
+
+    if (Sampler >= D3DDMAPSAMPLER)
+        Sampler = Sampler - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
+
     *pValue = state->samp[Sampler][Type];
     return D3D_OK;
 }
@@ -1839,7 +1859,13 @@ NineDevice9_SetSamplerState( struct NineDevice9 *This,
 
     DBG("This=%p Sampler=%u Type=%u Value=%08x\n", This, Sampler, Type, Value);
 
-    user_assert(Sampler < This->caps.MaxSimultaneousTextures, D3DERR_INVALIDCALL);
+    user_assert(Sampler < This->caps.MaxSimultaneousTextures ||
+                Sampler == D3DDMAPSAMPLER ||
+                (Sampler >= D3DVERTEXTEXTURESAMPLER0 &&
+                 Sampler <= D3DVERTEXTEXTURESAMPLER3), D3DERR_INVALIDCALL);
+
+    if (Sampler >= D3DDMAPSAMPLER)
+        Sampler = Sampler - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
     state->samp[Sampler][Type] = Value;
     state->changed.group |= NINE_STATE_SAMPLER;
