@@ -51,7 +51,9 @@ struct nine_ff_vs_key
             uint32_t mtl_emissive : 2;
             uint32_t fog_mode : 2;
             uint32_t fog_range : 1;
-            uint32_t pad1 : 11;
+            uint32_t color0in_one : 1;
+            uint32_t color1in_one : 1;
+            uint32_t pad1 : 9;
             uint32_t tc_gen   : 24; /* 8 * 3 */
             uint32_t pad2 : 8;
             uint32_t tc_idx : 24;
@@ -324,12 +326,15 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     if (need_rNrm)
         vs->aNrm = build_vs_add_input(vs, NINE_DECLUSAGE_NORMAL(0));
 
+    vs->aCol[0] = ureg_imm1f(ureg, 1.0f);
+    vs->aCol[1] = ureg_imm1f(ureg, 1.0f);
+
     if (key->lighting || key->darkness) {
         const unsigned mask = key->mtl_diffuse | key->mtl_specular |
                               key->mtl_ambient | key->mtl_emissive;
-        if (mask & 0x1)
+        if ((mask & 0x1) && !key->color0in_one)
             vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
-        if (mask & 0x2)
+        if ((mask & 0x2) && !key->color1in_one)
             vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
 
         vs->mtlD = MATERIAL_CONST(1);
@@ -345,8 +350,8 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         if (key->mtl_emissive == 1) vs->mtlE = vs->aCol[0]; else
         if (key->mtl_emissive == 2) vs->mtlE = vs->aCol[1];
     } else {
-        vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
-        vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
+        if (!key->color0in_one) vs->aCol[0] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(0));
+        if (!key->color1in_one) vs->aCol[1] = build_vs_add_input(vs, NINE_DECLUSAGE_COLOR(1));
     }
 
     if (key->vertexpointsize)
@@ -1207,9 +1212,14 @@ nine_ff_get_vs(struct NineDevice9 *device)
     bld.key = &key;
 
     /* FIXME: this shouldn't be NULL, but it is on init */
-    if (state->vdecl &&
-        state->vdecl->usage_map[NINE_DECLUSAGE_POSITIONT] != 0xff)
-        key.position_t = 1;
+    if (state->vdecl) {
+        if (state->vdecl->usage_map[NINE_DECLUSAGE_POSITIONT] != 0xff)
+            key.position_t = 1;
+        if (state->vdecl->usage_map[NINE_DECLUSAGE_COLOR(0)] == 0xff)
+            key.color0in_one = 1;
+        if (state->vdecl->usage_map[NINE_DECLUSAGE_COLOR(1)] == 0xff)
+            key.color1in_one = 1;
+    }
 
     if (state->vdecl &&
         state->vdecl->usage_map[NINE_DECLUSAGE_PSIZE] != 0xff)
