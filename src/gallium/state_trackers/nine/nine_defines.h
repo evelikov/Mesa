@@ -49,4 +49,6 @@ unsigned nine_d3d9_to_nine_declusage(unsigned usage, unsigned index);
 #define NINE_DECLUSAGE_LAST          NINE_DECLUSAGE_NONE
 #define NINE_DECLUSAGE_COUNT        (NINE_DECLUSAGE_LAST + 1)
 
+#define NINED3DCLEAR_DEPTHSTENCIL   (D3DCLEAR_ZBUFFER | D3DCLEAR_STENCIL)
+
 #endif /* _NINE_DEFINES_H_ */
