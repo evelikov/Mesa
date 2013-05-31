@@ -40,7 +40,7 @@ struct NinePixelShader9
 
     struct nine_lconstf lconstf;
 
-    uint64_t ff_key[5];
+    uint64_t ff_key[6];
 };
 static INLINE struct NinePixelShader9 *
 NinePixelShader9( void *data )
