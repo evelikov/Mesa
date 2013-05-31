@@ -2476,6 +2476,9 @@ NineDevice9_SetVertexShaderConstantF( struct NineDevice9 *This,
     unsigned i;
     unsigned c;
 
+    DBG("This=%p StartRegister=%u pConstantData=%p Vector4fCount=%u\n",
+        This, StartRegister, pConstantData, Vector4fCount);
+
     user_assert(StartRegister                  < This->caps.MaxVertexShaderConst, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4fCount <= This->caps.MaxVertexShaderConst, D3DERR_INVALIDCALL);
 
@@ -2531,6 +2534,10 @@ NineDevice9_SetVertexShaderConstantI( struct NineDevice9 *This,
                                       UINT Vector4iCount )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p StartRegister=%u pConstantData=%p Vector4iCount=%u\n",
+        This, StartRegister, pConstantData, Vector4iCount);
+
     user_assert(StartRegister                  < NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4iCount <= NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -2570,6 +2577,10 @@ NineDevice9_SetVertexShaderConstantB( struct NineDevice9 *This,
                                       UINT BoolCount )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p StartRegister=%u pConstantData=%p BoolCount=%u\n",
+        This, StartRegister, pConstantData, BoolCount);
+
     user_assert(StartRegister              < NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(StartRegister + BoolCount <= NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -2768,6 +2779,9 @@ NineDevice9_SetPixelShaderConstantF( struct NineDevice9 *This,
     unsigned i;
     unsigned c;
 
+    DBG("This=%p StartRegister=%u pConstantData=%p Vector4fCount=%u\n",
+        This, StartRegister, pConstantData, Vector4fCount);
+
     user_assert(StartRegister                  < NINE_MAX_CONST_F, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4fCount <= NINE_MAX_CONST_F, D3DERR_INVALIDCALL);
 
@@ -2823,6 +2837,10 @@ NineDevice9_SetPixelShaderConstantI( struct NineDevice9 *This,
                                      UINT Vector4iCount )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p StartRegister=%u pConstantData=%p Vector4iCount=%u\n",
+        This, StartRegister, pConstantData, Vector4iCount);
+
     user_assert(StartRegister                  < NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4iCount <= NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -2862,6 +2880,10 @@ NineDevice9_SetPixelShaderConstantB( struct NineDevice9 *This,
                                      UINT BoolCount )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("This=%p StartRegister=%u pConstantData=%p BoolCount=%u\n",
+        This, StartRegister, pConstantData, BoolCount);
+
     user_assert(StartRegister              < NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(StartRegister + BoolCount <= NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
