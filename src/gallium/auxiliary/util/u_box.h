@@ -179,6 +179,30 @@ void u_box_cover(struct pipe_box *dst,
 }
 
 static INLINE
+boolean u_box_test_intersection_xy_only(const struct pipe_box *a,
+                                        const struct pipe_box *b)
+{
+   int i;
+   unsigned a_l[2], a_r[2], b_l[2], b_r[2];
+
+   a_l[0] = MIN2(a->x, a->x + a->width);
+   a_r[0] = MAX2(a->x, a->x + a->width);
+   a_l[1] = MIN2(a->y, a->y + a->height);
+   a_r[1] = MAX2(a->y, a->y + a->height);
+
+   b_l[0] = MIN2(b->x, b->x + b->width);
+   b_r[0] = MAX2(b->x, b->x + b->width);
+   b_l[1] = MIN2(b->y, b->y + b->height);
+   b_r[1] = MAX2(b->y, b->y + b->height);
+
+   for (i = 0; i < 2; ++i) {
+      if (a_l[i] > b_r[i] || a_r[i] < b_l[i])
+         return FALSE;
+   }
+   return TRUE;
+}
+
+static INLINE
 void u_box_minify(struct pipe_box *dst,
                   const struct pipe_box *src, unsigned l)
 {
