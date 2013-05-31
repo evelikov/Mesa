@@ -552,7 +552,8 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
                     pSourceRect->top >= 0 &&
                     pSourceRect->bottom <= From->desc.Height,
                     D3DERR_INVALIDCALL);
-        rect_to_pipe_box_xy_only(&src_box, pSourceRect);
+        if (rect_to_pipe_box_xy_only_clamp(&src_box, pSourceRect))
+            return D3D_OK;
     } else {
         src_box.x = 0;
         src_box.y = 0;

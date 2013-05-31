@@ -940,6 +940,7 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
     struct pipe_resource *src_res = NineSurface9_GetResource(src);
     const boolean zs = util_format_is_depth_or_stencil(dst_res->format);
     struct pipe_blit_info blit;
+    boolean scaled;
 
     DBG("This=%p pSourceSurface=%p pSourceRect=%p pDestSurface=%p "
         "pDestRect=%p Filter=%u\n",
@@ -963,11 +964,7 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
                  pDestRect->top == 0 &&
                  pDestRect->right == dst->desc.Width &&
                  pDestRect->bottom == dst->desc.Height), D3DERR_INVALIDCALL);
-    user_assert(screen->is_format_supported(screen, dst_res->format,
-                                            dst_res->target,
-                                            dst_res->nr_samples,
-                                            zs ? PIPE_BIND_DEPTH_STENCIL :
-                                            PIPE_BIND_RENDER_TARGET),
+    user_assert(!zs || dst->desc.Format == src->desc.Format,
                 D3DERR_INVALIDCALL);
     user_assert(screen->is_format_supported(screen, src_res->format,
                                             src_res->target,
@@ -1008,7 +1005,39 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
        PIPE_TEX_FILTER_LINEAR : PIPE_TEX_FILTER_NEAREST;
     blit.scissor_enable = FALSE;
 
-    pipe->blit(pipe, &blit);
+    scaled =
+        blit.dst.box.width != blit.src.box.width ||
+        blit.dst.box.height != blit.src.box.height;
+
+    user_assert(!scaled || dst != src, D3DERR_INVALIDCALL);
+    user_assert(!scaled ||
+                !NineSurface9_IsOffscreenPlain(dst) ||
+                NineSurface9_IsOffscreenPlain(src), D3DERR_INVALIDCALL);
+    user_assert(!scaled ||
+                (!util_format_is_compressed(dst->base.info.format) &&
+                 !util_format_is_compressed(src->base.info.format)),
+                D3DERR_INVALIDCALL);
+
+    user_warn(src == dst &&
+              u_box_test_intersection_xy_only(&blit.src.box, &blit.dst.box));
+
+    if (scaled || (blit.dst.format != blit.src.format)) {
+        /* TODO: software scaling */
+        user_assert(screen->is_format_supported(screen, dst_res->format,
+                                                dst_res->target,
+                                                dst_res->nr_samples,
+                                                zs ? PIPE_BIND_DEPTH_STENCIL :
+                                                PIPE_BIND_RENDER_TARGET),
+                    D3DERR_INVALIDCALL);
+
+        pipe->blit(pipe, &blit);
+    } else {
+        pipe->resource_copy_region(pipe,
+            blit.dst.resource, blit.dst.level,
+            blit.dst.box.x, blit.dst.box.y, blit.dst.box.z,
+            blit.src.resource, blit.src.level,
+            &blit.src.box);
+    }
 
     return D3D_OK;
 }

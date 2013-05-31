@@ -68,7 +68,7 @@ static INLINE unsigned d3dlock_to_pipe_transfer_usage(DWORD Flags)
 }
 
 static INLINE void
-rect_to_pipe_box_clamp(struct pipe_box *dst, const RECT *src)
+rect_to_pipe_box(struct pipe_box *dst, const RECT *src)
 {
     dst->x = src->left;
     dst->y = src->top;
@@ -76,26 +76,32 @@ rect_to_pipe_box_clamp(struct pipe_box *dst, const RECT *src)
     dst->width = src->right - src->left;
     dst->height = src->bottom - src->top;
     dst->depth = 1;
-
-    if (dst->width <= 0 || dst->height <= 0)
-        DBG_FLAG(DBG_UNKNOWN, "Warning: NULL box");
-
-    dst->width = MAX2(dst->width, 0);
-    dst->height = MAX2(dst->height, 0);
 }
 
-static INLINE void
+static INLINE boolean
+rect_to_pipe_box_clamp(struct pipe_box *dst, const RECT *src)
+{
+    rect_to_pipe_box(dst, src);
+
+    if (dst->width <= 0 || dst->height <= 0) {
+        DBG_FLAG(DBG_UNKNOWN, "Warning: NULL box");
+        dst->width = MAX2(dst->width, 0);
+        dst->height = MAX2(dst->height, 0);
+        return TRUE;
+    }
+    return FALSE;
+}
+
+static INLINE boolean
 rect_to_pipe_box_flip(struct pipe_box *dst, const RECT *src)
 {
-    dst->x = MIN2(src->left, src->right);
-    dst->y = MIN2(src->top, src->bottom);
-    dst->z = 0;
-    dst->width = src->right - src->left;
-    dst->height = src->bottom - src->top;
-    dst->depth = 1;
+    rect_to_pipe_box(dst, src);
 
+    if (dst->width >= 0 && dst->height >= 0)
+        return FALSE;
     if (dst->width < 0) dst->width = -dst->width;
     if (dst->height < 0) dst->height = -dst->height;
+    return TRUE;
 }
 
 static INLINE void
@@ -118,6 +124,20 @@ rect_to_pipe_box_xy_only(struct pipe_box *dst, const RECT *src)
     dst->y = src->top;
     dst->width = src->right - src->left;
     dst->height = src->bottom - src->top;
+}
+
+static INLINE boolean
+rect_to_pipe_box_xy_only_clamp(struct pipe_box *dst, const RECT *src)
+{
+    rect_to_pipe_box_xy_only(dst, src);
+
+    if (dst->width <= 0 || dst->height <= 0) {
+        DBG_FLAG(DBG_UNKNOWN, "Warning: NULL box");
+        dst->width = MAX2(dst->width, 0);
+        dst->height = MAX2(dst->height, 0);
+        return TRUE;
+    }
+    return FALSE;
 }
 
 static INLINE void

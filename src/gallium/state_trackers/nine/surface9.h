@@ -133,6 +133,12 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
                           const POINT *pDestPoint,
                           const RECT *pSourceRect );
 
+static INLINE boolean
+NineSurface9_IsOffscreenPlain (struct NineSurface9 *This )
+{
+    return This->base.usage == 0 && This->base.type == D3DRTYPE_SURFACE;
+}
+
 /*** Direct3D public ***/
 
 HRESULT WINAPI
