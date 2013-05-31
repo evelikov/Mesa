@@ -738,8 +738,8 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
         (DWORD)screen->get_param(screen, PIPE_CAP_BLEND_EQUATION_SEPARATE);
     pCaps->MaxSimultaneousTextures = screen->get_shader_param(screen,
         PIPE_SHADER_FRAGMENT, PIPE_SHADER_CAP_MAX_TEXTURE_SAMPLERS);
-    if (pCaps->MaxSimultaneousTextures > NINE_MAX_SAMPLERS)
-        pCaps->MaxSimultaneousTextures = NINE_MAX_SAMPLERS;
+    if (pCaps->MaxSimultaneousTextures > NINE_MAX_SAMPLERS_PS)
+        pCaps->MaxSimultaneousTextures = NINE_MAX_SAMPLERS_PS;
 
     pCaps->VertexProcessingCaps = D3DVTXPCAPS_TEXGEN |
                                   /*D3DVTXPCAPS_TEXGEN_SPHEREMAP |*/
