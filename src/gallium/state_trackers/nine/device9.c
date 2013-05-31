@@ -1083,8 +1083,10 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
 {
     struct pipe_context *pipe = This->pipe;
     struct NineSurface9 *surf = NineSurface9(pSurface);
+    struct pipe_surface *psurf;
     unsigned x, y, w, h;
     union pipe_color_union rgba;
+    boolean fallback;
 
     DBG("This=%p pSurface=%p pRect=%p color=%08x\n", This,
         pSurface, pRect, color);
@@ -1106,17 +1108,24 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
     } else{
         x = 0;
         y = 0;
-        w = surf->surface->width;
-        h = surf->surface->height;
+        w = surf->desc.Width;
+        h = surf->desc.Height;
     }
     d3dcolor_to_pipe_color_union(&rgba, color);
 
-    if (This->screen->is_format_supported(This->screen, surf->base.info.format,
-                                          surf->base.info.target,
-                                          surf->base.info.nr_samples,
-                                          PIPE_BIND_RENDER_TARGET)) {
-        pipe->clear_render_target(pipe, NineSurface9_GetSurface(surf), &rgba,
-                                  x, y, w, h);
+    fallback =
+        !This->screen->is_format_supported(This->screen, surf->base.info.format,
+                                           surf->base.info.target,
+                                           surf->base.info.nr_samples,
+                                           PIPE_BIND_RENDER_TARGET);
+    if (!fallback) {
+        psurf = NineSurface9_GetSurface(surf);
+        if (!psurf)
+            fallback = TRUE;
+    }
+
+    if (!fallback) {
+        pipe->clear_render_target(pipe, psurf, &rgba, x, y, w, h);
     } else {
         D3DLOCKED_RECT lock;
         union util_color uc;
