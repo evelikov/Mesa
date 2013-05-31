@@ -23,6 +23,10 @@
 #ifndef _NINE_DEVICE9_H_
 #define _NINE_DEVICE9_H_
 
+#ifndef DEBUG
+# error DO NOT BUILD WITHOUT --enable-debug
+#endif
+
 #include "iunknown.h"
 #include "adapter9.h"
 
