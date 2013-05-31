@@ -1146,11 +1146,13 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
             ureg_SUB(ureg, rFog, _XXXX(_CONST(22)), _ZZZZ(vPos));
             ureg_MUL(ureg, ureg_saturate(rFog), _X(rFog), _YYYY(_CONST(22)));
         }
-        ureg_LRP(ureg, oCol, _X(rFog), ps.rCurSrc, _CONST(21));
+        ureg_LRP(ureg, ureg_writemask(oCol, TGSI_WRITEMASK_XYZ), _X(rFog), ps.rCurSrc, _CONST(21));
+        ureg_MOV(ureg, ureg_writemask(oCol, TGSI_WRITEMASK_W), ps.rCurSrc);
     } else
     if (key->fog) {
         struct ureg_src vFog = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_FOG, 0, TGSI_INTERPOLATE_PERSPECTIVE);
-        ureg_LRP(ureg, oCol, _XXXX(vFog), ps.rCurSrc, _CONST(21));
+        ureg_LRP(ureg, ureg_writemask(oCol, TGSI_WRITEMASK_XYZ), _XXXX(vFog), ps.rCurSrc, _CONST(21));
+        ureg_MOV(ureg, ureg_writemask(oCol, TGSI_WRITEMASK_W), ps.rCurSrc);
     } else {
         ureg_MOV(ureg, oCol, ps.rCurSrc);
     }
@@ -1498,6 +1500,9 @@ nine_ff_upload_point_and_fog_params(struct NineDevice9 *device)
 
     pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
                                 data, 0, 0);
+
+    DBG("VS Fog: end=%f 1/(end-start)=%f density=%f\n",
+        data[8],data[9],data[10]);
 }
 
 static void
@@ -1533,7 +1538,7 @@ nine_ff_upload_ps_params(struct NineDevice9 *device)
     float data[12][4];
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
 
-    if (!(state->changed.group & NINE_STATE_FF_PSSTAGES))
+    if (!(state->changed.group & (NINE_STATE_FF_PSSTAGES | NINE_STATE_FF_OTHER)))
         return;
 
     u_box_1d(0, 8 * 4 * sizeof(float), &box);
@@ -1566,6 +1571,10 @@ nine_ff_upload_ps_params(struct NineDevice9 *device)
     box.x = 20 * 4 * sizeof(float);
     pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
                                 data, 0, 0);
+
+    DBG("PS Fog: color=(%f %f %f %f) end=%f 1/(end-start)=%f density=%f\n",
+        data[1][0],data[1][1],data[1][2],data[1][3],
+        data[2][0],data[2][1],data[2][2]);
 }
 
 void
@@ -1586,14 +1595,13 @@ nine_ff_update(struct NineDevice9 *device)
         nine_ff_upload_point_and_fog_params(device);
 
         memset(state->ff.changed.transform, 0, sizeof(state->ff.changed.transform));
-        state->changed.group &= ~NINE_STATE_FF_VS;
     }
 
     if (!device->state.ps) {
         nine_ff_upload_ps_params(device);
-        state->changed.group &= ~NINE_STATE_FF_PS; /* XXX: shared state ? */
     }
 
+    device->state.changed.group &= ~NINE_STATE_FF;
     device->state.changed.group |= NINE_STATE_VS | NINE_STATE_PS;
 }
 
