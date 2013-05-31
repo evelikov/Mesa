@@ -50,7 +50,8 @@ struct nine_ff_vs_key
             uint32_t mtl_specular : 2;
             uint32_t mtl_emissive : 2;
             uint32_t fog_mode : 2;
-            uint32_t pad1 : 12;
+            uint32_t fog_range : 1;
+            uint32_t pad1 : 11;
             uint32_t tc_gen   : 24; /* 8 * 3 */
             uint32_t pad2 : 8;
             uint32_t tc_idx : 24;
@@ -93,7 +94,7 @@ struct nine_ff_ps_key
                 uint32_t projected : 1;
                 /* that's 32 bit exactly */
             } ts[8];
-            uint32_t fog      : 1;
+            uint32_t fog : 1; /* for vFog with programmable VS */
             uint32_t fog_mode : 2;
             uint32_t specular : 1; /* 9 32-bit words with this */
             uint8_t colorarg_b4[3];
@@ -208,6 +209,7 @@ static void nine_ureg_tgsi_dump(struct ureg_program *ureg)
  * CONST[28].x___ RS.FogEnd
  * CONST[28]._y__ 1.0f / (RS.FogEnd - RS.FogStart)
  * CONST[28].__z_ RS.FogDensity
+ * CONST[29]      RS.FogColor
  *
  * CONST[32].x___ LIGHT[0].Type
  * CONST[32]._yzw LIGHT[0].Attenuation0,1,2
@@ -283,10 +285,11 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     const struct nine_ff_vs_key *key = vs->key;
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_VERTEX);
     struct ureg_dst oPos, oCol[2], oTex[8], oPsz, oFog;
+    struct ureg_dst rCol[2]; /* oCol if no fog, TEMP otherwise */
     struct ureg_dst rVtx, rNrm;
     struct ureg_dst r[8];
     struct ureg_dst AR;
-    struct ureg_dst tmp, tmp_x;
+    struct ureg_dst tmp, tmp_x, tmp_z;
     unsigned i;
     unsigned label[32], l = 0;
     unsigned num_r = 8;
@@ -365,6 +368,8 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         oPsz = ureg_writemask(oPsz, TGSI_WRITEMASK_X);
     }
     if (key->fog_mode) {
+        /* We apply fog to the vertex colors, oFog is for programmable shaders only ?
+         */
         oFog = ureg_DECL_output_masked(ureg, TGSI_SEMANTIC_FOG, 0, TGSI_WRITEMASK_X);
         oFog = ureg_writemask(oFog, TGSI_WRITEMASK_X);
     }
@@ -375,8 +380,17 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         r[i] = ureg_DECL_local_temporary(ureg);
     tmp = r[0];
     tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
+    tmp_z = ureg_writemask(tmp, TGSI_WRITEMASK_Z);
     if (key->lighting || key->vertexblend)
         AR = ureg_DECL_address(ureg);
+
+    if (key->fog_mode) {
+        rCol[0] = r[2];
+        rCol[1] = r[3];
+    } else {
+        rCol[0] = oCol[0];
+        rCol[1] = oCol[1];
+    }
 
     rVtx = ureg_writemask(r[1], TGSI_WRITEMASK_XYZ);
     rNrm = ureg_writemask(r[2], TGSI_WRITEMASK_XYZ);
@@ -460,26 +474,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_CLAMP(ureg, oPsz, _X(tmp), _XXXX(cPsz1), _YYYY(cPsz1));
     }
 
-    /* === Process fog.
-     *
-     * exp(x) = ex2(log2(e) * x)
-     */
-    if (key->fog_mode == D3DFOG_EXP) {
-        ureg_MUL(ureg, tmp_x, ureg_abs(_Z(rVtx)), _ZZZZ(_CONST(28)));
-        ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
-        ureg_EX2(ureg, oFog, _X(tmp));
-    } else
-    if (key->fog_mode == D3DFOG_EXP2) {
-        ureg_MUL(ureg, tmp_x, _Z(rVtx), _ZZZZ(_CONST(28)));
-        ureg_MUL(ureg, tmp_x, _X(tmp), _X(tmp));
-        ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
-        ureg_EX2(ureg, oFog, _X(tmp));
-    } else
-    if (key->fog_mode == D3DFOG_LINEAR) {
-        ureg_SUB(ureg, tmp_x, _XXXX(_CONST(28)), ureg_abs(_Z(rVtx)));
-        ureg_MUL(ureg, ureg_saturate(oFog), _X(tmp), _YYYY(_CONST(28)));
-    }
-
     /* Texture coordinate generation:
      * XXX: D3DTTFF_PROJECTED, transform matrix
      */
@@ -556,7 +550,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
      */
     if (key->lighting) {
         struct ureg_dst tmp_y = ureg_writemask(tmp, TGSI_WRITEMASK_Y);
-        struct ureg_dst tmp_z = ureg_writemask(tmp, TGSI_WRITEMASK_Z);
 
         struct ureg_dst rAtt = ureg_writemask(r[1], TGSI_WRITEMASK_W);
         struct ureg_dst rHit = ureg_writemask(r[3], TGSI_WRITEMASK_XYZ);
@@ -712,24 +705,60 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             ureg_MAD(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), vs->mtlA, ureg_src(tmp), vs->mtlE);
             ureg_ADD(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_W  ), vs->mtlA, vs->mtlE);
         }
-        ureg_MAD(ureg, oCol[0], ureg_src(rD), vs->mtlD, ureg_src(tmp));
-        ureg_MUL(ureg, oCol[1], ureg_src(rS), vs->mtlS);
+        ureg_MAD(ureg, rCol[0], ureg_src(rD), vs->mtlD, ureg_src(tmp));
+        ureg_MUL(ureg, rCol[1], ureg_src(rS), vs->mtlS);
     } else
     /* COLOR */
     if (key->darkness) {
         if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
-            ureg_MAD(ureg, oCol[0], vs->mtlD, ureg_imm4f(ureg, 0.0f, 0.0f, 0.0f, 1.0f), _CONST(19));
+            ureg_MAD(ureg, rCol[0], vs->mtlD, ureg_imm4f(ureg, 0.0f, 0.0f, 0.0f, 1.0f), _CONST(19));
         } else {
-            ureg_MAD(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_XYZ), vs->mtlA, _CONST(25), vs->mtlE);
+            ureg_MAD(ureg, ureg_writemask(rCol[0], TGSI_WRITEMASK_XYZ), vs->mtlA, _CONST(25), vs->mtlE);
             ureg_ADD(ureg, ureg_writemask(tmp,     TGSI_WRITEMASK_W), vs->mtlA, vs->mtlE);
-            ureg_ADD(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_W), vs->mtlD, _W(tmp));
+            ureg_ADD(ureg, ureg_writemask(rCol[0], TGSI_WRITEMASK_W), vs->mtlD, _W(tmp));
         }
-        ureg_MUL(ureg, oCol[1], ureg_imm4f(ureg, 0.0f, 0.0f, 0.0f, 1.0f), vs->mtlS);
+        ureg_MUL(ureg, rCol[1], ureg_imm4f(ureg, 0.0f, 0.0f, 0.0f, 1.0f), vs->mtlS);
     } else {
-        ureg_MOV(ureg, oCol[0], vs->aCol[0]);
-        ureg_MOV(ureg, oCol[1], vs->aCol[1]);
+        ureg_MOV(ureg, rCol[0], vs->aCol[0]);
+        ureg_MOV(ureg, rCol[1], vs->aCol[1]);
     }
     /* clamp_vertex_color: done by hardware */
+
+    /* === Process fog.
+     *
+     * exp(x) = ex2(log2(e) * x)
+     */
+    if (key->fog_mode) {
+        /* Fog doesn't affect alpha, TODO: combine with light code output */
+        ureg_MOV(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_W), _W(rCol[0]));
+        ureg_MOV(ureg, ureg_writemask(oCol[1], TGSI_WRITEMASK_W), _W(rCol[1]));
+
+        if (key->fog_range) {
+            ureg_DP3(ureg, tmp_x, ureg_src(rVtx), ureg_src(rVtx));
+            ureg_RSQ(ureg, tmp_z, _X(tmp));
+            ureg_MUL(ureg, tmp_z, _Z(tmp), _X(tmp));
+        } else {
+            ureg_MOV(ureg, tmp_z, ureg_abs(_Z(rVtx)));
+        }
+        if (key->fog_mode == D3DFOG_EXP) {
+            ureg_MUL(ureg, tmp_x, _Z(tmp), _ZZZZ(_CONST(28)));
+            ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
+            ureg_EX2(ureg, tmp_x, _X(tmp));
+        } else
+        if (key->fog_mode == D3DFOG_EXP2) {
+            ureg_MUL(ureg, tmp_x, _Z(tmp), _ZZZZ(_CONST(28)));
+            ureg_MUL(ureg, tmp_x, _X(tmp), _X(tmp));
+            ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
+            ureg_EX2(ureg, tmp_x, _X(tmp));
+        } else
+        if (key->fog_mode == D3DFOG_LINEAR) {
+            ureg_SUB(ureg, tmp_x, _XXXX(_CONST(28)), _Z(tmp));
+            ureg_MUL(ureg, ureg_saturate(tmp_x), _X(tmp), _YYYY(_CONST(28)));
+        }
+        ureg_MOV(ureg, oFog, _X(tmp));
+        ureg_LRP(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_XYZ), _X(tmp), ureg_src(rCol[0]), _CONST(29));
+        ureg_LRP(ureg, ureg_writemask(oCol[1], TGSI_WRITEMASK_XYZ), _X(tmp), ureg_src(rCol[1]), _CONST(29));
+    }
 
     ureg_END(ureg);
     nine_ureg_tgsi_dump(ureg);
@@ -1128,7 +1157,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
 
     /* Fog.
      */
-    if (key->fog && key->fog_mode) {
+    if (key->fog_mode) {
         struct ureg_src vPos = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_POSITION, 0, TGSI_INTERPOLATE_LINEAR);
         struct ureg_dst rFog = ureg_writemask(ps.rTmp, TGSI_WRITEMASK_X);
         if (key->fog_mode == D3DFOG_EXP) {
@@ -1200,8 +1229,11 @@ nine_ff_get_vs(struct NineDevice9 *device)
         key.mtl_specular = state->rs[D3DRS_SPECULARMATERIALSOURCE];
         key.mtl_emissive = state->rs[D3DRS_EMISSIVEMATERIALSOURCE];
     }
-    key.fog_mode = (state->rs[D3DRS_FOGENABLE] && state->rs[D3DRS_RANGEFOGENABLE]) ?
-        state->rs[D3DRS_FOGVERTEXMODE] : 0;
+    if (!key.position_t) {
+        key.fog_mode = state->rs[D3DRS_FOGENABLE] ? state->rs[D3DRS_FOGVERTEXMODE] : 0;
+        if (key.fog_mode)
+            key.fog_range = !!state->rs[D3DRS_RANGEFOGENABLE];
+    }
 
     if (state->rs[D3DRS_VERTEXBLEND] != D3DVBF_DISABLE) {
         key.vertexblend_indexed = !!state->rs[D3DRS_INDEXEDVERTEXBLENDENABLE];
@@ -1313,14 +1345,8 @@ nine_ff_get_ps(struct NineDevice9 *device)
     }
     for (; s < 8; ++s)
         key.ts[s].colorop = key.ts[s].alphaop = D3DTOP_DISABLE;
-    if (state->rs[D3DRS_FOGENABLE]) {
-        if (state->rs[D3DRS_RANGEFOGENABLE]) {
-            key.fog = !!state->rs[D3DRS_FOGVERTEXMODE];
-        } else {
-            key.fog = !!state->rs[D3DRS_FOGTABLEMODE];
-            key.fog_mode = state->rs[D3DRS_FOGTABLEMODE];
-        }
-    }
+    if (state->rs[D3DRS_FOGENABLE])
+        key.fog_mode = state->rs[D3DRS_FOGTABLEMODE];
 
     ps = util_hash_table_get(device->ff.ht_ps, &key);
     if (ps)
@@ -1478,13 +1504,13 @@ nine_ff_upload_point_and_fog_params(struct NineDevice9 *device)
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
     struct pipe_box box;
-    float data[11];
+    float data[16];
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
 
     if (!(state->changed.group & NINE_STATE_FF_OTHER))
         return;
 
-    u_box_1d(26 * 4 * sizeof(float), sizeof(data), &box);
+    u_box_1d(26 * 4 * sizeof(float), 15 * sizeof(float), &box);
 
     data[0] = asfloat(state->rs[D3DRS_POINTSIZE_MIN]);
     data[1] = asfloat(state->rs[D3DRS_POINTSIZE_MAX]);
@@ -1497,12 +1523,14 @@ nine_ff_upload_point_and_fog_params(struct NineDevice9 *device)
     data[8] = asfloat(state->rs[D3DRS_FOGEND]);
     data[9] = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
     data[10] = asfloat(state->rs[D3DRS_FOGDENSITY]);
+    data[11] = 0.0f;
+    d3dcolor_to_rgba(&data[12], state->rs[D3DRS_FOGCOLOR]);
 
     pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
                                 data, 0, 0);
 
-    DBG("VS Fog: end=%f 1/(end-start)=%f density=%f\n",
-        data[8],data[9],data[10]);
+    DBG("VS Fog: end=%f 1/(end-start)=%f density=%f color=(%f %f %f)\n",
+        data[8],data[9],data[10],data[12],data[13],data[14]);
 }
 
 static void
