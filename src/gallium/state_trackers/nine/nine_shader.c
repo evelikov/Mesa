@@ -161,9 +161,9 @@ static const char sm1_file_char[] =
     [D3DSPR_TEMP] = 'r',
     [D3DSPR_INPUT] = 'v',
     [D3DSPR_CONST] = 'c',
-    [D3DSPR_ADDR] = 'a',
+    [D3DSPR_ADDR] = 'A',
     [D3DSPR_RASTOUT] = 'R',
-    [D3DSPR_ATTROUT] = 'A',
+    [D3DSPR_ATTROUT] = 'D',
     [D3DSPR_OUTPUT] = 'o',
     [D3DSPR_CONSTINT] = 'I',
     [D3DSPR_COLOROUT] = 'C',
@@ -433,6 +433,7 @@ struct shader_translator
     boolean inline_subroutines;
     boolean lower_preds;
     boolean want_texcoord;
+    unsigned texcoord_sn;
 
     struct sm1_instruction insn; /* current instruction */
 
@@ -443,8 +444,9 @@ struct shader_translator
         struct ureg_dst oFog;
         struct ureg_dst oPts;
         struct ureg_dst oCol[4];
+        struct ureg_dst o[PIPE_MAX_SHADER_OUTPUTS];
         struct ureg_dst oDepth;
-        struct ureg_src v; /* XXX: color semantic is automatically centroid ? */
+        struct ureg_src v[PIPE_MAX_SHADER_INPUTS];
         struct ureg_src vPos;
         struct ureg_src vFace;
         struct ureg_src s;
@@ -763,7 +765,20 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         }
         break;
     case D3DSPR_INPUT:
-        src = ureg_src_register(TGSI_FILE_INPUT, param->idx);
+        if (IS_VS) {
+            src = ureg_src_register(TGSI_FILE_INPUT, param->idx);
+        } else {
+            if (tx->version.major < 3) {
+                assert(!param->rel);
+                src = ureg_DECL_fs_input(tx->ureg, TGSI_SEMANTIC_COLOR,
+                                         param->idx,
+                                         TGSI_INTERPOLATE_PERSPECTIVE);
+            } else {
+                assert(!param->rel); /* TODO */
+                assert(param->idx < Elements(tx->regs.v));
+                src = tx->regs.v[param->idx];
+            }
+        }
         break;
     case D3DSPR_PREDICATE:
         assert(!param->rel);
@@ -962,7 +977,14 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
         break;
  /* case D3DSPR_TEXCRDOUT: == D3DSPR_OUTPUT */
     case D3DSPR_OUTPUT:
-        dst = nine_ureg_dst_register(TGSI_FILE_OUTPUT, param->idx);
+        if (tx->version.major < 3) {
+            assert(!param->rel);
+            dst = ureg_DECL_output(tx->ureg, tx->texcoord_sn, param->idx);
+        } else {
+            assert(!param->rel); /* TODO */
+            assert(param->idx < Elements(tx->regs.o));
+            dst = tx->regs.o[param->idx];
+        }
         break;
     case D3DSPR_ATTROUT: /* VS */
     case D3DSPR_COLOROUT: /* PS */
@@ -1560,7 +1582,10 @@ DECL_SPECIAL(DCL)
 
     DUMP("DCL ");
     sm1_dump_dst_param(&sem.reg);
-    DUMP(" %s%i\n", sm1_declusage_names[sem.usage], sem.usage_idx);
+    if (tx->version.major >= 3)
+        DUMP(" %s%i\n", sm1_declusage_names[sem.usage], sem.usage_idx);
+    else
+        DUMP(" (%u,%u)\n", sem.usage, sem.usage_idx);
 
     if (is_sampler) {
         ureg_DECL_sampler(ureg, sem.reg.idx);
@@ -1571,22 +1596,31 @@ DECL_SPECIAL(DCL)
     sm1_declusage_to_tgsi(&tgsi, tx->want_texcoord, &sem);
     if (IS_VS) {
         if (is_input) {
+            /* linkage outside of shader with vertex declaration */
             ureg_DECL_vs_input(ureg, sem.reg.idx);
             tx->input_map[sem.reg.idx] = sm1_to_nine_declusage(&sem);
-        } else {
+        } else
+        if (tx->version.major >= 3) {
+            /* SM2 output semantic determined by file */
             assert(sem.reg.mask != 0);
             if (sem.usage == D3DDECLUSAGE_POSITIONT)
                 tx->info->position_t = TRUE;
-            ureg_DECL_output_masked(ureg, tgsi.Name, tgsi.Index, sem.reg.mask);
+            assert(sem.reg.idx < Elements(tx->regs.o));
+            tx->regs.o[sem.reg.idx] = ureg_DECL_output_masked(
+                ureg, tgsi.Name, tgsi.Index, sem.reg.mask);
         }
     } else {
-        if (is_input) {
-            ureg_DECL_fs_input_cyl_centroid(
+        if (is_input && tx->version.major >= 3) {
+            /* SM3 only, SM2 input semantic determined by file */
+            assert(sem.reg.idx < Elements(tx->regs.v));
+            tx->regs.v[sem.reg.idx] = ureg_DECL_fs_input_cyl_centroid(
                 ureg, tgsi.Name, tgsi.Index,
                 nine_tgsi_to_interp_mode(&tgsi),
                 0, /* cylwrap */
                 sem.reg.mod == NINED3DSPDM_CENTROID);
-        } else {
+        } else
+        if (!is_input && 0) { /* declare in COLOROUT/DEPTHOUT case */
+            /* FragColor or FragDepth */
             assert(sem.reg.mask != 0);
             ureg_DECL_output_masked(ureg, tgsi.Name, tgsi.Index, sem.reg.mask);
         }
@@ -2297,6 +2331,8 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
     tx->regs.oDepth = ureg_dst_undef();
     tx->regs.vPos = ureg_src_undef();
     tx->regs.vFace = ureg_src_undef();
+    for (i = 0; i < Elements(tx->regs.o); ++i)
+        tx->regs.o[i] = ureg_dst_undef();
     for (i = 0; i < Elements(tx->regs.oCol); ++i)
         tx->regs.oCol[i] = ureg_dst_undef();
     for (i = 0; i < Elements(tx->regs.vC); ++i)
@@ -2379,6 +2415,8 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     tx->inline_subroutines = !GET_SHADER_CAP(SUBROUTINES);
     tx->lower_preds = !GET_SHADER_CAP(MAX_PREDS);
     tx->want_texcoord = GET_CAP(TGSI_TEXCOORD);
+    tx->texcoord_sn = tx->want_texcoord ?
+        TGSI_SEMANTIC_TEXCOORD : TGSI_SEMANTIC_GENERIC;
 
     while (!sm1_parse_eof(tx))
         sm1_parse_instruction(tx);
