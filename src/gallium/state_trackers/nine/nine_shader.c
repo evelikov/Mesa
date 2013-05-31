@@ -1539,6 +1539,19 @@ d3dstt_to_tgsi_tex(BYTE sampler_type)
     }
 }
 
+static const char *
+sm1_sampler_type_name(BYTE sampler_type)
+{
+    switch (sampler_type) {
+    case NINED3DSTT_1D:     return "1D";
+    case NINED3DSTT_2D:     return "2D";
+    case NINED3DSTT_VOLUME: return "VOLUME";
+    case NINED3DSTT_CUBE:   return "CUBE";
+    default:
+        return "(D3DSTT_?)";
+    }
+}
+
 static INLINE unsigned
 nine_tgsi_to_interp_mode(struct tgsi_declaration_semantic *sem)
 {
@@ -1578,14 +1591,18 @@ DECL_SPECIAL(DCL)
     sm1_read_semantic(tx, &sem);
 
     is_input = sem.reg.file == D3DSPR_INPUT;
-    is_sampler = sem.usage == D3DDECLUSAGE_SAMPLE;
+    is_sampler =
+        sem.usage == D3DDECLUSAGE_SAMPLE || sem.reg.file == D3DSPR_SAMPLER;
 
     DUMP("DCL ");
+    if (is_sampler)
+        DUMP("%s ", sm1_sampler_type_name(sem.sampler_type));
     sm1_dump_dst_param(&sem.reg);
     if (tx->version.major >= 3)
         DUMP(" %s%i\n", sm1_declusage_names[sem.usage], sem.usage_idx);
     else
-        DUMP(" (%u,%u)\n", sem.usage, sem.usage_idx);
+   if (sem.usage | sem.usage_idx)
+        DUMP(" (usage=%u,index=%u)\n", sem.usage, sem.usage_idx);
 
     if (is_sampler) {
         ureg_DECL_sampler(ureg, sem.reg.idx);
