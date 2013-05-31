@@ -1242,9 +1242,17 @@ nine_ff_get_ps(struct NineDevice9 *device)
         key.ts[s].colorop = state->ff.tex_stage[s][D3DTSS_COLOROP];
         key.ts[s].alphaop = state->ff.tex_stage[s][D3DTSS_ALPHAOP];
         /* MSDN says D3DTOP_DISABLE disables this and all subsequent stages. */
-        if (key.ts[s].alphaop == D3DTOP_DISABLE &&
-            key.ts[s].colorop == D3DTOP_DISABLE)
-            break; /* XXX continue ? */
+        if (key.ts[s].colorop == D3DTOP_DISABLE) {
+            /* And that alphaop cannot be disabled when colorop isn't. */
+            key.ts[s].alphaop = D3DTOP_DISABLE;
+            break;
+        }
+        if (!state->texture[s] &&
+            state->ff.tex_stage[s][D3DTSS_COLORARG1] == D3DTA_TEXTURE) {
+            /* This should also disable the stage. */
+            key.ts[s].colorop = key.ts[s].alphaop = D3DTOP_DISABLE;
+            break;
+        }
         if (key.ts[s].colorop != D3DTOP_DISABLE) {
             uint8_t used_c = ps_d3dtop_args_mask(key.ts[s].colorop);
             if (used_c & 0x1) key.ts[s].colorarg0 = state->ff.tex_stage[s][D3DTSS_COLORARG0];

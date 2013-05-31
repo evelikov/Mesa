@@ -1225,98 +1225,75 @@ NineDevice9_Clear( struct NineDevice9 *This,
                    float Z,
                    DWORD Stencil )
 {
-    struct pipe_context *pipe = This->pipe;
-    struct NineSurface9 *zsbuf = This->state.ds;
-    unsigned bufs = 0;
-    unsigned r, i;
+    int i, j;
+    unsigned ds = ((Flags & D3DCLEAR_ZBUFFER) ? PIPE_CLEAR_DEPTH : 0) |
+                  ((Flags & D3DCLEAR_STENCIL) ? PIPE_CLEAR_STENCIL : 0);
     union pipe_color_union rgba;
-    D3DRECT rect;
+    const D3DRECT fullrect = {
+        0, 0,
+        This->state.fb.cbufs[0]->width-1,
+        This->state.fb.cbufs[0]->height-1
+    };
 
-    user_assert(This->state.ds || !(Flags & NINED3DCLEAR_DEPTHSTENCIL),
+    DBG("This=%p Count=%u pRects=%p Flags=%x Color=%08x Z=%f Stencil=%x\n",
+        This, Count, pRects, Flags, Color, Z, Stencil);
+
+    user_assert((pRects && Count != 0) || (!pRects && Count == 0),
                 D3DERR_INVALIDCALL);
-    user_assert(util_format_is_depth_and_stencil(zsbuf->base.info.format) ||
-                !(Flags & D3DCLEAR_STENCIL), D3DERR_INVALIDCALL);
-    user_assert((Count && pRects) || (!Count && !pRects), D3DERR_INVALIDCALL);
 
-    if (Flags & D3DCLEAR_TARGET) bufs |= PIPE_CLEAR_COLOR;
-    if (Flags & D3DCLEAR_ZBUFFER) bufs |= PIPE_CLEAR_DEPTH;
-    if (Flags & D3DCLEAR_STENCIL) bufs |= PIPE_CLEAR_STENCIL;
-    if (!bufs)
-        return D3D_OK;
+    if (!pRects) {
+        pRects = &fullrect;
+        Count = 1;
+    }
+
     d3dcolor_to_pipe_color_union(&rgba, Color);
 
-    nine_update_state(This);
+    for (i = 0; i < This->state.fb.nr_cbufs; ++i) {
+        for (j = 0; j < Count; ++j) {
+            if (Flags & D3DCLEAR_TARGET) {
+                unsigned x0, x1, y0, y1, width, height;
 
-    rect.x1 = This->state.viewport.X;
-    rect.y1 = This->state.viewport.Y;
-    rect.x2 = This->state.viewport.Width + rect.x1;
-    rect.y2 = This->state.viewport.Height + rect.y1;
+                /* users are idiots, and for sure someone will manage to pass
+                 * the coordinates in in the wrong order, or out of bounds */
+                if (pRects[j].x2 >= pRects[j].x1) {
+                    x0 = pRects[j].x1;
+                    x1 = pRects[j].x2;
+                } else {
+                    x0 = pRects[j].x2;
+                    x1 = pRects[j].x1;
+                }
+                if (x0 < 0) { x0 = 0; }
+                if (x1 >= This->state.fb.width) { x1 = This->state.fb.width-1; }
 
-    if (Count) {
-        /* Maybe apps like to specify a large rect ? */
-        if (pRects[0].x1 <= rect.x1 && pRects[0].x2 >= rect.x2 &&
-            pRects[0].y1 <= rect.y1 && pRects[0].y2 >= rect.y2) {
-            DBG("First rect covers viewport.\n");
-            Count = 0;
-            pRects = NULL;
+                if (pRects[j].y2 >= pRects[j].y1) {
+                    y0 = pRects[j].y1;
+                    y1 = pRects[j].y2;
+                } else {
+                    y0 = pRects[j].y2;
+                    y1 = pRects[j].y1;
+                }
+                if (y0 < 0) { y0 = 0; }
+                if (y1 >= This->state.fb.height) { y1 = This->state.fb.height-1; }
+
+                /* coordinates represent corners of a rectangle, meaning if
+                 * they happen to be identical, it's still one pixel wide */
+                width = x1-x0+1;
+                height = y1-y0+1;
+
+                This->pipe->clear_render_target(This->pipe,
+                                                This->state.fb.cbufs[i],
+                                                &rgba, x0, y0, width, height);
+            }
         }
     }
-
-    if (rect.x1 >= This->state.fb.width || rect.y1 >= This->state.fb.height)
-        return D3D_OK;
-    if (!Count &&
-        rect.x1 == 0 && rect.x2 >= This->state.fb.width &&
-        rect.y1 == 0 && rect.y2 >= This->state.fb.height) {
-        /* fast path, clears everything at once */
-        pipe->clear(pipe, bufs, &rgba, Z, Stencil);
-        return D3D_OK;
-    }
-    rect.x2 = MIN2(rect.x2, This->state.fb.width);
-    rect.y2 = MIN2(rect.y2, This->state.fb.height);
-
-    if (!Count) {
-        Count = 1;
-        pRects = &rect;
+    if (ds) {
+        user_assert(This->state.fb.zsbuf, D3DERR_INVALIDCALL);
+        This->pipe->clear_depth_stencil(This->pipe, This->state.fb.zsbuf,
+                                        ds, Z, Stencil, 0, 0,
+                                        This->state.fb.zsbuf->width,
+                                        This->state.fb.zsbuf->height);
     }
 
-    for (i = 0; (i < This->state.fb.nr_cbufs); ++i) {
-        if (!This->state.fb.cbufs[i] || !(Flags & D3DCLEAR_TARGET))
-            continue; /* save space, compiler should hoist this */
-        for (r = 0; r < Count; ++r) {
-            /* Don't trust users to pass these in the right order. */
-            unsigned x1 = MIN2(pRects[r].x1, pRects[r].x2);
-            unsigned y1 = MIN2(pRects[r].y1, pRects[r].y2);
-            unsigned x2 = MAX2(pRects[r].x1, pRects[r].x2);
-            unsigned y2 = MAX2(pRects[r].y1, pRects[r].y2);
-
-            x1 = MIN2(x1, rect.x1);
-            y1 = MIN2(y1, rect.y1);
-            x2 = MIN2(x2, rect.x2);
-            y2 = MIN2(y2, rect.y2);
-
-            pipe->clear_render_target(pipe, This->state.fb.cbufs[i], &rgba,
-                                      x1, y1, x2 - x1, y2 - y1);
-        }
-    }
-    if (!(Flags & NINED3DCLEAR_DEPTHSTENCIL))
-        return D3D_OK;
-
-    bufs &= PIPE_CLEAR_DEPTHSTENCIL;
-
-    for (r = 0; r < Count; ++r) {
-        unsigned x1 = MIN2(pRects[r].x1, pRects[r].x2);
-        unsigned y1 = MIN2(pRects[r].y1, pRects[r].y2);
-        unsigned x2 = MAX2(pRects[r].x1, pRects[r].x2);
-        unsigned y2 = MAX2(pRects[r].y1, pRects[r].y2);
-
-        x1 = MIN2(x1, rect.x1);
-        y1 = MIN2(y1, rect.y1);
-        x2 = MIN2(x2, rect.x2);
-        y2 = MIN2(y2, rect.y2);
-
-        pipe->clear_depth_stencil(pipe, This->state.fb.zsbuf, bufs, Z, Stencil,
-                                  x1, y1, x2 - x1, y2 - y1);
-    }
     return D3D_OK;
 }
 
