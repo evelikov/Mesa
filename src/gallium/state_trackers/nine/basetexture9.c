@@ -316,7 +316,7 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     swizzle[1] = PIPE_SWIZZLE_GREEN;
     swizzle[2] = PIPE_SWIZZLE_BLUE;
     swizzle[3] = PIPE_SWIZZLE_ALPHA;
-    for (i = util_format_get_nr_components(templ.format); i < 4; ++i)
+    for (i = util_format_get_nr_components(resource->format); i < 4; ++i)
         swizzle[i] = PIPE_SWIZZLE_ONE;
 
     templ.format = resource->format;
