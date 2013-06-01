@@ -87,6 +87,24 @@ const char *nine_D3DPRESENTFLAG_to_str(DWORD flags)
 }
 #undef C2S
 
+#define C2S(n) \
+    do { \
+        if (lock & D3DLOCK_##n) p += snprintf(&tls[p], sizeof(tls) - p, #n); \
+    } while(0)
+const char *nine_D3DLOCK_to_str(DWORD lock)
+{
+    int p = 0;
+    tls[0] = 0;
+    C2S(DISCARD);
+    C2S(DONOTWAIT);
+    C2S(NO_DIRTY_UPDATE);
+    C2S(NOOVERWRITE);
+    C2S(NOSYSLOCK);
+    C2S(READONLY);
+    return tls;
+}
+#undef C2S
+
 const char *nine_D3DRTYPE_to_str(D3DRESOURCETYPE type)
 {
     switch (type) {

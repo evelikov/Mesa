@@ -323,10 +323,11 @@ NineSurface9_LockRect( struct NineSurface9 *This,
     struct pipe_box box;
     unsigned usage;
 
-    DBG("This=%p pLockedRect=%p pRect=%p[(%u,%u)-(%u,%u)] Flags=%x\n", This,
+    DBG("This=%p pLockedRect=%p pRect=%p[%u..%u,%u..%u] Flags=%s\n", This,
         pLockedRect, pRect,
-        pRect ? pRect->left : 0, pRect ? pRect->top : 0,
-        pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
+        pRect ? pRect->left : 0, pRect ? pRect->right : 0,
+        pRect ? pRect->top : 0, pRect ? pRect->bottom : 0,
+        nine_D3DLOCK_to_str(Flags));
     NineSurface9_Dump(This);
 
 #ifdef NINE_STRICT
@@ -414,6 +415,7 @@ NineSurface9_LockRect( struct NineSurface9 *This,
 HRESULT WINAPI
 NineSurface9_UnlockRect( struct NineSurface9 *This )
 {
+    DBG("This=%p lock_count=%u\n", This, This->lock_count);
     user_assert(This->lock_count, D3DERR_INVALIDCALL);
     if (This->transfer) {
         This->pipe->transfer_unmap(This->pipe, This->transfer);

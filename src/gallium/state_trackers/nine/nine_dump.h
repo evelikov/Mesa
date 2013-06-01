@@ -13,6 +13,7 @@ const char *nine_D3DPOOL_to_str(D3DPOOL);
 const char *nine_D3DRTYPE_to_str(D3DRESOURCETYPE);
 const char *nine_D3DUSAGE_to_str(DWORD);
 const char *nine_D3DPRESENTFLAG_to_str(DWORD);
+const char *nine_D3DLOCK_to_str(DWORD);
 
 #ifdef DEBUG
 

@@ -25,6 +25,7 @@
 #include "basetexture9.h" /* for marking dirty */
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "nine_dump.h"
 
 #include "util/u_hash_table.h"
 #include "nine_pdata.h"
@@ -241,11 +242,12 @@ NineVolume9_LockBox( struct NineVolume9 *This,
     struct pipe_box box;
     unsigned usage;
 
-    DBG("This=%p pLockedVolume=%p pBox=%p[(%u,%u,%u)-(%u,%u,%u)] Flags=%x\n",
+    DBG("This=%p pLockedVolume=%p pBox=%p[%u..%u,%u..%u,%u..%u] Flags=%s\n",
         This, pLockedVolume, pBox,
-        pBox ? pBox->Left : 0, pBox ? pBox->Top : 0, pBox ? pBox->Front : 0,
-        pBox ? pBox->Right : 0, pBox ? pBox->Bottom : 0, pBox ? pBox->Back : 0,
-        Flags);
+        pBox ? pBox->Left : 0, pBox ? pBox->Right : 0,
+        pBox ? pBox->Top : 0, pBox ? pBox->Bottom : 0,
+        pBox ? pBox->Front : 0, pBox ? pBox->Back : 0,
+        nine_D3DLOCK_to_str(Flags));
 
     user_assert(This->desc.Pool != D3DPOOL_DEFAULT ||
                 (This->desc.Usage & D3DUSAGE_DYNAMIC), D3DERR_INVALIDCALL);
@@ -308,12 +310,14 @@ NineVolume9_LockBox( struct NineVolume9 *This,
         if (This->desc.Pool == D3DPOOL_MANAGED)
             NineVolume9_AddDirtyRegion(This, &box);
 
+    ++This->lock_count;
     return D3D_OK;
 }
 
 HRESULT WINAPI
 NineVolume9_UnlockBox( struct NineVolume9 *This )
 {
+    DBG("This=%p lock_count=%u\n", This, This->lock_count);
     user_assert(This->lock_count, D3DERR_INVALIDCALL);
     if (This->transfer) {
         This->pipe->transfer_unmap(This->pipe, This->transfer);
