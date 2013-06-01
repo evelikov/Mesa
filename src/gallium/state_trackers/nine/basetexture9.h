@@ -96,6 +96,8 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This );
 static INLINE void
 NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
 {
+    DBG_FLAG(DBG_BASETEXTURE, "This=%p dirty=%i dirty_mip=%i\n",
+             This, This->dirty, This->dirty_mip);
     if (This->dirty && This->base.pool == D3DPOOL_MANAGED)
         NineBaseTexture9_UploadSelf(This);
     if (This->dirty_mip)

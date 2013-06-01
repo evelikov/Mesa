@@ -235,11 +235,11 @@ NineSurface9_MarkContainerDirty( struct NineSurface9 *This )
         assert(tex);
         assert(This->texture == D3DRTYPE_TEXTURE ||
                This->texture == D3DRTYPE_CUBETEXTURE);
-        if (This->base.pool != D3DPOOL_MANAGED)
-            tex->dirty_mip = TRUE;
+        if (This->base.pool == D3DPOOL_MANAGED)
+            tex->dirty = TRUE;
         else
         if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
-            tex->dirty = TRUE;
+            tex->dirty_mip = TRUE;
     }
 }
 

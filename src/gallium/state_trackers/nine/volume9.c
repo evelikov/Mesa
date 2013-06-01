@@ -157,15 +157,22 @@ NineVolume9_GetContainer( struct NineVolume9 *This,
 static INLINE void
 NineVolume9_MarkContainerDirty( struct NineVolume9 *This )
 {
-    if (This->desc.Type == D3DRTYPE_VOLUMETEXTURE) {
-        struct NineBaseTexture9 *tex = NineBaseTexture9(This->base.container);
-        assert(tex);
-        if (This->desc.Pool != D3DPOOL_MANAGED)
-            tex->dirty_mip = TRUE;
-        else
-        if (This->desc.Usage & D3DUSAGE_AUTOGENMIPMAP)
-            tex->dirty = TRUE;
-    }
+    struct NineBaseTexture9 *tex;
+#ifdef DEBUG
+    /* This is always contained by a NineVolumeTexture9. */
+    GUID id = IID_IDirect3DVolumeTexture9;
+    REFIID ref = &id;
+    assert(NineUnknown_QueryInterface(This->base.container, ref, (void **)&tex)
+           == S_OK);
+#endif
+
+    tex = NineBaseTexture9(This->base.container);
+    assert(tex);
+    if (This->desc.Pool == D3DPOOL_MANAGED)
+        tex->dirty = TRUE;
+    else
+    if (This->desc.Usage & D3DUSAGE_AUTOGENMIPMAP)
+        tex->dirty_mip = TRUE;
 }
 
 HRESULT WINAPI
@@ -242,8 +249,8 @@ NineVolume9_LockBox( struct NineVolume9 *This,
     struct pipe_box box;
     unsigned usage;
 
-    DBG("This=%p pLockedVolume=%p pBox=%p[%u..%u,%u..%u,%u..%u] Flags=%s\n",
-        This, pLockedVolume, pBox,
+    DBG("This=%p(%p) pLockedVolume=%p pBox=%p[%u..%u,%u..%u,%u..%u] Flags=%s\n",
+        This, This->base.container, pLockedVolume, pBox,
         pBox ? pBox->Left : 0, pBox ? pBox->Right : 0,
         pBox ? pBox->Top : 0, pBox ? pBox->Bottom : 0,
         pBox ? pBox->Front : 0, pBox ? pBox->Back : 0,
@@ -306,9 +313,11 @@ NineVolume9_LockBox( struct NineVolume9 *This,
         pLockedVolume->SlicePitch = This->transfer->layer_stride;
     }
 
-    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY)))
+    if (!(Flags & (D3DLOCK_NO_DIRTY_UPDATE | D3DLOCK_READONLY))) {
+        NineVolume9_MarkContainerDirty(This);
         if (This->desc.Pool == D3DPOOL_MANAGED)
             NineVolume9_AddDirtyRegion(This, &box);
+    }
 
     ++This->lock_count;
     return D3D_OK;
@@ -457,10 +466,14 @@ NineVolume9_UploadSelf( struct NineVolume9 *This )
     uint8_t *ptr;
     unsigned i;
 
+    DBG("This=%p dirty=%i data=%p res=%p\n", This, NineVolume9_IsDirty(This),
+        This->data, res);
+
     assert(This->desc.Pool == D3DPOOL_MANAGED);
 
     if (!NineVolume9_IsDirty(This))
         return D3D_OK;
+    assert(res);
 
     for (i = 0; i < Elements(This->dirty_box); ++i) {
         const struct pipe_box *box = &This->dirty_box[i];

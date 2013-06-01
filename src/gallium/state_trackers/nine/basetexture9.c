@@ -62,6 +62,7 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
     This->mipfilter = (This->base.usage & D3DUSAGE_AUTOGENMIPMAP) ?
         D3DTEXF_LINEAR : D3DTEXF_NONE;
     This->lod = 0;
+    This->lod_resident = -1;
 
     return D3D_OK;
 }
@@ -127,6 +128,9 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
     unsigned last_level = This->base.info.last_level;
     unsigned l;
 
+    DBG("This=%p dirty=%i type=%s\n", This, This->dirty,
+        nine_D3DRTYPE_to_str(This->base.type));
+
     assert(This->base.pool == D3DPOOL_MANAGED);
     if (!This->dirty)
         return D3D_OK;
@@ -136,6 +140,8 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
 
     if (This->lod_resident != This->lod) {
         struct pipe_resource *res;
+
+        DBG("updating LOD from %u to %u ...\n", This->lod_resident, This->lod);
 
         pipe_sampler_view_reference(&This->view, NULL);
 
@@ -185,6 +191,10 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         box.z = 0;
         box.depth = 1;
 
+        DBG("TEXTURE: dirty rect=(%u,%u) (%ux%u)\n",
+            tex->dirty_rect.x, tex->dirty_rect.y,
+            tex->dirty_rect.width, tex->dirty_rect.height);
+
         if (tex->dirty_rect.width) {
             for (l = 1; l <= last_level; ++l) {
                 u_box_minify_2d(&box, &tex->dirty_rect, l);
@@ -204,6 +214,10 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         box.depth = 1;
 
         for (z = 0; z < 6; ++z) {
+            DBG("FACE[%u]: dirty rect=(%u,%u) (%ux%u)\n", z,
+                tex->dirty_rect[z].x, tex->dirty_rect[z].y,
+                tex->dirty_rect[z].width, tex->dirty_rect[z].height);
+
             if (tex->dirty_rect[z].width) {
                 for (l = 1; l <= last_level; ++l) {
                     u_box_minify_2d(&box, &tex->dirty_rect[z], l);
@@ -219,6 +233,10 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
     if (This->base.type == D3DRTYPE_VOLUMETEXTURE) {
         struct NineVolumeTexture9 *tex = NineVolumeTexture9(This);
         struct pipe_box box;
+
+        DBG("VOLUME: dirty_box=(%u,%u,%u) (%ux%ux%u)\n",
+            tex->dirty_box.x, tex->dirty_box.y, tex->dirty_box.y,
+            tex->dirty_box.width, tex->dirty_box.height, tex->dirty_box.depth);
 
         if (tex->dirty_box.width) {
             for (l = 1; l <= last_level; ++l) {
@@ -238,6 +256,7 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
     if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
         This->dirty_mip = TRUE;
 
+    DBG("DONE, generate mip maps = %i\n", This->dirty_mip);
     return D3D_OK;
 }
 
@@ -279,6 +298,9 @@ NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This )
     struct pipe_screen *screen = This->base.info.screen;
     struct pipe_resource templ;
 
+    DBG("This=%p lod=%u last_level=%u\n", This,
+        This->lod, This->base.info.last_level);
+
     assert(This->base.pool == D3DPOOL_MANAGED);
 
     templ = This->base.info;
@@ -314,6 +336,8 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     uint8_t swizzle[4];
     unsigned i;
 
+    if (!resource)
+        NineBaseTexture9_Dump(This);
     assert(resource);
 
     pipe_sampler_view_reference(&This->view, NULL);
@@ -339,6 +363,7 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
 
     This->view = pipe->create_sampler_view(pipe, resource, &templ);
 
+    DBG("sampler view = %p\n", This->view);
     return This->view ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
