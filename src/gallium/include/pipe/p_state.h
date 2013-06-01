@@ -591,6 +591,8 @@ struct pipe_blit_info
 
    boolean scissor_enable;
    struct pipe_scissor_state scissor;
+
+   boolean alpha_blend; /* dst.rgb = src.rgb * src.a + dst.rgb * (1 - src.a) */
 };
 
 

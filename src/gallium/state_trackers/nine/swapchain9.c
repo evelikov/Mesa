@@ -331,6 +331,7 @@ present( struct NineSwapChain9 *This,
         blit.mask = PIPE_MASK_RGBA;
         blit.filter = PIPE_TEX_FILTER_NEAREST;
         blit.scissor_enable = FALSE;
+        blit.alpha_blend = FALSE;
 
         /* blit (and possibly stretch/convert) pixels from This->buffers[0] to
          * emusurf using u_blit. Windows appears to use NEAREST */
@@ -364,6 +365,7 @@ present( struct NineSwapChain9 *This,
             blit.src.box.width, blit.src.box.height,
             blit.dst.box.x, blit.dst.box.y);
 
+        blit.alpha_blend = TRUE;
         This->pipe->blit(This->pipe, &blit);
     }
 
