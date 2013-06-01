@@ -54,6 +54,7 @@ typedef struct ID3DPresentVtbl
     HRESULT (WINAPI *GetRasterStatus)(ID3DPresent *This, D3DRASTER_STATUS *pRasterStatus);
     HRESULT (WINAPI *GetDisplayMode)(ID3DPresent *This, D3DDISPLAYMODEEX *pMode);
     HRESULT (WINAPI *GetPresentStats)(ID3DPresent *This, D3DPRESENTSTATS *pStats);
+    HRESULT (WINAPI *GetCursorPos)(ID3DPresent *This, POINT *pPoint);
 } ID3DPresentVtbl;
 
 struct ID3DPresent
@@ -73,6 +74,7 @@ struct ID3DPresent
 #define ID3DPresent_GetRasterStatus(p,a) (p)->lpVtbl->GetRasterStatus(p,a)
 #define ID3DPresent_GetDisplayMode(p,a) (p)->lpVtbl->GetDisplayMode(p,a)
 #define ID3DPresent_GetPresentStats(p,a) (p)->lpVtbl->GetPresentStats(p,a)
+#define ID3DPresent_GetCursorPos(p,a) (p)->lpVtbl->GetCursorPos(p,a)
 
 typedef struct ID3DPresentFactory ID3DPresentFactory;
 

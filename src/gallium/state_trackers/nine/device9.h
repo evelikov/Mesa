@@ -96,8 +96,7 @@ struct NineDevice9
         UINT hotspot_y;
         unsigned w;
         unsigned h;
-        int x;
-        int y;
+        POINT pos;
         BOOL visible;
         boolean software;
     } cursor;

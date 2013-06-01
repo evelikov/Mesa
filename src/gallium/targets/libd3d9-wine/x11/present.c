@@ -405,6 +405,13 @@ NineWinePresentX11_GetPresentStats( struct NineWinePresentX11 *This,
     STUB(D3DERR_INVALIDCALL); /* TODO: implement */
 }
 
+static HRESULT WINAPI
+NineWinePresentX11_GetCursorPos( struct NineWinePresentX11 *This,
+                              POINT *pPoint )
+{
+    return GetCursorPos(pPoint) ? S_OK : D3DERR_DRIVERINTERNALERROR;
+}
+
 static ID3DPresentVtbl NineWinePresentX11_vtable = {
     (void *)NineWinePresentX11_QueryInterface,
     (void *)NineWinePresentX11_AddRef,
@@ -415,7 +422,8 @@ static ID3DPresentVtbl NineWinePresentX11_vtable = {
     (void *)NineWinePresentX11_Present,
     (void *)NineWinePresentX11_GetRasterStatus,
     (void *)NineWinePresentX11_GetDisplayMode,
-    (void *)NineWinePresentX11_GetPresentStats
+    (void *)NineWinePresentX11_GetPresentStats,
+    (void *)NineWinePresentX11_GetCursorPos
 };
 
 static HRESULT

@@ -285,6 +285,13 @@ NinePresentXlib_GetPresentStats( struct NinePresentXlib *This,
     return D3DERR_INVALIDCALL;
 }
 
+static HRESULT WINAPI
+NinePresentXlib_GetCursorPos( struct NinePresentXlib *This,
+                              POINT *pPoint )
+{
+    return D3DERR_INVALIDCALL;
+}
+
 static ID3DPresentVtbl NinePresentXlib_vtable = {
     (void *)NinePresentXlib_QueryInterface,
     (void *)NinePresentXlib_AddRef,
@@ -295,7 +302,8 @@ static ID3DPresentVtbl NinePresentXlib_vtable = {
     (void *)NinePresentXlib_Present,
     (void *)NinePresentXlib_GetRasterStatus,
     (void *)NinePresentXlib_GetDisplayMode,
-    (void *)NinePresentXlib_GetPresentStats
+    (void *)NinePresentXlib_GetPresentStats,
+    (void *)NinePresentXlib_GetCursorPos
 };
 
 static HRESULT

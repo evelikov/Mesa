@@ -354,8 +354,10 @@ present( struct NineSwapChain9 *This,
         blit.src.box.width = device->cursor.w;
         blit.src.box.height = device->cursor.h;
 
-        blit.dst.box.x = device->cursor.x - device->cursor.hotspot_x;
-        blit.dst.box.y = device->cursor.y - device->cursor.hotspot_y;
+        ID3DPresent_GetCursorPos(This->present, &device->cursor.pos);
+
+        blit.dst.box.x = device->cursor.pos.x - device->cursor.hotspot_x;
+        blit.dst.box.y = device->cursor.pos.y - device->cursor.hotspot_y;
         blit.dst.box.x += rect.left + (pDestRect ? pDestRect->left : 0);
         blit.dst.box.y += rect.top + (pDestRect ? pDestRect->top : 0);
         blit.dst.box.width = blit.src.box.width;

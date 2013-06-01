@@ -452,8 +452,8 @@ NineDevice9_SetCursorPosition( struct NineDevice9 *This,
                                DWORD Flags )
 {
     /* TODO: hardware cursor */
-    This->cursor.x = X;
-    This->cursor.y = Y;
+    This->cursor.pos.x = X;
+    This->cursor.pos.y = Y;
 }
 
 BOOL WINAPI
