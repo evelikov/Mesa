@@ -258,10 +258,12 @@ present( struct NineSwapChain9 *This,
          const RGNDATA *pDirtyRegion,
          DWORD dwFlags )
 {
+    struct NineDevice9 *device = This->device;
     struct pipe_resource *resource;
     HRESULT hr;
     RGNDATA *rgndata;
     RECT rect;
+    struct pipe_blit_info blit;
 
     /* get a real backbuffer handle from the windowing system */
     hr = This->ptrfunc(This->present, hDestWindowOverride, &rect,
@@ -287,9 +289,8 @@ present( struct NineSwapChain9 *This,
 
     if (rgndata) {
         /* TODO */
+        blit.dst.resource = NULL;
     } else {
-        struct pipe_blit_info blit;
-
         blit.dst.resource = resource;
         blit.dst.level = 0;
         blit.dst.format = resource->format;
@@ -341,6 +342,31 @@ present( struct NineSwapChain9 *This,
 
         This->pipe->blit(This->pipe, &blit);
     }
+
+    if (device->cursor.software && device->cursor.visible && device->cursor.w &&
+        blit.dst.resource) {
+        blit.src.resource = device->cursor.image;
+        blit.src.level = 0;
+        blit.src.format = device->cursor.image->format;
+        blit.src.box.x = 0;
+        blit.src.box.y = 0;
+        blit.src.box.width = device->cursor.w;
+        blit.src.box.height = device->cursor.h;
+
+        blit.dst.box.x = device->cursor.x - device->cursor.hotspot_x;
+        blit.dst.box.y = device->cursor.y - device->cursor.hotspot_y;
+        blit.dst.box.x += rect.left + (pDestRect ? pDestRect->left : 0);
+        blit.dst.box.y += rect.top + (pDestRect ? pDestRect->top : 0);
+        blit.dst.box.width = blit.src.box.width;
+        blit.dst.box.height = blit.src.box.height;
+
+        DBG("Blitting cursor(%ux%u) to (%i,%i).\n",
+            blit.src.box.width, blit.src.box.height,
+            blit.dst.box.x, blit.dst.box.y);
+
+        This->pipe->blit(This->pipe, &blit);
+    }
+
     This->pipe->flush(This->pipe, NULL, 0);
 
     /* really present the frame */

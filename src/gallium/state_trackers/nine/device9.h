@@ -91,7 +91,15 @@ struct NineDevice9
     } ff;
 
     struct {
+        struct pipe_resource *image;
+        UINT hotspot_x;
+        UINT hotspot_y;
+        unsigned w;
+        unsigned h;
+        int x;
+        int y;
         BOOL visible;
+        boolean software;
     } cursor;
 };
 static INLINE struct NineDevice9 *
