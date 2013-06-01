@@ -190,7 +190,7 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     if (idx < 8)
         cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
     else
-        cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - 9, &samp);
+        cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - 17, &samp);
 }
 
 void

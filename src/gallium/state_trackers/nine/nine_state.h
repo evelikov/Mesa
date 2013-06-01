@@ -83,14 +83,14 @@
 #define NINE_CONST_I_BASE_IDX  NINE_MAX_CONST_F
 #define NINE_CONST_B_BASE_IDX (NINE_MAX_CONST_F + NINE_MAX_CONST_I)
 
-#define NINE_MAX_SAMPLERS_PS 8
-#define NINE_MAX_SAMPLERS_VS 4
-#define NINE_MAX_SAMPLERS    13 /* PS + DMAP + VS */
-#define NINE_SAMPLER_PS(s)  (0 + (s))
-#define NINE_SAMPLER_DMAP    8
-#define NINE_SAMPLER_VS(s)  (9 + (s))
-#define NINE_PS_SAMPLERS_MASK 0x00ff
-#define NINE_VS_SAMPLERS_MASK 0x1e00
+#define NINE_MAX_SAMPLERS_PS 16
+#define NINE_MAX_SAMPLERS_VS  4
+#define NINE_MAX_SAMPLERS    21 /* PS + DMAP + VS */
+#define NINE_SAMPLER_PS(s)  ( 0 + (s))
+#define NINE_SAMPLER_DMAP    16
+#define NINE_SAMPLER_VS(s)  (17 + (s))
+#define NINE_PS_SAMPLERS_MASK 0x00ffff
+#define NINE_VS_SAMPLERS_MASK 0x1e0000
 
 struct nine_state
 {
@@ -99,7 +99,7 @@ struct nine_state
         uint32_t rs[(NINED3DRS_LAST + 1 + 31) / 32];
         uint32_t vtxbuf;
         uint32_t stream_freq;
-        uint16_t texture; /* NINE_MAX_SAMPLERS == 13 */
+        uint32_t texture;
         uint16_t sampler[NINE_MAX_SAMPLERS];
         uint32_t vs_const_f[(NINE_MAX_CONST_F + 31) / 32]; /* ref: 224 in PS */
         uint32_t ps_const_f[(NINE_MAX_CONST_F + 31) / 32];
