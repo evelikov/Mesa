@@ -360,13 +360,15 @@ struct sm1_instruction
 };
 
 static void
-sm1_dump_instruction(struct sm1_instruction *insn)
+sm1_dump_instruction(struct sm1_instruction *insn, unsigned indent)
 {
     unsigned i;
 
     /* no info stored for these: */
     if (insn->opcode == D3DSIO_DCL)
         return;
+    for (i = 0; i < indent; ++i)
+        DUMP("  ");
 
     if (insn->predicated) {
         DUMP("@");
@@ -1251,6 +1253,11 @@ DECL_SPECIAL(CALLNZ)
     return D3D_OK;
 }
 
+DECL_SPECIAL(MOVA)
+{
+    STUB(D3DERR_INVALIDCALL);
+}
+
 DECL_SPECIAL(LOOP)
 {
     struct ureg_program *ureg = tx->ureg;
@@ -1954,7 +1961,8 @@ struct sm1_op_info inst_table[] =
     _OPI(BREAK,  BRK,    V(2,1), V(3,0), V(2,1), V(3,0), 0, 0, NULL),
     _OPI(BREAKC, BREAKC, V(2,1), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(BREAKC)),
 
-    _OPI(MOVA, ARL, V(2,0), V(3,0), V(0,0), V(0,0), 0, 0, NULL), /* XXX: special ? */
+    _OPI(MOVA, ARL, V(2,0), V(2,1), V(0,0), V(0,0), 1, 1, SPECIAL(MOVA)),
+    _OPI(MOVA, ARL, V(3,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL), /* XXX: round to nearest */
 
     _OPI(DEFB, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFB)),
     _OPI(DEFI, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFI)),
@@ -2326,13 +2334,14 @@ sm1_parse_instruction(struct shader_translator *tx)
         insn->opcode == D3DSIO_DEFB)
         sm1_parse_immediate(tx, &tx->insn.src[0]);
 
-    sm1_dump_instruction(insn);
+    sm1_dump_instruction(insn, tx->cond_depth + tx->loop_depth);
     sm1_instruction_check(insn);
 
     if (info->handler)
         info->handler(tx);
     else
        NineTranslateInstruction_Generic(tx);
+    tx->num_scratch = 0; /* reset */
 
     TOKEN_JUMP(tx);
 }
