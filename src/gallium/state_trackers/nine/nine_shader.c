@@ -35,6 +35,8 @@
 
 #define DBG_CHANNEL DBG_SHADER
 
+#define NINE_TGSI_LAZY_DEVS /* don't use TGSI_OPCODE_BREAKC */
+
 #define DUMP(args...) _nine_debug_printf(DBG_CHANNEL, NULL, args)
 
 
@@ -238,7 +240,7 @@ struct sm1_dst_param
 };
 
 static void
-sm1_dump_immediate(struct sm1_src_param *param)
+sm1_dump_immediate(const struct sm1_src_param *param)
 {
     switch (param->type) {
     case NINED3DSPTYPE_FLOAT4:
@@ -261,7 +263,7 @@ sm1_dump_immediate(struct sm1_src_param *param)
 }
 
 static void
-sm1_dump_src_param(struct sm1_src_param *param)
+sm1_dump_src_param(const struct sm1_src_param *param)
 {
     if (param->file == NINED3DSPR_IMMEDIATE) {
         assert(!param->mod &&
@@ -289,7 +291,7 @@ sm1_dump_src_param(struct sm1_src_param *param)
 }
 
 static void
-sm1_dump_dst_param(struct sm1_dst_param *param)
+sm1_dump_dst_param(const struct sm1_dst_param *param)
 {
    if (param->mod == NINED3DSPDM_SATURATE)
       DUMP("sat ");
@@ -578,6 +580,8 @@ static INLINE struct ureg_dst
 tx_scratch(struct shader_translator *tx)
 {
     assert(tx->num_scratch < Elements(tx->regs.t));
+    if (ureg_dst_is_undef(tx->regs.t[tx->num_scratch]))
+        tx->regs.t[tx->num_scratch] = ureg_DECL_local_temporary(tx->ureg);
     return tx->regs.t[tx->num_scratch++];
 }
 
@@ -699,7 +703,7 @@ tx_get_loopctr(struct shader_translator *tx)
 
         assert(l % 4 == 0);
         for (c = l; c < (l + 4) && c < Elements(tx->regs.aL); ++c)
-            tx->regs.aL[c] = ureg_writemask(reg, c & 3);
+            tx->regs.aL[c] = ureg_writemask(reg, 1 << (c & 3));
     }
     return tx->regs.aL[l];
 }
@@ -1334,8 +1338,8 @@ DECL_SPECIAL(REP)
     label = tx_bgnloop(tx);
     ctr = tx_get_loopctr(tx);
 
-    /* NOTE: rep must be a constant, so we don't have to save the count */
-    assert(rep.File == TGSI_FILE_CONSTANT);
+    /* NOTE: rep must be constant, so we don't have to save the count */
+    assert(rep.File == TGSI_FILE_CONSTANT || rep.File == TGSI_FILE_IMMEDIATE);
 
     ureg_MOV(ureg, ctr, imm);
     ureg_BGNLOOP(ureg, label);
@@ -1344,7 +1348,7 @@ DECL_SPECIAL(REP)
         ureg_USGE(ureg, tmp, tx_src_scalar(ctr), rep);
         ureg_UADD(ureg, ctr, tx_src_scalar(ctr), ureg_imm1u(ureg, 1));
 #ifdef NINE_TGSI_LAZY_DEVS
-        ureg_UIF(ureg, tmp, tx_cond(tx));
+        ureg_UIF(ureg, tx_src_scalar(tmp), tx_cond(tx));
 #endif
     }
     else
@@ -1352,7 +1356,7 @@ DECL_SPECIAL(REP)
         ureg_SGE(ureg, tmp, tx_src_scalar(ctr), rep);
         ureg_ADD(ureg, ctr, tx_src_scalar(ctr), ureg_imm1f(ureg, 1.0f));
 #ifdef NINE_TGSI_LAZY_DEVS
-        ureg_IF(ureg, ureg_src(tmp), tx_cond(tx));
+        ureg_IF(ureg, tx_src_scalar(tmp), tx_cond(tx));
 #endif
     }
 #ifdef NINE_TGSI_LAZY_DEVS
@@ -1360,7 +1364,7 @@ DECL_SPECIAL(REP)
     tx_endcond(tx);
     ureg_ENDIF(ureg);
 #else
-    ureg_BREAKC(ureg, ureg_src(tmp));
+    ureg_BREAKC(ureg, tx_src_scala(tmp));
 #endif
 
     return D3D_OK;
@@ -1595,14 +1599,15 @@ DECL_SPECIAL(DCL)
         sem.usage == D3DDECLUSAGE_SAMPLE || sem.reg.file == D3DSPR_SAMPLER;
 
     DUMP("DCL ");
-    if (is_sampler)
-        DUMP("%s ", sm1_sampler_type_name(sem.sampler_type));
     sm1_dump_dst_param(&sem.reg);
+    if (is_sampler)
+        DUMP(" %s\n", sm1_sampler_type_name(sem.sampler_type));
+    else
     if (tx->version.major >= 3)
         DUMP(" %s%i\n", sm1_declusage_names[sem.usage], sem.usage_idx);
     else
-   if (sem.usage | sem.usage_idx)
-        DUMP(" (usage=%u,index=%u)\n", sem.usage, sem.usage_idx);
+    if (sem.usage | sem.usage_idx)
+        DUMP(" %u[%u]\n", sem.usage, sem.usage_idx);
 
     if (is_sampler) {
         ureg_DECL_sampler(ureg, sem.reg.idx);
