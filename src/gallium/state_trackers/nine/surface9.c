@@ -68,6 +68,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
                    struct NineUnknown *pContainer,
                    struct NineDevice9 *pDevice,
                    struct pipe_resource *pResource,
+                   uint8_t TextureType,
                    unsigned Level,
                    unsigned Layer,
                    D3DSURFACE_DESC *pDesc )
@@ -107,6 +108,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
         This->base.info.usage = PIPE_USAGE_STAGING;
         if (pResource)
             This->base.data = (uint8_t *)pResource; /* this is *pSharedHandle */
+        pResource = NULL;
     } else {
         if (pResource && (pDesc->Usage & D3DUSAGE_DYNAMIC))
             pResource->flags |= NINE_RESOURCE_FLAG_LOCKABLE;
@@ -122,6 +124,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
     This->pipe = NineDevice9_GetPipe(pDevice);
     This->transfer = NULL;
 
+    This->texture = TextureType;
     This->level = Level;
     This->level_actual = Level;
     This->layer = Layer;
@@ -137,12 +140,12 @@ NineSurface9_ctor( struct NineSurface9 *This,
     This->stride = util_format_get_stride(This->base.info.format, pDesc->Width);
     This->stride = align(This->stride, 4);
 
-    if (!pResource) {
+    if (!pResource && !This->base.data) {
         hr = NineSurface9_AllocateData(This);
         if (FAILED(hr))
             return hr;
     } else {
-        if (NineSurface9_IsOffscreenPlain(This))
+        if (pResource && NineSurface9_IsOffscreenPlain(This))
             pResource->flags |= NINE_RESOURCE_FLAG_LOCKABLE;
     }
 
@@ -226,12 +229,12 @@ NineSurface9_GetContainer( struct NineSurface9 *This,
 static INLINE void
 NineSurface9_MarkContainerDirty( struct NineSurface9 *This )
 {
-    if (This->base.type != D3DRTYPE_SURFACE) {
+    if (This->texture) {
         struct NineBaseTexture9 *tex =
             NineBaseTexture9(This->base.base.container);
         assert(tex);
-        assert(This->base.type == D3DRTYPE_TEXTURE ||
-               This->base.type == D3DRTYPE_CUBETEXTURE);
+        assert(This->texture == D3DRTYPE_TEXTURE ||
+               This->texture == D3DRTYPE_CUBETEXTURE);
         if (This->base.pool != D3DPOOL_MANAGED)
             tex->dirty_mip = TRUE;
         else
@@ -686,7 +689,7 @@ NineSurface9_SetResourceResize( struct NineSurface9 *This,
     assert(This->level == 0 && This->level_actual == 0);
     assert(!This->lock_count);
     assert(This->desc.Pool == D3DPOOL_DEFAULT);
-    assert(This->desc.Type == D3DRTYPE_SURFACE);
+    assert(!This->texture);
 
     pipe_resource_reference(&This->base.resource, resource);
 
@@ -715,11 +718,12 @@ HRESULT
 NineSurface9_new( struct NineDevice9 *pDevice,
                   struct NineUnknown *pContainer,
                   struct pipe_resource *pResource,
+                  uint8_t TextureType,
                   unsigned Level,
                   unsigned Layer,
                   D3DSURFACE_DESC *pDesc,
                   struct NineSurface9 **ppOut )
 {
     NINE_NEW(NineSurface9, ppOut, /* args */
-             pContainer, pDevice, pResource, Level, Layer, pDesc);
+             pContainer, pDevice, pResource, TextureType, Level, Layer, pDesc);
 }

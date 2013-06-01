@@ -751,7 +751,7 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     } else {
         resource = NULL;
     }
-    hr = NineSurface9_new(This, NULL, resource, 0, 0, &desc, &surface);
+    hr = NineSurface9_new(This, NULL, resource, 0, 0, 0, &desc, &surface);
     pipe_resource_reference(&resource, NULL);
 
     if (SUCCEEDED(hr))
@@ -1099,8 +1099,7 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
     user_assert(surf->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
     user_assert((surf->base.usage & D3DUSAGE_RENDERTARGET) ||
-                (surf->base.usage == 0 && surf->base.type == D3DRTYPE_SURFACE),
-                D3DERR_INVALIDCALL);
+                NineSurface9_IsOffscreenPlain(surf), D3DERR_INVALIDCALL);
 
     if (pRect) {
         x = pRect->left;

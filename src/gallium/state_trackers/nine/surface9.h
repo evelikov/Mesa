@@ -39,6 +39,7 @@ struct NineSurface9
     struct pipe_transfer *transfer;
     struct pipe_surface *surface; /* created on-demand */
     int lock_count;
+    uint8_t texture; /* rtype of container BaseTex or 0 */
 
     /* resource description */
     unsigned level;        /* refers to the pipe_resource (SetLOD !) */
@@ -61,6 +62,7 @@ HRESULT
 NineSurface9_new( struct NineDevice9 *pDevice,
                   struct NineUnknown *pContainer,
                   struct pipe_resource *pResource,
+                  uint8_t TextureType, /* 0 if pContainer isn't BaseTexure9 */
                   unsigned Level,
                   unsigned Layer,
                   D3DSURFACE_DESC *pDesc,
@@ -72,6 +74,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
                    struct NineUnknown *pContainer,
                    struct NineDevice9 *pDevice,
                    struct pipe_resource *pResource,
+                   uint8_t TextureType,
                    unsigned Level,
                    unsigned Layer,
                    D3DSURFACE_DESC *pDesc );
@@ -136,7 +139,7 @@ NineSurface9_CopySurface( struct NineSurface9 *This,
 static INLINE boolean
 NineSurface9_IsOffscreenPlain (struct NineSurface9 *This )
 {
-    return This->base.usage == 0 && This->base.type == D3DRTYPE_SURFACE;
+    return This->base.usage == 0 && !This->texture;
 }
 
 #ifdef DEBUG

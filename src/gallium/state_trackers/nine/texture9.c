@@ -131,7 +131,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
      * to them.
      */
     sfdesc.Format = Format;
-    sfdesc.Type = D3DRTYPE_TEXTURE;
+    sfdesc.Type = D3DRTYPE_SURFACE;
     sfdesc.Usage = Usage;
     sfdesc.Pool = Pool;
     sfdesc.MultiSampleType = D3DMULTISAMPLE_NONE;
@@ -141,7 +141,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
         sfdesc.Height = u_minify(Height, l);
 
         hr = NineSurface9_new(pDevice, NineUnknown(This),
-                              This->base.base.resource, l, 0,
+                              This->base.base.resource, D3DRTYPE_TEXTURE, l, 0,
                               &sfdesc, &This->surfaces[l]);
         if (FAILED(hr))
             return hr;

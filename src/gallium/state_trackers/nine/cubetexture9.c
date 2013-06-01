@@ -96,7 +96,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
      * to them.
      */
     sfdesc.Format = Format;
-    sfdesc.Type = D3DRTYPE_CUBETEXTURE;
+    sfdesc.Type = D3DRTYPE_SURFACE;
     sfdesc.Usage = Usage;
     sfdesc.Pool = Pool;
     sfdesc.MultiSampleType = D3DMULTISAMPLE_NONE;
@@ -105,7 +105,8 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
         sfdesc.Width = sfdesc.Height = u_minify(EdgeLength, i / 6);
 
         hr = NineSurface9_new(pDevice, NineUnknown(This),
-                              This->base.base.resource, i / 6, i % 6,
+                              This->base.base.resource, D3DRTYPE_CUBETEXTURE,
+                              i / 6, i % 6,
                               &sfdesc, &This->surfaces[i]);
         if (FAILED(hr))
             return hr;

@@ -89,7 +89,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
         return hr;
 
     voldesc.Format = Format;
-    voldesc.Type = D3DRTYPE_VOLUMETEXTURE;
+    voldesc.Type = D3DRTYPE_VOLUME;
     voldesc.Usage = Usage;
     voldesc.Pool = Pool;
     for (l = 0; l <= info->last_level; ++l) {

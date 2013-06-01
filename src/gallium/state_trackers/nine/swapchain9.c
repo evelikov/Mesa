@@ -186,7 +186,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
         } else {
             desc.Format = pParams->BackBufferFormat;
             desc.Usage = D3DUSAGE_RENDERTARGET;
-            hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
+            hr = NineSurface9_new(pDevice, NineUnknown(This), resource, 0,
                                   0, 0, &desc, &This->buffers[i]);
             pipe_resource_reference(&resource, NULL);
             if (FAILED(hr)) {
@@ -212,7 +212,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             /* XXX wine thinks the container of this should the the device */
             desc.Format = pParams->AutoDepthStencilFormat;
             desc.Usage = D3DUSAGE_DEPTHSTENCIL;
-            hr = NineSurface9_new(pDevice, NineUnknown(This), resource,
+            hr = NineSurface9_new(pDevice, NineUnknown(This), resource, 0,
                                   0, 0, &desc, &This->zsbuf);
             pipe_resource_reference(&resource, NULL);
             if (FAILED(hr)) {
