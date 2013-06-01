@@ -247,7 +247,8 @@ NineVolume9_LockBox( struct NineVolume9 *This,
         pBox ? pBox->Right : 0, pBox ? pBox->Bottom : 0, pBox ? pBox->Back : 0,
         Flags);
 
-    user_assert(This->desc.Pool != D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(This->desc.Pool != D3DPOOL_DEFAULT ||
+                (This->desc.Usage & D3DUSAGE_DYNAMIC), D3DERR_INVALIDCALL);
 
     user_assert(!((Flags & D3DLOCK_DISCARD) && (Flags & D3DLOCK_READONLY)),
                 D3DERR_INVALIDCALL);

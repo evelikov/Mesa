@@ -43,8 +43,6 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
     D3DSURFACE_DESC sfdesc;
     HRESULT hr;
 
-    user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
-                Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
                 (Pool != D3DPOOL_SYSTEMMEM && Levels <= 1), D3DERR_INVALIDCALL);
 

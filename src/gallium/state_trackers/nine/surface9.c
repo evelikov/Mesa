@@ -313,14 +313,9 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
     NineSurface9_Dump(This);
 
-#ifdef NINE_STRICTNESS
     user_assert(This->base.pool != D3DPOOL_DEFAULT ||
-                (This->base.usage == 0 && This->base.type == D3DRTYPE_SURFACE),
-                D3DERR_INVALIDCALL);
-#else
-    user_warn(This->base.pool == D3DPOOL_DEFAULT &&
-              (This->base.usage != 0 || This->base.type != D3DRTYPE_SURFACE));
-#endif
+                (This->base.usage & D3DUSAGE_DYNAMIC) ||
+                NineSurface9_IsOffscreenPlain(This), D3DERR_INVALIDCALL);
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
                             D3DLOCK_DONOTWAIT |
                             D3DLOCK_NO_DIRTY_UPDATE |

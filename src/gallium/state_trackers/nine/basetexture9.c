@@ -46,8 +46,15 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        D3DPOOL Pool )
 {
     BOOL alloc = (Pool == D3DPOOL_DEFAULT) && !This->base.resource;
+    HRESULT hr;
+    DWORD usage = This->base.usage;
 
-    HRESULT hr = NineResource9_ctor(&This->base, pParams, pDevice, alloc, Type, Pool);
+    user_assert(!(usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
+                Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
+    user_assert(!(usage & D3DUSAGE_DYNAMIC) ||
+                Pool != D3DPOOL_MANAGED, D3DERR_INVALIDCALL);
+
+    hr = NineResource9_ctor(&This->base, pParams, pDevice, alloc, Type, Pool);
     if (FAILED(hr))
         return hr;
 

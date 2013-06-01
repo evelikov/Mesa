@@ -56,8 +56,6 @@ NineTexture9_ctor( struct NineTexture9 *This,
         "pSharedHandle=%p\n", This, Width, Height, Levels, Usage,
         d3dformat_to_string(Format), nine_D3DPOOL_to_str(Pool), pSharedHandle);
 
-    user_assert(!(Usage & (D3DUSAGE_RENDERTARGET | D3DUSAGE_DEPTHSTENCIL)) ||
-                Pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
                 (Pool != D3DPOOL_SYSTEMMEM && Levels <= 1), D3DERR_INVALIDCALL);
 
