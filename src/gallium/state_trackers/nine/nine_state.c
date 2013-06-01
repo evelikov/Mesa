@@ -377,8 +377,10 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_PS; ++i) {
         const unsigned s = NINE_SAMPLER_PS(i);
-        if (!state->texture[s])
+        if (!state->texture[s]) {
+            view[i] = NULL;
             continue;
+        }
         view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
 
         num_textures = i + 1;
@@ -393,8 +395,10 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_VS; ++i) {
         const unsigned s = NINE_SAMPLER_VS(i);
-        if (!state->texture[s])
+        if (!state->texture[s]) {
+            view[i] = NULL;
             continue;
+        }
         view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
 
         num_textures = i + 1;
