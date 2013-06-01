@@ -330,7 +330,25 @@ NineDevice9_GetDisplayMode( struct NineDevice9 *This,
                             UINT iSwapChain,
                             D3DDISPLAYMODE *pMode )
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct NineSwapChain9 *nsc;
+
+    DBG("This=%p iSwapChain=%u pMode=%p\n", This, iSwapChain, pMode);
+
+    user_assert(iSwapChain < This->nswapchains, D3DERR_INVALIDCALL);
+    user_assert(pMode, E_POINTER);
+
+    nsc = This->swapchains[iSwapChain];
+
+    pMode->Width = nsc->params.BackBufferWidth;
+    pMode->Height = nsc->params.BackBufferHeight;
+    pMode->RefreshRate = nsc->params.FullScreen_RefreshRateInHz;
+    pMode->Format = D3DFMT_X8R8G8B8;
+
+    DBG("pMode(%p) =\nWidth: %u\nHeight: %u\nRefreshRate: %u\nFormat: %s\n",
+        pMode, pMode->Width, pMode->Height, pMode->RefreshRate,
+        d3dformat_to_string(pMode->Format));
+
+    STUB(D3D_OK);
 }
 
 HRESULT WINAPI
@@ -495,6 +513,15 @@ NineDevice9_SetGammaRamp( struct NineDevice9 *This,
                           DWORD Flags,
                           const D3DGAMMARAMP *pRamp )
 {
+    DBG("This=%p iSwapChain=%u Flags=%x pRamp=%p\n", This,
+        iSwapChain, Flags, pRamp);
+
+    user_warn(iSwapChain >= This->nswapchains);
+    user_warn(!pRamp);
+
+    if (pRamp && (iSwapChain < This->nswapchains))
+        This->swapchains[iSwapChain]->gamma = *pRamp;
+
     STUB();
 }
 
@@ -503,6 +530,14 @@ NineDevice9_GetGammaRamp( struct NineDevice9 *This,
                           UINT iSwapChain,
                           D3DGAMMARAMP *pRamp )
 {
+    DBG("This=%p iSwapChain=%u pRamp=%p\n", This, iSwapChain, pRamp);
+
+    user_warn(iSwapChain >= This->nswapchains);
+    user_warn(!pRamp);
+
+    if (pRamp && (iSwapChain < This->nswapchains))
+        *pRamp = This->swapchains[iSwapChain]->gamma;
+
     STUB();
 }
 

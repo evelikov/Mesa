@@ -54,6 +54,8 @@ struct NineSwapChain9
     /* buffer handles */
     struct NineSurface9 **buffers; /* [0] is frontbuffer */
     struct NineSurface9 *zsbuf;
+
+    D3DGAMMARAMP gamma;
 };
 static INLINE struct NineSwapChain9 *
 NineSwapChain9( void *data )
