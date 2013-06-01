@@ -1347,8 +1347,10 @@ NineDevice9_Clear( struct NineDevice9 *This,
 
     user_assert(This->state.ds || !(Flags & NINED3DCLEAR_DEPTHSTENCIL),
                 D3DERR_INVALIDCALL);
-    user_assert(util_format_is_depth_and_stencil(zsbuf->base.info.format) ||
-                !(Flags & D3DCLEAR_STENCIL), D3DERR_INVALIDCALL);
+    user_assert(!(Flags & D3DCLEAR_STENCIL) ||
+                (zsbuf &&
+                 util_format_is_depth_and_stencil(zsbuf->base.info.format)),
+                D3DERR_INVALIDCALL);
 #ifdef NINE_STRICT
     user_assert((Count && pRects) || (!Count && !pRects), D3DERR_INVALIDCALL);
 #else
