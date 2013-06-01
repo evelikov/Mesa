@@ -366,7 +366,7 @@ NineDevice9_SetCursorProperties( struct NineDevice9 *This,
                                  UINT YHotSpot,
                                  IDirect3DSurface9 *pCursorBitmap )
 {
-    STUB(D3DERR_INVALIDCALL);
+    STUB(D3D_OK);
 }
 
 void WINAPI
@@ -382,7 +382,9 @@ BOOL WINAPI
 NineDevice9_ShowCursor( struct NineDevice9 *This,
                         BOOL bShow )
 {
-    STUB(0);
+    BOOL old = This->cursor.visible;
+    This->cursor.visible = bShow;
+    STUB(old);
 }
 
 HRESULT WINAPI

@@ -89,6 +89,10 @@ struct NineDevice9
 
         struct util_hash_table *ht_fvf;
     } ff;
+
+    struct {
+        BOOL visible;
+    } cursor;
 };
 static INLINE struct NineDevice9 *
 NineDevice9( void *data )
