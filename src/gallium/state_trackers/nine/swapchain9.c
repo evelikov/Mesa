@@ -26,6 +26,7 @@
 
 #include "nine_helpers.h"
 #include "nine_pipe.h"
+#include "nine_dump.h"
 
 #include "util/u_inlines.h"
 #include "util/u_surface.h"
@@ -95,7 +96,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             "Windowed: %i\n"
             "EnableAutoDepthStencil: %i\n"
             "AutoDepthStencilFormat: %s\n"
-            "Flags: %x\n"
+            "Flags: %s\n"
             "FullScreen_RefreshRateInHz: %u\n"
             "PresentationInterval: %x\n", pParams,
             pParams->BackBufferWidth, pParams->BackBufferHeight,
@@ -105,7 +106,8 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             pParams->SwapEffect, pParams->hDeviceWindow, pParams->Windowed,
             pParams->EnableAutoDepthStencil,
             d3dformat_to_string(pParams->AutoDepthStencilFormat),
-            pParams->Flags, pParams->FullScreen_RefreshRateInHz,
+            nine_D3DPRESENTFLAG_to_str(pParams->Flags),
+            pParams->FullScreen_RefreshRateInHz,
             pParams->PresentationInterval);
     }
 
@@ -176,6 +178,8 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             DBG("Failed to create pipe_resource.\n");
             return D3DERR_OUTOFVIDEOMEMORY;
         }
+        if (pParams->Flags & D3DPRESENTFLAG_LOCKABLE_BACKBUFFER)
+            resource->flags |= NINE_RESOURCE_FLAG_LOCKABLE;
         if (This->buffers[i]) {
             NineSurface9_SetResourceResize(This->buffers[i], resource);
             pipe_resource_reference(&resource, NULL);

@@ -139,6 +139,14 @@ NineSurface9_IsOffscreenPlain (struct NineSurface9 *This )
     return This->base.usage == 0 && This->base.type == D3DRTYPE_SURFACE;
 }
 
+#ifdef DEBUG
+void
+NineSurface9_Dump( struct NineSurface9 *This );
+#else
+static INLINE void
+NineSurface9_Dump( struct NineSurface9 *This ) { }
+#endif
+
 /*** Direct3D public ***/
 
 HRESULT WINAPI

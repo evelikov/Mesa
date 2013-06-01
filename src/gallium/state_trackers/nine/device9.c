@@ -746,6 +746,8 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     if (Pool == D3DPOOL_DEFAULT) {
         resource = screen->resource_create(screen, &templ);
         user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
+        if (Discard_or_Lockable && (desc.Usage & D3DUSAGE_RENDERTARGET))
+            resource->flags |= NINE_RESOURCE_FLAG_LOCKABLE;
     } else {
         resource = NULL;
     }

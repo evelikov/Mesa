@@ -74,6 +74,9 @@ NineSurface9_ctor( struct NineSurface9 *This,
 {
     HRESULT hr;
 
+    DBG("This=%p pDevice=%p pResource=%p Level=%u Layer=%u pDesc=%p\n",
+        This, pDevice, pResource, Level, Layer, pDesc);
+
     /* Mark this as a special surface held by another internal resource. */
     pParams->container = pContainer;
 
@@ -105,6 +108,8 @@ NineSurface9_ctor( struct NineSurface9 *This,
         if (pResource)
             This->base.data = (uint8_t *)pResource; /* this is *pSharedHandle */
     } else {
+        if (pResource && (pDesc->Usage & D3DUSAGE_DYNAMIC))
+            pResource->flags |= NINE_RESOURCE_FLAG_LOCKABLE;
         pipe_resource_reference(&This->base.resource, pResource);
     }
 
@@ -136,7 +141,12 @@ NineSurface9_ctor( struct NineSurface9 *This,
         hr = NineSurface9_AllocateData(This);
         if (FAILED(hr))
             return hr;
+    } else {
+        if (NineSurface9_IsOffscreenPlain(This))
+            pResource->flags |= NINE_RESOURCE_FLAG_LOCKABLE;
     }
+
+    NineSurface9_Dump(This);
 
     return D3D_OK;
 }
@@ -173,20 +183,23 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
     return This->surface;
 }
 
-static void
+void
 NineSurface9_Dump( struct NineSurface9 *This )
 {
     struct NineBaseTexture9 *tex;
     GUID id = IID_IDirect3DBaseTexture9;
     REFIID ref = &id;
 
-    DBG("\nNineSurface9(%p->%p/%p): Pool=%s Type=%s\n"
-        "Dims=%ux%u Format=%s Stride=%u\n"
+    DBG("\nNineSurface9(%p->%p/%p): Pool=%s Type=%s Usage=%s\n"
+        "Dims=%ux%u Format=%s Stride=%u Lockable=%i\n"
         "Level=%u(%u), Layer=%u\n", This, This->base.resource, This->base.data,
         nine_D3DPOOL_to_str(This->desc.Pool),
         nine_D3DRTYPE_to_str(This->desc.Type),
+        nine_D3DUSAGE_to_str(This->desc.Usage),
         This->desc.Width, This->desc.Height,
         d3dformat_to_string(This->desc.Format), This->stride,
+        This->base.resource &&
+        (This->base.resource->flags & NINE_RESOURCE_FLAG_LOCKABLE),
         This->level, This->level_actual, This->layer);
 
     if (!This->base.base.container)
@@ -313,9 +326,11 @@ NineSurface9_LockRect( struct NineSurface9 *This,
         pRect ? pRect->right : 0, pRect ? pRect->bottom : 0, Flags);
     NineSurface9_Dump(This);
 
+#ifdef NINE_STRICT
     user_assert(This->base.pool != D3DPOOL_DEFAULT ||
-                (This->base.usage & D3DUSAGE_DYNAMIC) ||
-                NineSurface9_IsOffscreenPlain(This), D3DERR_INVALIDCALL);
+                (resource && (resource->flags & NINE_RESOURCE_FLAG_LOCKABLE)),
+                D3DERR_INVALIDCALL);
+#endif
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
                             D3DLOCK_DONOTWAIT |
                             D3DLOCK_NO_DIRTY_UPDATE |

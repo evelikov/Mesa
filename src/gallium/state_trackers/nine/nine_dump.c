@@ -9,6 +9,8 @@
 
 #ifdef DEBUG
 
+static char __thread tls[128];
+
 const char *nine_D3DDEVTYPE_to_str(D3DDEVTYPE type)
 {
     switch (type) {
@@ -32,6 +34,58 @@ const char *nine_D3DPOOL_to_str(D3DPOOL pool)
         return "(D3DPOOL_?)";
     }
 }
+
+#define C2S(n,s) \
+    do { \
+        if (usage & D3DUSAGE_##n) p += snprintf(&tls[p], sizeof(tls) - p, s); \
+    } while(0)
+const char *nine_D3DUSAGE_to_str(DWORD usage)
+{
+    int p = 0;
+    tls[0] = 0;
+    C2S(AUTOGENMIPMAP, "MIPGEN");
+    C2S(WRITEONLY, "WO");
+    C2S(DYNAMIC, "DYNAMIC");
+    C2S(DEPTHSTENCIL, "DS");
+    C2S(RENDERTARGET, "RT");
+    C2S(SOFTWAREPROCESSING, "SW");
+    C2S(DONOTCLIP, "NOCLIP");
+    C2S(POINTS, "POINTS");
+    C2S(DMAP, "DMAP");
+    C2S(NPATCHES, "NPATCHES");
+    C2S(RTPATCHES, "RTPATCHES");
+    C2S(TEXTAPI, "TEXTAPI");
+    C2S(NONSECURE, "NONSECURE");
+    C2S(RESTRICTED_CONTENT, "RESTRICTED_CONTENT");
+    C2S(RESTRICT_SHARED_RESOURCE, "RESTRICT_SHARED_RESOURCE");
+    C2S(RESTRICT_SHARED_RESOURCE_DRIVER, "RESTRICT_SHARED_RESOURCE_DRIVER");
+    return tls;
+}
+#undef C2S
+
+#define C2S(n) \
+    do { \
+        if (flags & D3DPRESENTFLAG_##n) \
+            p += snprintf(&tls[p], sizeof(tls) - p, #n); \
+    } while(0)
+const char *nine_D3DPRESENTFLAG_to_str(DWORD flags)
+{
+    int p = 0;
+    tls[0] = 0;
+    C2S(DEVICECLIP);
+    C2S(DISCARD_DEPTHSTENCIL);
+    C2S(LOCKABLE_BACKBUFFER);
+    C2S(NOAUTOROTATE);
+    C2S(UNPRUNEDMODE);
+    C2S(VIDEO);
+    C2S(OVERLAY_LIMITEDRGB);
+    C2S(OVERLAY_YCbCr_BT709);
+    C2S(OVERLAY_YCbCr_xvYCC);
+    C2S(RESTRICTED_CONTENT);
+    C2S(RESTRICT_SHARED_RESOURCE_DRIVER);
+    return tls;
+}
+#undef C2S
 
 const char *nine_D3DRTYPE_to_str(D3DRESOURCETYPE type)
 {
