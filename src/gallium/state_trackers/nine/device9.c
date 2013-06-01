@@ -555,9 +555,10 @@ NineDevice9_CreateTexture( struct NineDevice9 *This,
     struct NineTexture9 *tex;
     HRESULT hr;
 
-    DBG("This=%p Width=%u Height=%u Levels=%u Usage=%x Format=%s Pool=%u "
-        "ppOut=%p pSharedHandle=%p\n", This, Width, Height, Levels, Usage,
-        d3dformat_to_string(Format), Pool, ppTexture, pSharedHandle);
+    DBG("This=%p Width=%u Height=%u Levels=%u Usage=%s Format=%s Pool=%s "
+        "ppOut=%p pSharedHandle=%p\n", This, Width, Height, Levels,
+        nine_D3DUSAGE_to_str(Usage), d3dformat_to_string(Format),
+        nine_D3DPOOL_to_str(Pool), ppTexture, pSharedHandle);
 
     Usage &= D3DUSAGE_AUTOGENMIPMAP | D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_DMAP |
              D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET |
@@ -591,9 +592,10 @@ NineDevice9_CreateVolumeTexture( struct NineDevice9 *This,
     struct NineVolumeTexture9 *tex;
     HRESULT hr;
 
-    DBG("This=%p Width=%u Height=%u Depth=%u Levels=%u Format=%s Pool=%u "
+    DBG("This=%p Width=%u Height=%u Depth=%u Levels=%u Usage=%s Format=%s Pool=%s "
         "ppOut=%p pSharedHandle=%p\n", This, Width, Height, Depth, Levels,
-        d3dformat_to_string(Format), Pool, ppVolumeTexture, pSharedHandle);
+        nine_D3DUSAGE_to_str(Usage), d3dformat_to_string(Format),
+        nine_D3DPOOL_to_str(Pool), ppVolumeTexture, pSharedHandle);
 
     Usage &= D3DUSAGE_DYNAMIC | D3DUSAGE_NONSECURE |
              D3DUSAGE_SOFTWAREPROCESSING;
@@ -623,9 +625,10 @@ NineDevice9_CreateCubeTexture( struct NineDevice9 *This,
     struct NineCubeTexture9 *tex;
     HRESULT hr;
 
-    DBG("This=%p EdgeLength=%u Levels=%u Usage=%x Format=%s Pool=%u ppOut=%p "
-        "pSharedHandle=%p", This, EdgeLength, Levels, Usage,
-        d3dformat_to_string(Format), Pool, ppCubeTexture, pSharedHandle);
+    DBG("This=%p EdgeLength=%u Levels=%u Usage=%s Format=%s Pool=%s ppOut=%p "
+        "pSharedHandle=%p", This, EdgeLength, Levels,
+        nine_D3DUSAGE_to_str(Usage), d3dformat_to_string(Format),
+        nine_D3DPOOL_to_str(Pool), ppCubeTexture, pSharedHandle);
 
     Usage &= D3DUSAGE_AUTOGENMIPMAP | D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_DYNAMIC |
              D3DUSAGE_NONSECURE | D3DUSAGE_RENDERTARGET |

@@ -52,8 +52,9 @@ NineTexture9_ctor( struct NineTexture9 *This,
     HRESULT hr;
     const boolean shared_create = pSharedHandle && !*pSharedHandle;
 
-    DBG("(%p) Width=%u Height=%u Levels=%u Usage=%x Format=%s Pool=%s "
-        "pSharedHandle=%p\n", This, Width, Height, Levels, Usage,
+    DBG("(%p) Width=%u Height=%u Levels=%u Usage=%s Format=%s Pool=%s "
+        "pSharedHandle=%p\n", This, Width, Height, Levels,
+        nine_D3DUSAGE_to_str(Usage),
         d3dformat_to_string(Format), nine_D3DPOOL_to_str(Pool), pSharedHandle);
 
     user_assert(!(Usage & D3DUSAGE_AUTOGENMIPMAP) ||
