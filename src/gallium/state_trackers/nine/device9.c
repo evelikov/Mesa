@@ -2706,11 +2706,14 @@ NineDevice9_SetStreamSourceFreq( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
     /* const UINT freq = Setting & 0x7FFFFF; */
 
+    DBG("This=%p StreamNumber=%u FrequencyParameter=0x%x\n", This,
+        StreamNumber, Setting);
+
     user_assert(StreamNumber < This->caps.MaxStreams, D3DERR_INVALIDCALL);
-    user_assert(StreamNumber != 0 || (Setting & D3DSTREAMSOURCE_INDEXEDDATA),
+    user_assert(StreamNumber != 0 || !(Setting & D3DSTREAMSOURCE_INSTANCEDATA),
                 D3DERR_INVALIDCALL);
-    user_assert(!(Setting & D3DSTREAMSOURCE_INSTANCEDATA) ^
-                !(Setting & D3DSTREAMSOURCE_INDEXEDDATA), D3DERR_INVALIDCALL);
+    user_assert(!((Setting & D3DSTREAMSOURCE_INSTANCEDATA) &&
+                  (Setting & D3DSTREAMSOURCE_INDEXEDDATA)), D3DERR_INVALIDCALL);
 
     state->stream_freq[StreamNumber] = Setting;
 
