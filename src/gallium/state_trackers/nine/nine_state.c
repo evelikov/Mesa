@@ -208,24 +208,36 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     if (shader_type == PIPE_SHADER_VERTEX) {
         DBG("VS\n");
         buf = device->constbuf_vs;
+
         dirty_f = device->state.changed.vs_const_f;
         const_f = device->state.vs_const_f;
+
         dirty_i = device->state.changed.vs_const_i;
+        device->state.changed.vs_const_i = 0;
         const_i = &device->state.vs_const_i[0][0];
+
         dirty_b = device->state.changed.vs_const_b;
+        device->state.changed.vs_const_b = 0;
         const_b = device->state.vs_const_b;
         b_true = device->vs_bool_true;
+
         lconstf = &device->state.vs->lconstf;
     } else {
         DBG("PS\n");
         buf = device->constbuf_ps;
+
         dirty_f = device->state.changed.ps_const_f;
         const_f = device->state.ps_const_f;
+
         dirty_i = device->state.changed.ps_const_i;
+        device->state.changed.ps_const_i = 0;
         const_i = &device->state.ps_const_i[0][0];
+
         dirty_b = device->state.changed.ps_const_b;
+        device->state.changed.vs_const_b = 0;
         const_b = device->state.ps_const_b;
         b_true = device->ps_bool_true;
+
         lconstf = &device->state.ps->lconstf;
     }
     box.y = 0;
@@ -276,6 +288,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     /* float4 */
     for (c = 0, i = 0; i < (NINE_MAX_CONST_F + 31) / 32; ++i) {
         uint32_t m = dirty_f[i];
+        dirty_f[i] = 0;
 
         for (j = 0; m; j++, m >>= 1) {
             if (m & 1) {
@@ -434,49 +447,50 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
 #define NINE_STATE_FREQ_GROUP_1 ~NINE_STATE_FREQ_GROUP_0
 boolean
-nine_update_state(struct NineDevice9 *device)
+nine_update_state(struct NineDevice9 *device, uint32_t mask)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
+    const uint32_t group = state->changed.group & mask;
 
     DBG("changed state groups: %x | %x\n",
         state->changed.group & NINE_STATE_FREQ_GROUP_0,
         state->changed.group & NINE_STATE_FREQ_GROUP_1);
 
-    if (unlikely(!state->vs || !state->ps))
+    if ((mask & NINE_STATE_FF) && unlikely(!state->vs || !state->ps))
         nine_ff_update(device);
 
-    if (state->changed.group & NINE_STATE_FREQ_GROUP_0) {
-        if (state->changed.group & NINE_STATE_FB)
+    if (group & NINE_STATE_FREQ_GROUP_0) {
+        if (group & NINE_STATE_FB)
             update_framebuffer(device);
-        if (state->changed.group & (NINE_STATE_VIEWPORT | NINE_STATE_VS))
+        if (group & (NINE_STATE_VIEWPORT | NINE_STATE_VS))
             update_viewport(device);
-        if (state->changed.group & NINE_STATE_SCISSOR)
+        if (group & NINE_STATE_SCISSOR)
             update_scissor(device);
 
-        if (state->changed.group & NINE_STATE_BLEND)
+        if (group & NINE_STATE_BLEND)
             update_blend(device);
-        if (state->changed.group & NINE_STATE_DSA)
+        if (group & NINE_STATE_DSA)
             update_dsa(device);
-        if (state->changed.group & NINE_STATE_RASTERIZER)
+        if (group & NINE_STATE_RASTERIZER)
             update_rasterizer(device);
 
-        if (state->changed.group & NINE_STATE_VS)
+        if (group & NINE_STATE_VS)
             pipe->bind_vs_state(pipe, device->state.vs ? device->state.vs->cso :
                                                          device->ff.vs->cso);
-        if (state->changed.group & NINE_STATE_PS)
+        if (group & NINE_STATE_PS)
             pipe->bind_fs_state(pipe, device->state.ps ? device->state.ps->cso :
                                                          device->ff.ps->cso);
 
-        if (state->changed.group & NINE_STATE_BLEND_COLOR) {
+        if (group & NINE_STATE_BLEND_COLOR) {
             struct pipe_blend_color color;
             d3dcolor_to_rgba(&color.color[0], state->rs[D3DRS_BLENDFACTOR]);
             pipe->set_blend_color(pipe, &color);
         }
-        if (state->changed.group & NINE_STATE_SAMPLE_MASK) {
+        if (group & NINE_STATE_SAMPLE_MASK) {
             pipe->set_sample_mask(pipe, state->rs[D3DRS_MULTISAMPLEMASK]);
         }
-        if (state->changed.group & NINE_STATE_STENCIL_REF) {
+        if (group & NINE_STATE_STENCIL_REF) {
             struct pipe_stencil_ref ref;
             ref.ref_value[0] = state->rs[D3DRS_STENCILREF];
             ref.ref_value[1] = ref.ref_value[0];
@@ -487,26 +501,26 @@ nine_update_state(struct NineDevice9 *device)
     if (state->changed.ucp)
         pipe->set_clip_state(pipe, &state->clip);
 
-    if (state->changed.group & NINE_STATE_FREQ_GROUP_1) {
-        if (state->changed.group & (NINE_STATE_TEXTURE | NINE_STATE_SAMPLER))
+    if (group & NINE_STATE_FREQ_GROUP_1) {
+        if (group & (NINE_STATE_TEXTURE | NINE_STATE_SAMPLER))
             update_textures_and_samplers(device);
 
-        if (state->changed.group & NINE_STATE_IDXBUF)
+        if (group & NINE_STATE_IDXBUF)
             update_index_buffer(device);
 
-        if ((state->changed.group & (NINE_STATE_VDECL | NINE_STATE_VS)) ||
+        if ((group & (NINE_STATE_VDECL | NINE_STATE_VS)) ||
             state->changed.stream_freq & ~1)
             update_vertex_elements(device);
 
-        if ((state->changed.group & NINE_STATE_VS_CONST) && state->vs)
+        if ((group & NINE_STATE_VS_CONST) && state->vs)
             update_constants(device, PIPE_SHADER_VERTEX);
-        if ((state->changed.group & NINE_STATE_PS_CONST) && state->ps)
+        if ((group & NINE_STATE_PS_CONST) && state->ps)
             update_constants(device, PIPE_SHADER_FRAGMENT);
     }
     if (state->changed.vtxbuf)
         update_vertex_buffers(device);
 
-    device->state.changed.group &= NINE_STATE_FF;
+    device->state.changed.group &= ~mask | NINE_STATE_FF;
 
     DBG("finished\n");
 

@@ -1620,6 +1620,8 @@ nine_ff_update(struct NineDevice9 *device)
 {
     struct nine_state *state = &device->state;
 
+    DBG("vs=%p ps=%p\n", device->state.vs, device->state.ps);
+
     /* NOTE: the only reference belongs to the hash table */
     if (!device->state.vs)
         device->ff.vs = nine_ff_get_vs(device);

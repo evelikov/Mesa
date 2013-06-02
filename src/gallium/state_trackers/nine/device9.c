@@ -233,7 +233,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
     }
     This->update = &This->state;
 
-    nine_update_state(This);
+    nine_update_state(This, ~0);
 
     ID3DPresentFactory_Release(This->present);
 
@@ -1449,7 +1449,7 @@ NineDevice9_Clear( struct NineDevice9 *This,
         return D3D_OK;
     d3dcolor_to_pipe_color_union(&rgba, Color);
 
-    nine_update_state(This);
+    nine_update_state(This, NINE_STATE_FB);
 
     rect.x1 = This->state.viewport.X;
     rect.y1 = This->state.viewport.Y;
@@ -2229,7 +2229,7 @@ NineDevice9_DrawPrimitive( struct NineDevice9 *This,
     DBG("iface %p, PrimitiveType %u, StartVertex %u, PrimitiveCount %u\n",
         This, PrimitiveType, StartVertex, PrimitiveCount);
 
-    nine_update_state(This);
+    nine_update_state(This, ~0);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
     info.indexed = FALSE;
@@ -2261,7 +2261,7 @@ NineDevice9_DrawIndexedPrimitive( struct NineDevice9 *This,
 
     user_assert(This->state.idxbuf, D3DERR_INVALIDCALL);
 
-    nine_update_state(This);
+    nine_update_state(This, ~0);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
     info.indexed = TRUE;
@@ -2292,7 +2292,7 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
     user_assert(pVertexStreamZeroData && VertexStreamZeroStride,
                 D3DERR_INVALIDCALL);
 
-    nine_update_state(This);
+    nine_update_state(This, ~0);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
     info.indexed = FALSE;
@@ -2343,7 +2343,7 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
     user_assert(IndexDataFormat == D3DFMT_INDEX16 ||
                 IndexDataFormat == D3DFMT_INDEX32, D3DERR_INVALIDCALL);
 
-    nine_update_state(This);
+    nine_update_state(This, ~0);
 
     init_draw_info(&info, This, PrimitiveType, PrimitiveCount);
     info.indexed = TRUE;
@@ -2398,7 +2398,7 @@ NineDevice9_ProcessVertices( struct NineDevice9 *This,
     if (!screen->get_param(screen, PIPE_CAP_MAX_STREAM_OUTPUT_BUFFERS))
         STUB(D3DERR_INVALIDCALL);
 
-    nine_update_state(This);
+    nine_update_state(This, ~0);
 
     /* TODO: Create shader with stream output. */
     vs = This->state.vs ? This->state.vs : This->ff.vs;
@@ -2482,6 +2482,7 @@ NineDevice9_SetVertexDeclaration( struct NineDevice9 *This,
                                   IDirect3DVertexDeclaration9 *pDecl )
 {
     NINESTATEPOINTER_SET(This);
+    DBG("This=%p pDecl=%p\n", This, pDecl);
     nine_reference(&state->vdecl, pDecl);
     state->changed.group |= NINE_STATE_VDECL;
     /* XXX: should this really change the result of GetFVF ? */

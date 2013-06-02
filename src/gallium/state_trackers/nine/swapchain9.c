@@ -421,7 +421,7 @@ NineSwapChain9_Present( struct NineSwapChain9 *This,
             break;
     }
     This->device->state.changed.group |= NINE_STATE_FB;
-    nine_update_state(This->device); /* XXX: expose fb update separately ? */
+    nine_update_state(This->device, NINE_STATE_FB);
 
     return hr;
 }

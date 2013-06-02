@@ -189,7 +189,7 @@ const uint32_t nine_render_states_vertex[(NINED3DRS_LAST + 31) / 32];
 
 struct NineDevice9;
 
-boolean nine_update_state(struct NineDevice9 *);
+boolean nine_update_state(struct NineDevice9 *, uint32_t group_mask);
 
 void nine_state_set_defaults(struct nine_state *, const D3DCAPS9 *,
                              boolean is_reset);
