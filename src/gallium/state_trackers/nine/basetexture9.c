@@ -335,7 +335,6 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     struct pipe_resource *resource = This->base.resource;
     struct pipe_sampler_view templ;
     uint8_t swizzle[4];
-    unsigned i;
 
     if (!resource)
         NineBaseTexture9_Dump(This);
@@ -347,11 +346,22 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     swizzle[1] = PIPE_SWIZZLE_GREEN;
     swizzle[2] = PIPE_SWIZZLE_BLUE;
     swizzle[3] = PIPE_SWIZZLE_ALPHA;
-    /* docs/source/tgsi.rst suggests D3D9 has unused components equal 1 */
+    /* see end of docs/source/tgsi.rst */
     desc = util_format_description(resource->format);
-    for (i = 0; i < 4; ++i)
-        if (desc->swizzle[i] == UTIL_FORMAT_SWIZZLE_0)
-            swizzle[i] = PIPE_SWIZZLE_ONE;
+    if (desc->colorspace == UTIL_FORMAT_COLORSPACE_ZS) {
+        /* ZZZ1 -> 0Z01 */
+        swizzle[0] = PIPE_SWIZZLE_ZERO;
+        swizzle[2] = PIPE_SWIZZLE_ZERO;
+    } else
+    if (desc->swizzle[0] == UTIL_FORMAT_SWIZZLE_X &&
+        desc->swizzle[3] == UTIL_FORMAT_SWIZZLE_1) {
+        /* R001/RG01 -> R111/RG11 */
+        if (desc->swizzle[1] == UTIL_FORMAT_SWIZZLE_0)
+            swizzle[1] = PIPE_SWIZZLE_ONE;
+        if (desc->swizzle[2] == UTIL_FORMAT_SWIZZLE_0)
+            swizzle[2] = PIPE_SWIZZLE_ONE;
+    }
+    /* but 000A remains unchanged */
 
     templ.format = resource->format;
     templ.u.tex.first_layer = 0;
