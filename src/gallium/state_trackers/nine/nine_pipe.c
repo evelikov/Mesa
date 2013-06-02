@@ -38,14 +38,16 @@ nine_convert_dsa_state(struct cso_context *ctx, const DWORD *rs)
     dsa.depth.func = d3dcmpfunc_to_pipe_func(rs[D3DRS_ZFUNC]);
 
     dsa.stencil[0].enabled = !!rs[D3DRS_STENCILENABLE];
-    dsa.stencil[0].func = d3dcmpfunc_to_pipe_func(rs[D3DRS_STENCILFUNC]);
-    dsa.stencil[0].fail_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_STENCILFAIL]);
-    dsa.stencil[0].zpass_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_STENCILPASS]);
-    dsa.stencil[0].zfail_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_STENCILZFAIL]);
-    dsa.stencil[0].valuemask = rs[D3DRS_STENCILMASK];
-    dsa.stencil[0].writemask = rs[D3DRS_STENCILWRITEMASK];
+    if (dsa.stencil[0].enabled) {
+        dsa.stencil[0].func = d3dcmpfunc_to_pipe_func(rs[D3DRS_STENCILFUNC]);
+        dsa.stencil[0].fail_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_STENCILFAIL]);
+        dsa.stencil[0].zpass_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_STENCILPASS]);
+        dsa.stencil[0].zfail_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_STENCILZFAIL]);
+        dsa.stencil[0].valuemask = rs[D3DRS_STENCILMASK];
+        dsa.stencil[0].writemask = rs[D3DRS_STENCILWRITEMASK];
+    }
 
-    dsa.stencil[1].enabled = !!rs[D3DRS_TWOSIDEDSTENCILMODE];
+    dsa.stencil[1].enabled = dsa.stencil[0].enabled && rs[D3DRS_TWOSIDEDSTENCILMODE];
     if (dsa.stencil[1].enabled) {
         dsa.stencil[1].func = d3dcmpfunc_to_pipe_func(rs[D3DRS_CCW_STENCILFUNC]);
         dsa.stencil[1].fail_op = d3dstencilop_to_pipe_stencil_op(rs[D3DRS_CCW_STENCILFAIL]);
