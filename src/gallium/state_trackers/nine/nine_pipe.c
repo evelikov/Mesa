@@ -165,7 +165,7 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
 {
     struct pipe_sampler_state samp;
 
-    assert(idx >= 0 && (idx <= 7 || idx >= 9) && (idx <= 12));
+    assert(idx >= 0 && (idx <= 15 || idx >= 17) && (idx <= 20));
 
     memset(&samp, 0, sizeof(samp)); /* memcmp safety */
 
@@ -186,7 +186,7 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     d3dcolor_to_pipe_color_union(&samp.border_color, ss[D3DSAMP_BORDERCOLOR]);
 
     /* see nine_state.h */
-    if (idx < 8)
+    if (idx < 16)
         cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
     else
         cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - 17, &samp);
