@@ -407,7 +407,7 @@ NineWinePresentX11_GetPresentStats( struct NineWinePresentX11 *This,
 
 static HRESULT WINAPI
 NineWinePresentX11_GetCursorPos( struct NineWinePresentX11 *This,
-                              POINT *pPoint )
+                                 POINT *pPoint )
 {
     BOOL ok;
     if (!pPoint)
@@ -415,6 +415,19 @@ NineWinePresentX11_GetCursorPos( struct NineWinePresentX11 *This,
     ok = GetCursorPos(pPoint);
     ok = ok && ScreenToClient(This->current_window.real, pPoint);
     return ok ? S_OK : D3DERR_DRIVERINTERNALERROR;
+}
+
+static HRESULT WINAPI
+NineWinePresentX11_SetGammaRamp( struct NineWinePresentX11 *This,
+                                 const D3DGAMMARAMP *pRamp,
+                                 HWND hWndOverride )
+{
+   HWND hWnd = hWndOverride ? hWndOverride : This->current_window.real;
+   BOOL ok;
+   if (!pRamp)
+      return D3DERR_INVALIDCALL;
+   ok = SetDeviceGammaRamp(GetDC(hWnd), (void *)pRamp);
+   return ok ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
 static ID3DPresentVtbl NineWinePresentX11_vtable = {
@@ -428,7 +441,8 @@ static ID3DPresentVtbl NineWinePresentX11_vtable = {
     (void *)NineWinePresentX11_GetRasterStatus,
     (void *)NineWinePresentX11_GetDisplayMode,
     (void *)NineWinePresentX11_GetPresentStats,
-    (void *)NineWinePresentX11_GetCursorPos
+    (void *)NineWinePresentX11_GetCursorPos,
+    (void *)NineWinePresentX11_SetGammaRamp
 };
 
 static HRESULT

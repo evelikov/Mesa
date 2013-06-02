@@ -603,10 +603,11 @@ NineDevice9_SetGammaRamp( struct NineDevice9 *This,
     user_warn(iSwapChain >= This->nswapchains);
     user_warn(!pRamp);
 
-    if (pRamp && (iSwapChain < This->nswapchains))
-        This->swapchains[iSwapChain]->gamma = *pRamp;
-
-    STUB();
+    if (pRamp && (iSwapChain < This->nswapchains)) {
+        struct NineSwapChain9 *swap = This->swapchains[iSwapChain];
+        swap->gamma = *pRamp;
+        ID3DPresent_SetGammaRamp(swap->present, pRamp, swap->params.hDeviceWindow);
+    }
 }
 
 void WINAPI
@@ -621,8 +622,6 @@ NineDevice9_GetGammaRamp( struct NineDevice9 *This,
 
     if (pRamp && (iSwapChain < This->nswapchains))
         *pRamp = This->swapchains[iSwapChain]->gamma;
-
-    STUB();
 }
 
 HRESULT WINAPI

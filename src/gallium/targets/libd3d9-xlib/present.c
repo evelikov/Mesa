@@ -289,7 +289,17 @@ static HRESULT WINAPI
 NinePresentXlib_GetCursorPos( struct NinePresentXlib *This,
                               POINT *pPoint )
 {
+   /* TODO: implement */
     return D3DERR_INVALIDCALL;
+}
+
+static HRESULT WINAPI
+NinePresentXlib_SetGammaRamp( struct NinePresentXlib *This,
+                              const D3DGAMMARAMP *pRamp,
+                              HWND hWndOverride )
+{
+   /* TODO: implement */
+   return D3DERR_INVALIDCALL;
 }
 
 static ID3DPresentVtbl NinePresentXlib_vtable = {
@@ -303,7 +313,8 @@ static ID3DPresentVtbl NinePresentXlib_vtable = {
     (void *)NinePresentXlib_GetRasterStatus,
     (void *)NinePresentXlib_GetDisplayMode,
     (void *)NinePresentXlib_GetPresentStats,
-    (void *)NinePresentXlib_GetCursorPos
+    (void *)NinePresentXlib_GetCursorPos,
+    (void *)NinePresentXlib_SetGammaRamp
 };
 
 static HRESULT
