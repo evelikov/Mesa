@@ -441,7 +441,6 @@ struct shader_translator
 
     struct sm1_instruction insn; /* current instruction */
 
-    unsigned *input_map; /* reg -> NINE_DECLUSAGE_x, in nine_shader_info */
     struct {
         struct ureg_dst *r;
         struct ureg_dst oPos;
@@ -1627,7 +1626,10 @@ DECL_SPECIAL(DCL)
         if (is_input) {
             /* linkage outside of shader with vertex declaration */
             ureg_DECL_vs_input(ureg, sem.reg.idx);
-            tx->input_map[sem.reg.idx] = sm1_to_nine_declusage(&sem);
+            assert(sem.reg.idx < Elements(tx->info->input_map));
+            tx->info->input_map[sem.reg.idx] = sm1_to_nine_declusage(&sem);
+            tx->info->num_inputs = sem.reg.idx + 1;
+            /* NOTE: preserving order in case of indirect access */
         } else
         if (tx->version.major >= 3) {
             /* SM2 output semantic determined by file */
@@ -2355,7 +2357,10 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
 
     tx->byte_code = info->byte_code;
     tx->parse = info->byte_code;
-    tx->input_map = info->input_map;
+
+    for (i = 0; i < Elements(info->input_map); ++i)
+        info->input_map[i] = NINE_DECLUSAGE_NONE;
+    info->num_inputs = 0;
 
     tx->regs.a = ureg_dst_undef();
     tx->regs.p = ureg_dst_undef();
@@ -2454,7 +2459,7 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     tx->parse++; /* for byte_size */
     ureg_END(tx->ureg);
 
-#if 1
+#if 0
     {
         unsigned count;
         const struct tgsi_token *toks = ureg_get_tokens(tx->ureg, &count);

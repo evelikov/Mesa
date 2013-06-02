@@ -46,7 +46,8 @@ struct nine_shader_info
 
     void *cso; /* out, pipe cso for bind_vs,fs_state */
 
-    unsigned input_map[32]; /* VS input -> NINE_DECLUSAGE_x */
+    uint8_t input_map[PIPE_MAX_ATTRIBS]; /* VS input -> NINE_DECLUSAGE_x */
+    uint8_t num_inputs; /* there may be unused inputs (NINE_DECLUSAGE_NONE) */
 
     boolean position_t;
 

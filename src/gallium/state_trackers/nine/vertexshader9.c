@@ -38,6 +38,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
 {
     struct nine_shader_info info;
     HRESULT hr;
+    unsigned i;
 
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
@@ -68,6 +69,10 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     This->cso = info.cso;
     This->lconstf = info.lconstf;
     This->position_t = info.position_t;
+
+    for (i = 0; i < info.num_inputs && i < Elements(This->input_map); ++i)
+        This->input_map[i].ndecl = info.input_map[i];
+    This->num_inputs = i;
 
     return D3D_OK;
 }
