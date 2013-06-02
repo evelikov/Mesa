@@ -409,7 +409,12 @@ static HRESULT WINAPI
 NineWinePresentX11_GetCursorPos( struct NineWinePresentX11 *This,
                               POINT *pPoint )
 {
-    return GetCursorPos(pPoint) ? S_OK : D3DERR_DRIVERINTERNALERROR;
+    BOOL ok;
+    if (!pPoint)
+        return D3DERR_INVALIDCALL;
+    ok = GetCursorPos(pPoint);
+    ok = ok && ScreenToClient(This->current_window.real, pPoint);
+    return ok ? S_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
 static ID3DPresentVtbl NineWinePresentX11_vtable = {
