@@ -451,14 +451,16 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    const uint32_t group = state->changed.group & mask;
+    uint32_t group;
 
     DBG("changed state groups: %x | %x\n",
         state->changed.group & NINE_STATE_FREQ_GROUP_0,
         state->changed.group & NINE_STATE_FREQ_GROUP_1);
 
+    /* ff_update may change VS/PS dirty bits */
     if ((mask & NINE_STATE_FF) && unlikely(!state->vs || !state->ps))
         nine_ff_update(device);
+    group = state->changed.group & mask;
 
     if (group & NINE_STATE_FREQ_GROUP_0) {
         if (group & NINE_STATE_FB)
