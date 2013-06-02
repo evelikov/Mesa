@@ -183,10 +183,7 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     samp.lod_bias = asfloat(ss[D3DSAMP_MIPMAPLODBIAS]);
     samp.min_lod = 0.0f;
     samp.max_lod = ss[D3DSAMP_MAXMIPLEVEL];
-    samp.border_color.f[0] = ((ss[D3DSAMP_BORDERCOLOR] >>  0) & 0xff) / 255.0f;
-    samp.border_color.f[1] = ((ss[D3DSAMP_BORDERCOLOR] >>  8) & 0xff) / 255.0f;
-    samp.border_color.f[2] = ((ss[D3DSAMP_BORDERCOLOR] >> 16) & 0xff) / 255.0f;
-    samp.border_color.f[3] = ((ss[D3DSAMP_BORDERCOLOR] >> 24) & 0xff) / 255.0f;
+    d3dcolor_to_pipe_color_union(&samp.border_color, ss[D3DSAMP_BORDERCOLOR]);
 
     /* see nine_state.h */
     if (idx < 8)
