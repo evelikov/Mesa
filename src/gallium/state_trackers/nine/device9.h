@@ -39,6 +39,7 @@ struct util_hash_table;
 struct pipe_screen;
 struct pipe_context;
 struct cso_context;
+struct hud_context;
 
 struct NineSwapChain9;
 struct NineStateBlock9;
@@ -100,6 +101,8 @@ struct NineDevice9
         BOOL visible;
         boolean software;
     } cursor;
+
+    struct hud_context *hud; /* NULL if hud is disabled */
 };
 static INLINE struct NineDevice9 *
 NineDevice9( void *data )

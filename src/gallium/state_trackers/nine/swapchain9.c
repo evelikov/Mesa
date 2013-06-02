@@ -30,6 +30,7 @@
 
 #include "util/u_inlines.h"
 #include "util/u_surface.h"
+#include "hud/hud_context.h"
 
 #define DBG_CHANNEL DBG_SWAPCHAIN
 
@@ -368,6 +369,35 @@ present( struct NineSwapChain9 *This,
 
         blit.alpha_blend = TRUE;
         This->pipe->blit(This->pipe, &blit);
+    }
+
+    if (device->hud && resource) {
+        hud_draw(device->hud, resource); /* XXX: no offset */
+
+        /* restore our non-cso_context state */
+        {
+        struct pipe_constant_buffer cb;
+        struct pipe_poly_stipple stipple;
+
+        cb.user_buffer = NULL;
+        cb.buffer_offset = 0;
+        cb.buffer = device->constbuf_vs;
+        cb.buffer_size = device->constbuf_vs->width0;
+        This->pipe->set_constant_buffer(This->pipe, PIPE_SHADER_VERTEX, 0, &cb);
+
+        cb.buffer = device->constbuf_ps;
+        cb.buffer_size = device->constbuf_ps->width0;
+        This->pipe->set_constant_buffer(This->pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
+
+        memset(&stipple, ~0, sizeof(stipple));
+        This->pipe->set_polygon_stipple(This->pipe, &stipple);
+
+        device->state.changed.group = NINE_STATE_ALL;
+        device->state.changed.texture |=
+            NINE_PS_SAMPLERS_MASK | NINE_VS_SAMPLERS_MASK;
+        device->state.changed.vtxbuf = (1ULL << PIPE_MAX_ATTRIBS) - 1;
+        device->state.changed.ucp = (1 << PIPE_MAX_CLIP_PLANES) - 1;
+        }
     }
 
     This->pipe->flush(This->pipe, NULL, 0);

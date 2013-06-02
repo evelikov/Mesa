@@ -46,6 +46,7 @@
 #include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
 #include "util/u_surface.h"
+#include "hud/hud_context.h"
 
 #include "cso_cache/cso_context.h"
 
@@ -112,6 +113,9 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
     This->cso = cso_create_context(This->pipe);
     if (!This->cso) { return E_OUTOFMEMORY; } /* also a guess */
+
+    /* Create first, it messes up our state. */
+    This->hud = hud_create(This->pipe, This->cso); /* NULL result is fine */
 
     /* create implicit swapchains */
     This->nswapchains = ID3DPresentFactory_GetMultiheadCount(This->present);
