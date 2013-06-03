@@ -114,6 +114,24 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
     cso_set_rasterizer(ctx, &rast);
 }
 
+static INLINE void
+nine_convert_blend_state_fixup(struct pipe_blend_state *blend, const DWORD *rs)
+{
+    if (unlikely(rs[D3DRS_SRCBLEND] == D3DBLEND_BOTHSRCALPHA ||
+                 rs[D3DRS_SRCBLEND] == D3DBLEND_BOTHINVSRCALPHA)) {
+        blend->rt[0].rgb_dst_factor = (rs[D3DRS_SRCBLEND] == D3DBLEND_BOTHSRCALPHA) ?
+            PIPE_BLENDFACTOR_INV_SRC_ALPHA : PIPE_BLENDFACTOR_SRC_ALPHA;
+        if (!rs[D3DRS_SEPARATEALPHABLENDENABLE])
+            blend->rt[0].alpha_dst_factor = blend->rt[0].rgb_dst_factor;
+    } else
+    if (unlikely(rs[D3DRS_SEPARATEALPHABLENDENABLE] &&
+                 (rs[D3DRS_SRCBLENDALPHA] == D3DBLEND_BOTHSRCALPHA ||
+                  rs[D3DRS_SRCBLENDALPHA] == D3DBLEND_BOTHINVSRCALPHA))) {
+        blend->rt[0].alpha_dst_factor = (rs[D3DRS_SRCBLENDALPHA] == D3DBLEND_BOTHSRCALPHA) ?
+            PIPE_BLENDFACTOR_INV_SRC_ALPHA : PIPE_BLENDFACTOR_SRC_ALPHA;
+    }
+}
+
 void
 nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
 {
@@ -140,6 +158,7 @@ nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
             blend.rt[0].alpha_src_factor = d3dblend_alpha_to_pipe_blendfactor(rs[D3DRS_SRCBLEND]);
             blend.rt[0].alpha_dst_factor = d3dblend_alpha_to_pipe_blendfactor(rs[D3DRS_DESTBLEND]);
         }
+        nine_convert_blend_state_fixup(&blend, rs); /* for BOTH[INV]SRCALPHA */
     }
     blend.rt[0].colormask = rs[D3DRS_COLORWRITEENABLE];
 
