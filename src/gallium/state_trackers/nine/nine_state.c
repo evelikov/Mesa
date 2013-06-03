@@ -184,6 +184,16 @@ update_vertex_elements(struct NineDevice9 *device)
     cso_set_vertex_elements(device->cso, vs->num_inputs, ve);
 }
 
+#define DO_UPLOAD_CONST_F(buf,x,c,d) \
+    do { \
+        DBG("upload ConstantF [%u .. %u]\n", x, (x) + (c) - 1); \
+        box.x = (x) * 4 * sizeof(float); \
+        box.width = (c) * 4 * sizeof(float); \
+        (c) = 0; \
+        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, &((d)[x * 4]), \
+                                    0, 0); \
+    } while(0)
+
 /* OK, this is a bit ugly ... */
 static void
 update_constants(struct NineDevice9 *device, unsigned shader_type)
@@ -297,23 +307,14 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
                ++c;
             } else
             if (c) {
-                DBG("upload ConstantF [%u .. %u]\n", x, x + c - 1);
-                data = &const_f[x * 4];
-                box.x = x * 4 * sizeof(float);
-                box.width = c * 4 * sizeof(float);
-                c = 0;
-                pipe->transfer_inline_write(pipe,
-                                            buf, 0, usage, &box, data, 0, 0);
+                DO_UPLOAD_CONST_F(buf, x, c, const_f);
             }
         }
+        if (c && (j != 32))
+            DO_UPLOAD_CONST_F(buf, x, c, const_f);
     }
-    if (c) {
-        DBG("upload ConstantF [%u .. %u]\n", x, x + c - 1);
-        data = &const_f[x * 4];
-        box.x = x * 4 * sizeof(float);
-        box.width = c * 4 * sizeof(float);
-        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
-    }
+    if (c)
+        DO_UPLOAD_CONST_F(buf, x, c, const_f);
 
     /* TODO: only upload these when shader itself changes */
     if (lconstf->num) {
