@@ -166,18 +166,27 @@ NineDevice9_ctor( struct NineDevice9 *This,
     {
         struct pipe_constant_buffer cb;
         struct pipe_resource tmpl;
-        unsigned max_const_vs, max_const_ps;
+        unsigned max_const_vs, max_const_ps, max_const_f_vs, max_const_f_ps;
 
         max_const_vs = pScreen->get_shader_param(pScreen, PIPE_SHADER_VERTEX,
                                                  PIPE_SHADER_CAP_MAX_CONSTS);
         max_const_ps = pScreen->get_shader_param(pScreen, PIPE_SHADER_FRAGMENT,
                                                  PIPE_SHADER_CAP_MAX_CONSTS);
 
-        max_const_vs = MIN2(max_const_vs, NINE_MAX_CONST_F);
-        max_const_ps = MIN2(max_const_ps, NINE_MAX_CONST_F);
+        max_const_f_vs = max_const_vs = MIN2(max_const_vs, NINE_MAX_CONST_ALL);
+        max_const_f_ps = max_const_ps = MIN2(max_const_ps, NINE_MAX_CONST_ALL);
 
-        This->state.vs_const_f = CALLOC(max_const_vs, 4 * sizeof(float));
-        This->state.ps_const_f = CALLOC(max_const_ps, 4 * sizeof(float));
+        if (max_const_vs < NINE_MAX_CONST_ALL ||
+            max_const_ps < NINE_MAX_CONST_ALL) {
+            DBG("FIXME: "
+                "Driver does not support NINE_MAX_CONST_ALL uniforms !\n");
+            return D3DERR_DRIVERINTERNALERROR;
+        }
+        max_const_f_vs -= NINE_MAX_CONST_I + NINE_MAX_CONST_B / 4;
+        max_const_f_ps -= NINE_MAX_CONST_I + NINE_MAX_CONST_B / 4;
+
+        This->state.vs_const_f = CALLOC(max_const_f_vs, 4 * sizeof(float));
+        This->state.ps_const_f = CALLOC(max_const_f_ps, 4 * sizeof(float));
         if (!This->state.vs_const_f || !This->state.ps_const_f)
             return E_OUTOFMEMORY;
 
