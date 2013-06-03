@@ -70,9 +70,10 @@
 
 
 #define NINE_MAX_SIMULTANEOUS_RENDERTARGETS 4
-#define NINE_MAX_CONST_F 256
-#define NINE_MAX_CONST_I 16
-#define NINE_MAX_CONST_B 16
+#define NINE_MAX_CONST_F   256
+#define NINE_MAX_CONST_I   16
+#define NINE_MAX_CONST_B   16
+#define NINE_MAX_CONST_ALL 276 /* B consts count only 1/4 th */
 
 #define NINE_MAX_LIGHTS        65536
 #define NINE_MAX_LIGHTS_ACTIVE 8
