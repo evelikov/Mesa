@@ -154,6 +154,7 @@ nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
             blend.rt[0].alpha_src_factor = d3dblend_alpha_to_pipe_blendfactor(rs[D3DRS_SRCBLENDALPHA]);
             blend.rt[0].alpha_dst_factor = d3dblend_alpha_to_pipe_blendfactor(rs[D3DRS_DESTBLENDALPHA]);
         } else {
+            /* TODO: Just copy the rgb values ? SRC1_x may differ ... */
             blend.rt[0].alpha_func = blend.rt[0].rgb_func;
             blend.rt[0].alpha_src_factor = d3dblend_alpha_to_pipe_blendfactor(rs[D3DRS_SRCBLEND]);
             blend.rt[0].alpha_dst_factor = d3dblend_alpha_to_pipe_blendfactor(rs[D3DRS_DESTBLEND]);
