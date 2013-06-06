@@ -1959,7 +1959,7 @@ struct sm1_op_info inst_table[] =
 
     _OPI(CALL,    CAL,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(CALL)),
     _OPI(CALLNZ,  CAL,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(CALLNZ)),
-    _OPI(LOOP,    BGNLOOP, V(3,0), V(3,0), V(3,0), V(3,0), 0, 2, SPECIAL(LOOP)),
+    _OPI(LOOP,    BGNLOOP, V(2,0), V(3,0), V(3,0), V(3,0), 0, 2, SPECIAL(LOOP)),
     _OPI(RET,     RET,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(RET)),
     _OPI(ENDLOOP, ENDLOOP, V(3,0), V(3,0), V(3,0), V(3,0), 0, 0, SPECIAL(ENDLOOP)),
     _OPI(LABEL,   NOP,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(LABEL)),
@@ -2323,8 +2323,8 @@ sm1_parse_instruction(struct shader_translator *tx)
        if (insn->opcode == D3DSIO_COMMENT) info = &inst_comment;
     }
     if (!info) {
-       TOKEN_JUMP(tx);
        DBG("illegal or unhandled opcode: %08x\n", insn->opcode);
+       TOKEN_JUMP(tx);
        return;
     }
     insn->info = info;
