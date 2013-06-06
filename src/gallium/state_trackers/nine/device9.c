@@ -2187,7 +2187,40 @@ HRESULT WINAPI
 NineDevice9_ValidateDevice( struct NineDevice9 *This,
                             DWORD *pNumPasses )
 {
-    STUB(D3DERR_INVALIDCALL);
+    const struct nine_state *state = &This->state;
+    unsigned i;
+    unsigned w = 0, h = 0;
+
+    DBG("This=%p pNumPasses=%p\n", This, pNumPasses);
+
+    for (i = 0; i < Elements(state->samp); ++i) {
+        if (state->samp[i][D3DSAMP_MINFILTER] == D3DTEXF_NONE ||
+            state->samp[i][D3DSAMP_MAGFILTER] == D3DTEXF_NONE)
+            return D3DERR_UNSUPPORTEDTEXTUREFILTER;
+    }
+
+    for (i = 0; i < This->caps.NumSimultaneousRTs; ++i) {
+        if (!state->rt[i])
+            continue;
+        if (w == 0) {
+            w = state->rt[i]->desc.Width;
+            h = state->rt[i]->desc.Height;
+        } else
+        if (state->rt[i]->desc.Width != w || state->rt[i]->desc.Height != h) {
+            return D3DERR_CONFLICTINGRENDERSTATE;
+        }
+    }
+    if (state->ds &&
+        (state->rs[D3DRS_ZENABLE] || state->rs[D3DRS_STENCILENABLE])) {
+        if (w != 0 &&
+            (state->ds->desc.Width != w || state->ds->desc.Height != h))
+            return D3DERR_CONFLICTINGRENDERSTATE;
+    }
+
+    if (pNumPasses)
+        *pNumPasses = 1;
+
+    return D3D_OK;
 }
 
 HRESULT WINAPI

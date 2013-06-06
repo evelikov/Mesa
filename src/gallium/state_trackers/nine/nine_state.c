@@ -42,9 +42,9 @@ update_framebuffer(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    struct pipe_surface *surf;
     struct pipe_framebuffer_state *fb = &device->state.fb;
     unsigned i;
+    unsigned w = 0, h = 0; /* no surface can have width or height 0 */
 
     DBG("\n");
 
@@ -54,6 +54,13 @@ update_framebuffer(struct NineDevice9 *device)
         if (state->rt[i]) {
             fb->cbufs[i] = NineSurface9_GetSurface(state->rt[i]);
             fb->nr_cbufs = i + 1;
+            if (w) {
+                w = MIN2(w, state->rt[i]->desc.Width);
+                h = MIN2(h, state->rt[i]->desc.Height);
+            } else {
+                w = state->rt[i]->desc.Width;
+                h = state->rt[i]->desc.Height;
+            }
         } else {
             /* Color outputs must match RT slot,
              * drivers will have to handle NULL entries for GL, too.
@@ -61,16 +68,22 @@ update_framebuffer(struct NineDevice9 *device)
             fb->cbufs[i] = NULL;
         }
     }
-    fb->zsbuf = state->ds ? NineSurface9_GetSurface(state->ds) : NULL;
 
-    surf = fb->nr_cbufs ? fb->cbufs[fb->nr_cbufs - 1] : fb->zsbuf;
-
-    if (surf) {
-        fb->width = surf->width;
-        fb->height = surf->height;
+    if (state->ds) {
+        fb->zsbuf = NineSurface9_GetSurface(state->ds);
+        if (w) {
+            w = MIN2(w, state->ds->desc.Width);
+            h = MIN2(h, state->ds->desc.Height);
+        } else {
+            w = state->ds->desc.Width;
+            h = state->ds->desc.Height;
+        }
     } else {
-        fb->width = fb->height = 0;
+        fb->zsbuf = NULL;
     }
+
+    fb->width = w;
+    fb->height = h;
 
     pipe->set_framebuffer_state(pipe, fb); /* XXX: cso ? */
 }
