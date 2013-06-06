@@ -277,6 +277,9 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
     if (!This->dirty_mip)
         return;
 
+    if (!This->view)
+        NineBaseTexture9_UpdateSamplerView(This);
+
     if (This->base.type == D3DRTYPE_CUBETEXTURE) {
         faces = 6;
         assert(This->base.info.array_size == 6);
@@ -290,6 +293,8 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
                         i, base_level, last_level, filter);
 
     This->dirty_mip = FALSE;
+
+    NineDevice9_RestoreNonCSOState(This->base.device, ~0x3);
 }
 
 HRESULT
