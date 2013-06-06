@@ -657,12 +657,10 @@ tx_pred_alloc(struct shader_translator *tx, INT idx)
 static INLINE void
 tx_texcoord_alloc(struct shader_translator *tx, INT idx)
 {
-    const unsigned sn = tx->want_texcoord ?
-       TGSI_SEMANTIC_TEXCOORD : TGSI_SEMANTIC_GENERIC;
     assert(IS_PS);
     assert(idx >= 0 && idx < Elements(tx->regs.vT));
     if (ureg_src_is_undef(tx->regs.vT[idx]))
-       tx->regs.vT[idx] = ureg_DECL_fs_input(tx->ureg, sn, idx,
+       tx->regs.vT[idx] = ureg_DECL_fs_input(tx->ureg, tx->texcoord_sn, idx,
                                              TGSI_INTERPOLATE_PERSPECTIVE);
 }
 
@@ -1228,11 +1226,20 @@ DECL_SPECIAL(M3x2)
     return NineTranslateInstruction_Mkxn(tx, 3, 2);
 }
 
+DECL_SPECIAL(CND)
+{
+    ureg_CND(tx->ureg, tx_dst_param(tx, &tx->insn.dst[0]),
+             tx_src_param(tx, &tx->insn.src[1]),
+             tx_src_param(tx, &tx->insn.src[2]),
+             tx_src_param(tx, &tx->insn.src[0]));
+    return D3D_OK;
+}
+
 DECL_SPECIAL(CALL)
 {
     assert(tx->insn.src[0].idx < tx->num_inst_labels);
     ureg_CAL(tx->ureg, &tx->inst_labels[tx->insn.src[0].idx]);
-    return D3DERR_INVALIDCALL;
+    return D3D_OK;
 }
 
 DECL_SPECIAL(CALLNZ)
@@ -1711,9 +1718,28 @@ DECL_SPECIAL(NRM)
 
 DECL_SPECIAL(TEXCOORD)
 {
-    if (tx->version.major > 1 || tx->version.minor > 3)
-        return D3DERR_INVALIDCALL;
-    return D3DERR_INVALIDCALL;
+    struct ureg_program *ureg = tx->ureg;
+    const unsigned s = tx->insn.dst[0].idx;
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+
+    if (ureg_src_is_undef(tx->regs.vT[s]))
+        tx->regs.vT[s] = ureg_DECL_fs_input(ureg, tx->texcoord_sn, s, TGSI_INTERPOLATE_PERSPECTIVE);
+    ureg_MOV(ureg, dst, tx->regs.vT[s]); /* XXX is this sufficient ? */
+
+    return D3D_OK;
+}
+
+DECL_SPECIAL(TEXCOORD_ps14)
+{
+    struct ureg_program *ureg = tx->ureg;
+    const unsigned s = tx->insn.src[0].idx;
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+
+    if (ureg_src_is_undef(tx->regs.vT[s]))
+        tx->regs.vT[s] = ureg_DECL_fs_input(ureg, tx->texcoord_sn, s, TGSI_INTERPOLATE_PERSPECTIVE);
+    ureg_MOV(ureg, dst, tx->regs.vT[s]); /* XXX is this sufficient ? */
+
+    return D3D_OK;
 }
 
 DECL_SPECIAL(TEXKILL)
@@ -1857,7 +1883,7 @@ DECL_SPECIAL(TEX)
     struct ureg_src src[2];
 
     if (ureg_src_is_undef(tx->regs.vT[s]))
-        tx->regs.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
+        tx->regs.vT[s] = ureg_DECL_fs_input(ureg, tx->texcoord_sn, s, TGSI_INTERPOLATE_PERSPECTIVE);
 
     src[0] = tx->regs.vT[s];
     src[1] = ureg_DECL_sampler(ureg, s);
@@ -1989,7 +2015,8 @@ struct sm1_op_info inst_table[] =
     _OPI(DEFB, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFB)),
     _OPI(DEFI, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFI)),
 
-    _OPI(TEXCOORD,     NOP, V(0,0), V(0,0), V(0,0), V(1,4), 0, 0, SPECIAL(TEXCOORD)),
+    _OPI(TEXCOORD,     NOP, V(0,0), V(0,0), V(0,0), V(1,3), 1, 0, SPECIAL(TEXCOORD)),
+    _OPI(TEXCOORD,     MOV, V(0,0), V(0,0), V(1,4), V(1,4), 1, 1, SPECIAL(TEXCOORD_ps14)),
     _OPI(TEXKILL,      KIL, V(0,0), V(0,0), V(0,0), V(3,0), 1, 0, SPECIAL(TEXKILL)),
     _OPI(TEX,          TEX, V(0,0), V(0,0), V(0,0), V(1,3), 1, 0, SPECIAL(TEX)),
     _OPI(TEX,          TEX, V(0,0), V(0,0), V(1,4), V(1,4), 1, 1, SPECIAL(TEXLD_14)),
@@ -2005,9 +2032,10 @@ struct sm1_op_info inst_table[] =
     _OPI(TEXM3x3SPEC,  TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3SPEC)),
     _OPI(TEXM3x3VSPEC, TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3VSPEC)),
 
-    _OPI(EXPP, EXP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* XXX: EX2 ? */
-    _OPI(LOGP, LOG, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* XXX: LG2 ? */
-    _OPI(CND,  CND, V(0,0), V(0,0), V(0,0), V(1,4), 1, 1, NULL),
+    _OPI(EXPP, EXP, V(0,0), V(1,1), V(0,0), V(0,0), 1, 1, NULL),
+    _OPI(EXPP, EX2, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL),
+    _OPI(LOGP, LG2, V(0,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL),
+    _OPI(CND,  CND, V(0,0), V(0,0), V(0,0), V(1,4), 1, 3, SPECIAL(CND)),
 
     _OPI(DEF, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 1, 0, SPECIAL(DEF)),
 
@@ -2332,6 +2360,7 @@ sm1_parse_instruction(struct shader_translator *tx)
     insn->nsrc = info->nsrc;
 
     assert(!insn->predicated && "TODO: predicated instructions");
+    assert(!insn->coissue && "TODO: coissue");
 
     /* check version */
     {
