@@ -351,7 +351,7 @@ NineVertexDeclaration9_new_from_fvf( struct NineDevice9 *pDevice,
     }
 
     /* textures */
-    texcount = (FVF >> D3DFVF_TEXCOUNT_SHIFT) & D3DFVF_TEXCOUNT_MASK;
+    texcount = (FVF & D3DFVF_TEXCOUNT_MASK) >> D3DFVF_TEXCOUNT_SHIFT;
     if (user_error(texcount <= 8)) { texcount = 8; }
 
     for (i = 0; i < texcount; ++i) {
