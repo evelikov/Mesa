@@ -213,7 +213,7 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
 }
 
 void
-nine_pipe_context_reset(struct cso_context *cso, struct pipe_context *pipe)
+nine_pipe_context_clear(struct cso_context *cso, struct pipe_context *pipe)
 {
     pipe->bind_vs_state(pipe, NULL);
     pipe->bind_fs_state(pipe, NULL);

@@ -725,11 +725,11 @@ nine_state_set_defaults(struct nine_state *state, const D3DCAPS9 *caps,
 }
 
 void
-nine_state_reset(struct nine_state *state, const struct NineDevice9 *dev)
+nine_state_clear(struct nine_state *state, const D3DCAPS9 *caps)
 {
     unsigned i;
 
-    for (i = 0; i < dev->caps.NumSimultaneousRTs; ++i)
+    for (i = 0; i < caps->NumSimultaneousRTs; ++i)
        nine_reference(&state->rt[i], NULL);
     nine_reference(&state->ds, NULL);
     nine_reference(&state->vs, NULL);
@@ -739,8 +739,6 @@ nine_state_reset(struct nine_state *state, const struct NineDevice9 *dev)
         nine_reference(&state->stream[i], NULL);
     for (i = 0; i < NINE_MAX_SAMPLERS; ++i)
         nine_reference(&state->texture[i], NULL);
-
-    nine_state_set_defaults(state, &dev->caps, TRUE);
 }
 
 /*

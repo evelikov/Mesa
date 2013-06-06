@@ -53,9 +53,11 @@
 #define DBG_CHANNEL DBG_DEVICE
 
 static void
-NineDevice9_SetDefaultState( struct NineDevice9 *This )
+NineDevice9_SetDefaultState( struct NineDevice9 *This, boolean is_reset )
 {
     struct NineSurface9 *refSurf = NULL;
+
+    nine_state_set_defaults(&This->state, &This->caps, is_reset);
 
     This->state.viewport.X = 0;
     This->state.viewport.Y = 0;
@@ -84,6 +86,37 @@ NineDevice9_SetDefaultState( struct NineDevice9 *This )
             This, (IDirect3DSurface9 *)This->swapchains[0]->zsbuf);
 }
 
+void
+NineDevice9_RestoreNonCSOState( struct NineDevice9 *This, unsigned mask )
+{
+    struct pipe_context *pipe = This->pipe;
+
+    if (mask & 0x1) {
+        struct pipe_constant_buffer cb;
+        cb.user_buffer = NULL;
+        cb.buffer_offset = 0;
+
+        cb.buffer = This->constbuf_vs;
+        cb.buffer_size = This->constbuf_vs->width0;
+        pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
+
+        cb.buffer = This->constbuf_ps;
+        cb.buffer_size = This->constbuf_ps->width0;
+        pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
+    }
+
+    if (mask & 0x2) {
+        struct pipe_poly_stipple stipple;
+        memset(&stipple, ~0, sizeof(stipple));
+        pipe->set_polygon_stipple(pipe, &stipple);
+    }
+
+    This->state.changed.group = NINE_STATE_ALL;
+    This->state.changed.vtxbuf = (1ULL << PIPE_MAX_ATTRIBS) - 1;
+    This->state.changed.ucp = (1 << PIPE_MAX_CLIP_PLANES) - 1;
+    This->state.changed.texture = NINE_PS_SAMPLERS_MASK | NINE_VS_SAMPLERS_MASK;
+}
+
 HRESULT
 NineDevice9_ctor( struct NineDevice9 *This,
                   struct NineUnknownParams *pParams,
@@ -94,7 +127,6 @@ NineDevice9_ctor( struct NineDevice9 *This,
                   ID3DPresentFactory *pPresentationFactory,
                   PPRESENT_TO_RESOURCE pPTR )
 {
-    struct pipe_context *pipe;
     unsigned i;
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr)) { return hr; }
@@ -109,7 +141,6 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
     This->pipe = This->screen->context_create(This->screen, NULL);
     if (!This->pipe) { return E_OUTOFMEMORY; } /* guess */
-    pipe = This->pipe;
 
     This->cso = cso_create_context(This->pipe);
     if (!This->cso) { return E_OUTOFMEMORY; } /* also a guess */
@@ -164,7 +195,6 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
     /* Create constant buffers. */
     {
-        struct pipe_constant_buffer cb;
         struct pipe_resource tmpl;
         unsigned max_const_vs, max_const_ps, max_const_f_vs, max_const_f_ps;
 
@@ -209,16 +239,6 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
         if (!This->constbuf_vs || !This->constbuf_ps)
             return E_OUTOFMEMORY;
-
-        cb.user_buffer = NULL; /* XXX: fix your drivers !!! */
-        cb.buffer_offset = 0;
-        cb.buffer = This->constbuf_vs;
-        cb.buffer_size = This->constbuf_vs->width0;
-        pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
-
-        cb.buffer = This->constbuf_ps;
-        cb.buffer_size = This->constbuf_ps->width0;
-        pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
     }
 
     This->vs_bool_true = pScreen->get_shader_param(pScreen,
@@ -234,18 +254,10 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
     nine_ff_init(This); /* initialize fixed function code */
 
-    {
-        struct pipe_poly_stipple stipple;
+    NineDevice9_SetDefaultState(This, FALSE);
+    NineDevice9_RestoreNonCSOState(This, ~0);
 
-        nine_state_set_defaults(&This->state, &This->caps, FALSE);
-
-        memset(&stipple, ~0, sizeof(stipple));
-        pipe->set_polygon_stipple(pipe, &stipple);
-
-        NineDevice9_SetDefaultState(This);
-    }
     This->update = &This->state;
-
     nine_update_state(This, ~0);
 
     ID3DPresentFactory_Release(This->present);
@@ -261,9 +273,9 @@ NineDevice9_dtor( struct NineDevice9 *This )
     DBG("This=%p\n", This);
 
     if (This->pipe && This->cso)
-        nine_pipe_context_reset(This->cso, This->pipe);
+        nine_pipe_context_clear(This->cso, This->pipe);
     nine_ff_fini(This);
-    nine_state_reset(&This->state, This);
+    nine_state_clear(&This->state, &This->caps);
 
     util_destroy_gen_mipmap(This->gen_mipmap);
 
@@ -538,9 +550,10 @@ NineDevice9_Reset( struct NineDevice9 *This,
     if (FAILED(hr))
         return (hr == D3DERR_OUTOFVIDEOMEMORY) ? hr : D3DERR_DEVICELOST;
 
-    nine_pipe_context_reset(This->cso, This->pipe);
-    nine_state_reset(&This->state, This);
-    NineDevice9_SetDefaultState(This);
+    nine_pipe_context_clear(This->cso, This->pipe);
+    nine_state_clear(&This->state, &This->caps);
+
+    NineDevice9_SetDefaultState(This, TRUE);
     NineDevice9_SetRenderTarget(
         This, 0, (IDirect3DSurface9 *)This->swapchains[0]->buffers[0]);
     /* XXX: better use GetBackBuffer here ? */
