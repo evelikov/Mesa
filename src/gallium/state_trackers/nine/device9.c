@@ -2593,12 +2593,6 @@ NineDevice9_SetVertexShader( struct NineDevice9 *This,
 
     DBG("This=%p pShader=%p\n", This, pShader);
 
-    if (state->vs != NineVertexShader9(pShader)) {
-        /* Clear the bound cso if there's a chance that we're destroying it. */
-        if (state->vs && NineUnknown_GetRefCount(&state->vs->base) == 1)
-            This->pipe->bind_vs_state(This->pipe, NULL);
-    }
-
     nine_reference(&state->vs, pShader);
     state->changed.group |= NINE_STATE_VS;
     return D3D_OK;
@@ -2898,12 +2892,6 @@ NineDevice9_SetPixelShader( struct NineDevice9 *This,
     NINESTATEPOINTER_SET(This);
 
     DBG("This=%p pShader=%p\n", This, pShader);
-
-    if (state->ps != NinePixelShader9(pShader)) {
-        /* Clear the bound cso if there's a chance that we're destroying it. */
-        if (state->ps && NineUnknown_GetRefCount(&state->ps->base) == 1)
-            This->pipe->bind_fs_state(This->pipe, NULL);
-    }
 
     nine_reference(&state->ps, pShader);
     state->changed.group |= NINE_STATE_PS;

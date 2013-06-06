@@ -135,6 +135,8 @@ struct nine_state
         void *rast;
         void *dsa;
         void *blend;
+        void *vs;
+        void *ps;
         void *samp[NINE_MAX_SAMPLERS];
     } cso;
 

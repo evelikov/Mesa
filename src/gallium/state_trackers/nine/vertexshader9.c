@@ -84,8 +84,11 @@ NineVertexShader9_dtor( struct NineVertexShader9 *This )
 
     if (This->device) {
         struct pipe_context *pipe = This->device->pipe;
-        if (This->cso)
+        if (This->cso) {
+            if (This->device->state.cso.vs == This->cso)
+                pipe->bind_vs_state(pipe, NULL);
             pipe->delete_vs_state(pipe, This->cso);
+        }
 
         if (This->byte_code.tokens)
             NineUnknown_Release(NineUnknown(This->device));

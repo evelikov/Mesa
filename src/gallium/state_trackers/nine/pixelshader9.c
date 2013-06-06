@@ -78,8 +78,11 @@ NinePixelShader9_dtor( struct NinePixelShader9 *This )
 
     if (This->device) {
         struct pipe_context *pipe = This->device->pipe;
-        if (This->cso)
+        if (This->cso) {
+            if (This->device->state.cso.ps == This->cso)
+                pipe->bind_fs_state(pipe, NULL);
             pipe->delete_fs_state(pipe, This->cso);
+        }
 
         if (This->byte_code.tokens)
             NineUnknown_Release(NineUnknown(This->device));
