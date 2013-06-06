@@ -1630,6 +1630,16 @@ nine_ff_update(struct NineDevice9 *device)
         device->ff.ps = nine_ff_get_ps(device);
 
     if (!device->state.vs) {
+        if (device->state.ff.clobber.vs_const) {
+            device->state.ff.clobber.vs_const = FALSE;
+            device->state.changed.group |=
+                NINE_STATE_FF_VSTRANSF |
+                NINE_STATE_FF_MATERIAL |
+                NINE_STATE_FF_LIGHTING |
+                NINE_STATE_FF_OTHER;
+            device->state.ff.changed.transform[0] |= 0xff000c;
+            device->state.ff.changed.transform[8] |= 0xff;
+        }
         nine_ff_upload_vs_transforms(device);
         nine_ff_upload_tex_matrices(device);
         nine_ff_upload_lights(device);
@@ -1642,6 +1652,12 @@ nine_ff_update(struct NineDevice9 *device)
     }
 
     if (!device->state.ps) {
+        if (device->state.ff.clobber.ps_const) {
+            device->state.ff.clobber.ps_const = FALSE;
+            device->state.changed.group |=
+                NINE_STATE_FF_PSSTAGES |
+                NINE_STATE_FF_OTHER;
+        }
         nine_ff_upload_ps_params(device);
 
         device->state.changed.group |= NINE_STATE_PS_CONST;

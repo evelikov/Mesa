@@ -232,6 +232,8 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         b_true = device->vs_bool_true;
 
         lconstf = &device->state.vs->lconstf;
+        device->state.ff.clobber.vs_const = TRUE;
+        device->state.changed.group &= ~NINE_STATE_VS_CONST;
     } else {
         DBG("PS\n");
         buf = device->constbuf_ps;
@@ -249,6 +251,8 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         b_true = device->ps_bool_true;
 
         lconstf = &device->state.ps->lconstf;
+        device->state.ff.clobber.ps_const = TRUE;
+        device->state.changed.group &= ~NINE_STATE_PS_CONST;
     }
     box.y = 0;
     box.z = 0;
@@ -544,7 +548,8 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
     if (state->changed.vtxbuf)
         update_vertex_buffers(device);
 
-    device->state.changed.group &= ~mask | NINE_STATE_FF;
+    device->state.changed.group &= ~mask |
+        (NINE_STATE_FF | NINE_STATE_VS_CONST | NINE_STATE_PS_CONST);
 
     DBG("finished\n");
 
