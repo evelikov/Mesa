@@ -2311,6 +2311,8 @@ sm1_parse_instruction(struct shader_translator *tx)
     insn->ndst = info->ndst;
     insn->nsrc = info->nsrc;
 
+    assert(!insn->predicated && "TODO: predicated instructions");
+
     /* check version */
     {
         unsigned min = IS_VS ? info->vert_version.min : info->frag_version.min;
