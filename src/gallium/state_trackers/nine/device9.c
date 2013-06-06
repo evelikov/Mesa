@@ -260,7 +260,8 @@ NineDevice9_dtor( struct NineDevice9 *This )
 
     DBG("This=%p\n", This);
 
-    nine_pipe_context_reset(This->cso, This->pipe);
+    if (This->pipe && This->cso)
+        nine_pipe_context_reset(This->cso, This->pipe);
     nine_ff_fini(This);
     nine_state_reset(&This->state, This);
 
