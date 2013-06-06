@@ -1088,7 +1088,7 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
     struct pipe_resource *src_res = NineSurface9_GetResource(src);
     const boolean zs = util_format_is_depth_or_stencil(dst_res->format);
     struct pipe_blit_info blit;
-    boolean scaled, clamped;
+    boolean scaled, clamped, ms;
 
     DBG("This=%p pSourceSurface=%p pSourceRect=%p pDestSurface=%p "
         "pDestRect=%p Filter=%u\n",
@@ -1194,7 +1194,9 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
         clamped = !!xy;
     }
 
-    if (clamped || scaled || (blit.dst.format != blit.src.format)) {
+    ms = (dst->desc.MultiSampleType | 1) != (src->desc.MultiSampleType | 1);
+
+    if (clamped || scaled || (blit.dst.format != blit.src.format) || ms) {
         DBG("using pipe->blit()\n");
         /* TODO: software scaling */
         user_assert(screen->is_format_supported(screen, dst_res->format,
