@@ -149,7 +149,8 @@ static int nine_ff_fvf_key_comp(void *key1, void *key2)
     return *(DWORD *)key1 != *(DWORD *)key2;
 }
 
-static void nine_ff_prune(struct NineDevice9 *device);
+static void nine_ff_prune_vs(struct NineDevice9 *);
+static void nine_ff_prune_ps(struct NineDevice9 *);
 
 static void nine_ureg_tgsi_dump(struct ureg_program *ureg)
 {
@@ -1273,7 +1274,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
         return vs;
     NineVertexShader9_new(device, &vs, NULL, nine_ff_build_vs(device, &bld));
 
-    nine_ff_prune(device);
+    nine_ff_prune_vs(device);
     if (vs) {
         unsigned n;
 
@@ -1363,7 +1364,7 @@ nine_ff_get_ps(struct NineDevice9 *device)
         return ps;
     NinePixelShader9_new(device, &ps, NULL, nine_ff_build_ps(device, &key));
 
-    nine_ff_prune(device);
+    nine_ff_prune_ps(device);
     if (ps) {
         memcpy(&ps->ff_key, &key, sizeof(ps->ff_key));
 
@@ -1690,26 +1691,27 @@ nine_ff_fini(struct NineDevice9 *device)
 }
 
 static void
-nine_ff_prune(struct NineDevice9 *device)
+nine_ff_prune_vs(struct NineDevice9 *device)
 {
-    DBG("device=%p num_vs=%u num_ps=%u\n", device, device->ff.num_vs, device->ff.num_ps);
-
-    if ((device->ff.num_vs + device->ff.num_ps) > 200) {
-        if (device->ff.num_ps > device->ff.num_vs) {
-            /* could destroy the bound one here, so unbind */
-            device->pipe->bind_fs_state(device->pipe, NULL);
-            util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
-            util_hash_table_clear(device->ff.ht_ps);
-            device->ff.num_ps = 0;
-            device->state.changed.group |= NINE_STATE_PS;
-        } else {
-            device->pipe->bind_vs_state(device->pipe, NULL);
-            util_hash_table_foreach(device->ff.ht_vs, nine_ff_ht_delete_cb, NULL);
-            util_hash_table_clear(device->ff.ht_vs);
-            device->ff.num_vs = 0;
-            device->state.changed.group |= NINE_STATE_VS;
-        }
-        nine_ff_prune(device);
+    if (device->ff.num_vs > 100) {
+        /* could destroy the bound one here, so unbind */
+        device->pipe->bind_vs_state(device->pipe, NULL);
+        util_hash_table_foreach(device->ff.ht_vs, nine_ff_ht_delete_cb, NULL);
+        util_hash_table_clear(device->ff.ht_vs);
+        device->ff.num_vs = 0;
+        device->state.changed.group |= NINE_STATE_VS;
+    }
+}
+static void
+nine_ff_prune_ps(struct NineDevice9 *device)
+{
+    if (device->ff.num_ps > 100) {
+        /* could destroy the bound one here, so unbind */
+        device->pipe->bind_fs_state(device->pipe, NULL);
+        util_hash_table_foreach(device->ff.ht_ps, nine_ff_ht_delete_cb, NULL);
+        util_hash_table_clear(device->ff.ht_ps);
+        device->ff.num_ps = 0;
+        device->state.changed.group |= NINE_STATE_PS;
     }
 }
 
