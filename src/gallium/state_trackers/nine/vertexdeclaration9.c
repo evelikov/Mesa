@@ -104,6 +104,7 @@ nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
     NINE_DECLUSAGE_CASE0(POSITIONT);
     NINE_DECLUSAGE_CASEi(COLOR);
     NINE_DECLUSAGE_CASE0(DEPTH);
+    NINE_DECLUSAGE_CASE0(FOG);
     NINE_DECLUSAGE_CASE0(SAMPLE);
     default:
         assert(!"Invalid DECLUSAGE.");
@@ -134,6 +135,7 @@ static const char *nine_declusage_names[] =
     [NINE_DECLUSAGE_COLOR(0)]     = "DIFFUSE",
     [NINE_DECLUSAGE_COLOR(1)]     = "SPECULAR",
     [NINE_DECLUSAGE_DEPTH]        = "DEPTH",
+    [NINE_DECLUSAGE_FOG]          = "FOG",
     [NINE_DECLUSAGE_NONE]         = "(NONE)",
     [NINE_DECLUSAGE_COUNT]        = "(OOB)"
 };

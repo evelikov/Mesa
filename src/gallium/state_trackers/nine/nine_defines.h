@@ -44,8 +44,9 @@ unsigned nine_d3d9_to_nine_declusage(unsigned usage, unsigned index);
 #define NINE_DECLUSAGE_POSITIONT     18
 #define NINE_DECLUSAGE_COLOR(i)     (19 + (i))
 #define NINE_DECLUSAGE_DEPTH         22
-#define NINE_DECLUSAGE_SAMPLE        23
-#define NINE_DECLUSAGE_NONE          24
+#define NINE_DECLUSAGE_FOG           23
+#define NINE_DECLUSAGE_SAMPLE        24
+#define NINE_DECLUSAGE_NONE          25
 #define NINE_DECLUSAGE_LAST          NINE_DECLUSAGE_NONE
 #define NINE_DECLUSAGE_COUNT        (NINE_DECLUSAGE_LAST + 1)
 
