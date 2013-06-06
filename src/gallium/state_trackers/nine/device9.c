@@ -1088,7 +1088,7 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
     struct pipe_resource *src_res = NineSurface9_GetResource(src);
     const boolean zs = util_format_is_depth_or_stencil(dst_res->format);
     struct pipe_blit_info blit;
-    boolean scaled, clamped, ms;
+    boolean scaled, clamped, ms, flip_x = FALSE, flip_y = FALSE;
 
     DBG("This=%p pSourceSurface=%p pSourceRect=%p pDestSurface=%p "
         "pDestRect=%p Filter=%u\n",
@@ -1122,18 +1122,41 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
     user_assert(dst->base.pool == D3DPOOL_DEFAULT &&
                 src->base.pool == D3DPOOL_DEFAULT, D3DERR_INVALIDCALL);
 
+    /* We might want to permit these, but wine thinks we shouldn't. */
+    user_assert(!pDestRect ||
+                (pDestRect->left <= pDestRect->right &&
+                 pDestRect->top <= pDestRect->bottom), D3DERR_INVALIDCALL);
+    user_assert(!pSourceRect ||
+                (pSourceRect->left <= pSourceRect->right &&
+                 pSourceRect->top <= pSourceRect->bottom), D3DERR_INVALIDCALL);
+
     blit.dst.resource = dst_res;
     blit.dst.level = dst->level;
     blit.dst.box.z = dst->layer;
     blit.dst.box.depth = 1;
     blit.dst.format = dst_res->format;
     if (pDestRect) {
-        rect_to_pipe_box_xy_only(&blit.dst.box, pDestRect);
+        flip_x = pDestRect->left > pDestRect->right;
+        if (flip_x) {
+            blit.dst.box.x = pDestRect->right;
+            blit.dst.box.width = pDestRect->left - pDestRect->right;
+        } else {
+            blit.dst.box.x = pDestRect->left;
+            blit.dst.box.width = pDestRect->right - pDestRect->left;
+        }
+        flip_y = pDestRect->top > pDestRect->bottom;
+        if (flip_y) {
+            blit.dst.box.y = pDestRect->bottom;
+            blit.dst.box.height = pDestRect->top - pDestRect->bottom;
+        } else {
+            blit.dst.box.y = pDestRect->top;
+            blit.dst.box.height = pDestRect->bottom - pDestRect->top;
+        }
     } else {
-       blit.dst.box.x = 0;
-       blit.dst.box.y = 0;
-       blit.dst.box.width = dst->desc.Width;
-       blit.dst.box.height = dst->desc.Height;
+        blit.dst.box.x = 0;
+        blit.dst.box.y = 0;
+        blit.dst.box.width = dst->desc.Width;
+        blit.dst.box.height = dst->desc.Height;
     }
     blit.src.resource = src_res;
     blit.src.level = src->level;
@@ -1141,12 +1164,25 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
     blit.src.box.depth = 1;
     blit.src.format = src_res->format;
     if (pSourceRect) {
-        rect_to_pipe_box_xy_only(&blit.src.box, pSourceRect);
+        if (flip_x ^ (pSourceRect->left > pSourceRect->right)) {
+            blit.src.box.x = pSourceRect->right;
+            blit.src.box.width = pSourceRect->left - pSourceRect->right;
+        } else {
+            blit.src.box.x = pSourceRect->left;
+            blit.src.box.width = pSourceRect->right - pSourceRect->left;
+        }
+        if (flip_y ^ (pSourceRect->top > pSourceRect->bottom)) {
+            blit.src.box.y = pSourceRect->bottom;
+            blit.src.box.height = pSourceRect->top - pSourceRect->bottom;
+        } else {
+            blit.src.box.y = pSourceRect->top;
+            blit.src.box.height = pSourceRect->bottom - pSourceRect->top;
+        }
     } else {
-       blit.src.box.x = 0;
-       blit.src.box.y = 0;
-       blit.src.box.width = src->desc.Width;
-       blit.src.box.height = src->desc.Height;
+        blit.src.box.x = flip_x ? src->desc.Width : 0;
+        blit.src.box.y = flip_y ? src->desc.Height : 0;
+        blit.src.box.width = flip_x ? -src->desc.Width : src->desc.Width;
+        blit.src.box.height = flip_y ? -src->desc.Height : src->desc.Height;
     }
     blit.mask = zs ? PIPE_MASK_ZS : PIPE_MASK_RGBA;
     blit.filter = Filter == D3DTEXF_LINEAR ?
