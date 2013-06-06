@@ -2398,6 +2398,11 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
     for (i = 0; i < Elements(tx->regs.vT); ++i)
         tx->regs.vT[i] = ureg_src_undef();
 
+    for (i = 0; i < Elements(tx->lconsti); ++i)
+        tx->lconsti[i].idx = -1;
+    for (i = 0; i < Elements(tx->lconstb); ++i)
+        tx->lconstb[i].idx = -1;
+
     sm1_read_version(tx);
 
     create_op_info_map(tx);
