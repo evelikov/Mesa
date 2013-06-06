@@ -945,7 +945,7 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
  /* case D3DSPR_TEXTURE: == D3DSPR_ADDR */
     case D3DSPR_ADDR:
         assert(!param->rel);
-        if (tx->version.major < 2) {
+        if (tx->version.major < 2 && !IS_VS) {
             if (ureg_dst_is_undef(tx->regs.tS[param->idx]))
                 tx->regs.tS[param->idx] = ureg_DECL_temporary(tx->ureg);
             dst = tx->regs.tS[param->idx];
@@ -1200,6 +1200,9 @@ d3dsio_to_string( unsigned opcode )
     static HRESULT \
     NineTranslateInstruction_##name( struct shader_translator *tx )
 
+static HRESULT
+NineTranslateInstruction_Generic(struct shader_translator *);
+
 DECL_SPECIAL(M4x4)
 {
     return NineTranslateInstruction_Mkxn(tx, 4, 3);
@@ -1254,7 +1257,22 @@ DECL_SPECIAL(CALLNZ)
 
 DECL_SPECIAL(MOVA)
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_src src = tx_src_param(tx, &tx->insn.src[0]);
+    struct ureg_dst tmp = tx_scratch(tx);
+
+    tmp.WriteMask = dst.WriteMask;
+    ureg_ROUND(tx->ureg, tmp, src);
+    ureg_ARL(tx->ureg, dst, ureg_src(tmp));
+
+    return D3D_OK;
+}
+
+DECL_SPECIAL(MOV_vs1x)
+{
+    if (tx->insn.dst[0].file == D3DSPR_ADDR)
+        return NineTranslateInstruction_MOVA(tx);
+    return NineTranslateInstruction_Generic(tx);
 }
 
 DECL_SPECIAL(LOOP)
@@ -1614,6 +1632,8 @@ DECL_SPECIAL(DCL)
     else
     if (sem.usage | sem.usage_idx)
         DUMP(" %u[%u]\n", sem.usage, sem.usage_idx);
+    else
+        DUMP("\n");
 
     if (is_sampler) {
         ureg_DECL_sampler(ureg, sem.reg.idx);
@@ -1910,7 +1930,8 @@ DECL_SPECIAL(COMMENT)
 struct sm1_op_info inst_table[] =
 {
     _OPI(NOP, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 0, 0, NULL), /* 0 */
-    _OPI(MOV, MOV, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL), /* 1 */
+    _OPI(MOV, MOV, V(0,0), V(1,1), V(0,0), V(0,0), 1, 1, SPECIAL(MOV_vs1x)),
+    _OPI(MOV, MOV, V(2,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL),
     _OPI(ADD, ADD, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 2 */
     _OPI(SUB, SUB, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* 3 */
     _OPI(MAD, MAD, V(0,0), V(3,0), V(0,0), V(3,0), 1, 3, NULL), /* 4 */
@@ -1963,8 +1984,7 @@ struct sm1_op_info inst_table[] =
     _OPI(BREAK,  BRK,    V(2,1), V(3,0), V(2,1), V(3,0), 0, 0, NULL),
     _OPI(BREAKC, BREAKC, V(2,1), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(BREAKC)),
 
-    _OPI(MOVA, ARL, V(2,0), V(2,1), V(0,0), V(0,0), 1, 1, SPECIAL(MOVA)),
-    _OPI(MOVA, ARL, V(3,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL), /* XXX: round to nearest */
+    _OPI(MOVA, ARL, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, SPECIAL(MOVA)),
 
     _OPI(DEFB, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFB)),
     _OPI(DEFI, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFI)),
