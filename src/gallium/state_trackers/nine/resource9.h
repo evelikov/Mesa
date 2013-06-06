@@ -45,10 +45,6 @@ struct NineResource9
 
     struct pipe_resource info; /* resource configuration */
 
-    unsigned bind_count;
-
-    struct NineDevice9 *device; /* creator device */
-
     /* for [GS]etPrivateData/FreePrivateData */
     struct util_hash_table *pdata;
 };
@@ -61,7 +57,6 @@ NineResource9( void *data )
 HRESULT
 NineResource9_ctor( struct NineResource9 *This,
                     struct NineUnknownParams *pParams,
-                    struct NineDevice9 *pDevice,
                     BOOL Allocate,
                     D3DRESOURCETYPE Type,
                     D3DPOOL Pool );
@@ -81,10 +76,6 @@ HRESULT
 NineResource9_AllocateData( struct NineResource9 *This );
 
 /*** Direct3D public methods ***/
-
-HRESULT WINAPI
-NineResource9_GetDevice( struct NineResource9 *This,
-                         IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NineResource9_SetPrivateData( struct NineResource9 *This,

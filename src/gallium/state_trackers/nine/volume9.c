@@ -51,7 +51,6 @@ static HRESULT
 NineVolume9_ctor( struct NineVolume9 *This,
                   struct NineUnknownParams *pParams,
                   struct NineUnknown *pContainer,
-                  struct NineDevice9 *pDevice,
                   struct pipe_resource *pResource,
                   unsigned Level,
                   D3DVOLUME_DESC *pDesc )
@@ -61,7 +60,7 @@ NineVolume9_ctor( struct NineVolume9 *This,
     assert(pContainer); /* stand-alone volumes can't be created */
 
     DBG("This=%p pContainer=%p pDevice=%p pResource=%p Level=%u pDesc=%p\n",
-        This, pContainer, pDevice, pResource, Level, pDesc);
+        This, pContainer, pParams->device, pResource, Level, pDesc);
 
     /* Mark this as a special surface held by another internal resource. */
     pParams->container = pContainer;
@@ -81,7 +80,7 @@ NineVolume9_ctor( struct NineVolume9 *This,
 
     pipe_resource_reference(&This->resource, pResource);
 
-    This->pipe = pDevice->pipe;
+    This->pipe = pParams->device->pipe;
     This->transfer = NULL;
     This->lock_count = 0;
 
@@ -89,7 +88,7 @@ NineVolume9_ctor( struct NineVolume9 *This,
     This->level_actual = Level;
     This->desc = *pDesc;
 
-    This->info.screen = pDevice->screen;
+    This->info.screen = pParams->device->screen;
     This->info.target = PIPE_TEXTURE_3D;
     This->info.format = d3d9_to_pipe_format(pDesc->Format);
     This->info.width0 = pDesc->Width;
@@ -128,20 +127,7 @@ NineVolume9_dtor( struct NineVolume9 *This )
 
     pipe_resource_reference(&This->resource, NULL);
 
-    if (!NineUnknown(This)->container)
-        NineUnknown_Release(NineUnknown(This->device));
-
     NineUnknown_dtor(&This->base);
-}
-
-HRESULT WINAPI
-NineVolume9_GetDevice( struct NineVolume9 *This,
-                       IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice, E_POINTER);
-    NineUnknown_AddRef(NineUnknown(This->device));
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -164,6 +150,7 @@ NineVolume9_MarkContainerDirty( struct NineVolume9 *This )
     REFIID ref = &id;
     assert(NineUnknown_QueryInterface(This->base.container, ref, (void **)&tex)
            == S_OK);
+    assert(NineUnknown_Release(NineUnknown(tex)) != 0);
 #endif
 
     tex = NineBaseTexture9(This->base.container);
@@ -495,7 +482,7 @@ IDirect3DVolume9Vtbl NineVolume9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineVolume9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Volume9 iface */
     (void *)NineVolume9_SetPrivateData,
     (void *)NineVolume9_GetPrivateData,
     (void *)NineVolume9_FreePrivateData,
@@ -519,8 +506,8 @@ NineVolume9_new( struct NineDevice9 *pDevice,
                  D3DVOLUME_DESC *pDesc,
                  struct NineVolume9 **ppOut )
 {
-    NINE_NEW(NineVolume9, ppOut,
-             pContainer, pDevice, pResource, Level, pDesc);
+    NINE_NEW(NineVolume9, ppOut, pDevice, /* args */
+             pContainer, pResource, Level, pDesc);
 }
 
 

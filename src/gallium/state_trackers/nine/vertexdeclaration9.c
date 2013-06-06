@@ -148,7 +148,6 @@ nine_declusage_name(unsigned ndcl)
 HRESULT
 NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
                              struct NineUnknownParams *pParams,
-                             struct NineDevice9 *pDevice,
                              const D3DVERTEXELEMENT9 *pElements )
 {
     const D3DCAPS9 *caps;
@@ -157,14 +156,12 @@ NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr)) { return hr; }
 
-    nine_reference_set(&This->device, pDevice);
-
     for (This->nelems = 0;
          pElements[This->nelems].Type != D3DDECLTYPE_UNUSED &&
          pElements[This->nelems].Stream != 0xFF; /* wine */
          ++This->nelems);
 
-    caps = NineDevice9_GetCaps(This->device);
+    caps = NineDevice9_GetCaps(This->base.device);
     user_assert(This->nelems <= caps->MaxStreams, D3DERR_INVALIDCALL);
 
     This->decls = CALLOC(This->nelems+1, sizeof(D3DVERTEXELEMENT9));
@@ -203,19 +200,7 @@ NineVertexDeclaration9_dtor( struct NineVertexDeclaration9 *This )
     if (This->elems)
         FREE(This->elems);
 
-    nine_reference(&This->device, NULL);
-
     NineUnknown_dtor(&This->base);
-}
-
-HRESULT WINAPI
-NineVertexDeclaration9_GetDevice( struct NineVertexDeclaration9 *This,
-                                  IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice, E_POINTER);
-    NineUnknown_AddRef(NineUnknown(This->device));
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -237,7 +222,7 @@ IDirect3DVertexDeclaration9Vtbl NineVertexDeclaration9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineVertexDeclaration9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of VertexDecl9 iface */
     (void *)NineVertexDeclaration9_GetDeclaration
 };
 
@@ -408,7 +393,7 @@ NineVertexDeclaration9_ConvertStreamOutput(
     struct pipe_resource *pSrcBuf,
     const struct pipe_stream_output_info *so )
 {
-    struct pipe_context *pipe = This->device->pipe;
+    struct pipe_context *pipe = This->base.device->pipe;
     struct pipe_transfer *transfer = NULL;
     struct translate *translate;
     struct translate_key transkey;

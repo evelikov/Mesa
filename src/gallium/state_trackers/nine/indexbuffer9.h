@@ -58,7 +58,6 @@ NineIndexBuffer9_new( struct NineDevice9 *pDevice,
 HRESULT
 NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
                        struct NineUnknownParams *pParams,
-                       struct NineDevice9 *pDevice,
                        D3DINDEXBUFFER_DESC *pDesc );
 
 void

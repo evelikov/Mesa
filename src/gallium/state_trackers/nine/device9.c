@@ -57,6 +57,8 @@ NineDevice9_SetDefaultState( struct NineDevice9 *This, boolean is_reset )
 {
     struct NineSurface9 *refSurf = NULL;
 
+    assert(!This->is_recording);
+
     nine_state_set_defaults(&This->state, &This->caps, is_reset);
 
     This->state.viewport.X = 0;
@@ -159,20 +161,24 @@ NineDevice9_ctor( struct NineDevice9 *This,
         ID3DPresent *present;
 
         hr = ID3DPresentFactory_GetPresent(This->present, i, &present);
-        if (FAILED(hr)) { return hr; }
+        if (FAILED(hr))
+            return hr;
 
         hr = NineSwapChain9_new(This, TRUE, present, pPTR,
                                 This->params.hFocusWindow,
                                 &This->swapchains[i]);
         ID3DPresent_Release(present);
-        if (FAILED(hr)) { return hr; }
+        if (FAILED(hr))
+            return hr;
+        NineUnknown_ConvertRefToBind(NineUnknown(This->swapchains[i]));
 
         hr = NineSwapChain9_GetBackBuffer(This->swapchains[i], 0,
                                           D3DBACKBUFFER_TYPE_MONO,
                                           (IDirect3DSurface9 **)
                                           &This->state.rt[i]);
-        if (FAILED(hr)) { return hr; }
-        This->state.rt[i]->base.bind_count = 1;
+        if (FAILED(hr))
+            return hr;
+        NineUnknown_ConvertRefToBind(NineUnknown(This->state.rt[i]));
     }
 
     This->cursor.software = TRUE; /* XXX hardware cursor */
@@ -281,7 +287,7 @@ NineDevice9_dtor( struct NineDevice9 *This )
 
     util_destroy_gen_mipmap(This->gen_mipmap);
 
-    nine_reference(&This->record, NULL);
+    nine_bind(&This->record, NULL);
 
     pipe_resource_reference(&This->constbuf_vs, NULL);
     pipe_resource_reference(&This->constbuf_ps, NULL);
@@ -290,7 +296,7 @@ NineDevice9_dtor( struct NineDevice9 *This )
 
     if (This->swapchains) {
         for (i = 0; i < This->nswapchains; ++i)
-            nine_reference(&This->swapchains[i], NULL);
+            NineUnknown_Unbind(NineUnknown(This->swapchains[i]));
         FREE(This->swapchains);
     }
 
@@ -331,6 +337,24 @@ const D3DCAPS9 *
 NineDevice9_GetCaps( struct NineDevice9 *This )
 {
     return &This->caps;
+}
+
+static INLINE void
+NineDevice9_PauseRecording( struct NineDevice9 *This )
+{
+    if (This->record) {
+        This->update = &This->state;
+        This->is_recording = FALSE;
+    }
+}
+
+static INLINE void
+NineDevice9_ResumeRecording( struct NineDevice9 *This )
+{
+    if (This->record) {
+        This->update = &This->record->state;
+        This->is_recording = TRUE;
+    }
 }
 
 HRESULT WINAPI
@@ -1393,13 +1417,8 @@ NineDevice9_SetRenderTarget( struct NineDevice9 *This,
     }
 
     if (This->state.rt[i] != NineSurface9(pRenderTarget)) {
+       nine_bind(&This->state.rt[i], pRenderTarget);
        This->state.changed.group |= NINE_STATE_FB;
-
-       if (This->state.rt[i])
-           This->state.rt[i]->base.bind_count--;
-       nine_reference(&This->state.rt[i], pRenderTarget);
-       if (This->state.rt[i])
-           This->state.rt[i]->base.bind_count++;
     }
     return D3D_OK;
 }
@@ -1429,13 +1448,8 @@ NineDevice9_SetDepthStencilSurface( struct NineDevice9 *This,
     DBG("This=%p pNewZStencil=%p\n", This, pNewZStencil);
 
     if (This->state.ds != NineSurface9(pNewZStencil)) {
+        nine_bind(&This->state.ds, pNewZStencil);
         This->state.changed.group |= NINE_STATE_FB;
-
-        if (This->state.ds)
-            This->state.ds->base.bind_count--;
-        nine_reference(&This->state.ds, pNewZStencil);
-        if (This->state.ds)
-            This->state.ds->base.bind_count++;
     }
     return D3D_OK;
 }
@@ -1615,7 +1629,7 @@ NineDevice9_SetTransform( struct NineDevice9 *This,
                           D3DTRANSFORMSTATETYPE State,
                           const D3DMATRIX *pMatrix )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     D3DMATRIX *M = nine_state_access_transform(state, State, TRUE);
     user_assert(M, D3DERR_INVALIDCALL);
 
@@ -1631,8 +1645,7 @@ NineDevice9_GetTransform( struct NineDevice9 *This,
                           D3DTRANSFORMSTATETYPE State,
                           D3DMATRIX *pMatrix )
 {
-    NINESTATEPOINTER_GET(This);
-    D3DMATRIX *M = nine_state_access_transform(state, State, FALSE);
+    D3DMATRIX *M = nine_state_access_transform(&This->state, State, FALSE);
     user_assert(M, D3DERR_INVALIDCALL);
     *pMatrix = *M;
     return D3D_OK;
@@ -1643,7 +1656,7 @@ NineDevice9_MultiplyTransform( struct NineDevice9 *This,
                                D3DTRANSFORMSTATETYPE State,
                                const D3DMATRIX *pMatrix )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     D3DMATRIX T;
     D3DMATRIX *M = nine_state_access_transform(state, State, TRUE);
     user_assert(M, D3DERR_INVALIDCALL);
@@ -1656,7 +1669,7 @@ HRESULT WINAPI
 NineDevice9_SetViewport( struct NineDevice9 *This,
                          const D3DVIEWPORT9 *pViewport )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("X=%u Y=%u W=%u H=%u MinZ=%f MaxZ=%f\n",
         pViewport->X, pViewport->Y, pViewport->Width, pViewport->Height,
@@ -1672,8 +1685,7 @@ HRESULT WINAPI
 NineDevice9_GetViewport( struct NineDevice9 *This,
                          D3DVIEWPORT9 *pViewport )
 {
-    NINESTATEPOINTER_GET(This);
-    *pViewport = state->viewport;
+    *pViewport = This->state.viewport;
     return D3D_OK;
 }
 
@@ -1681,7 +1693,7 @@ HRESULT WINAPI
 NineDevice9_SetMaterial( struct NineDevice9 *This,
                          const D3DMATERIAL9 *pMaterial )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p pMaterial=%p\n", This, pMaterial);
     if (pMaterial)
@@ -1699,9 +1711,8 @@ HRESULT WINAPI
 NineDevice9_GetMaterial( struct NineDevice9 *This,
                          D3DMATERIAL9 *pMaterial )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(pMaterial, E_POINTER);
-    *pMaterial = state->ff.material;
+    *pMaterial = This->state.ff.material;
     return D3D_OK;
 }
 
@@ -1710,7 +1721,7 @@ NineDevice9_SetLight( struct NineDevice9 *This,
                       DWORD Index,
                       const D3DLIGHT9 *pLight )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p Index=%u pLight=%p\n", This, Index, pLight);
     if (pLight)
@@ -1757,7 +1768,8 @@ NineDevice9_GetLight( struct NineDevice9 *This,
                       DWORD Index,
                       D3DLIGHT9 *pLight )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(pLight, D3DERR_INVALIDCALL);
     user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
     user_assert(state->ff.light[Index].Type < NINED3DLIGHT_INVALID,
@@ -1773,7 +1785,7 @@ NineDevice9_LightEnable( struct NineDevice9 *This,
                          DWORD Index,
                          BOOL Enable )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     unsigned i;
 
     DBG("This=%p Index=%u Enable=%i\n", This, Index, Enable);
@@ -1823,7 +1835,7 @@ NineDevice9_GetLightEnable( struct NineDevice9 *This,
                             DWORD Index,
                             BOOL *pEnable )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
     unsigned i;
 
     user_assert(Index < state->ff.num_lights, D3DERR_INVALIDCALL);
@@ -1842,12 +1854,13 @@ NineDevice9_SetClipPlane( struct NineDevice9 *This,
                           DWORD Index,
                           const float *pPlane )
 {
-    NINESTATEPOINTER_SET(This);
-    user_assert(Index < PIPE_MAX_CLIP_PLANES, D3DERR_INVALIDCALL);
+    struct nine_state *state = This->update;
 
     DBG("This=%p Index=%u pPlane=%p(%f %f %f %f)\n", This, Index, pPlane,
         pPlane ? pPlane[0] : 0.0f, pPlane ? pPlane[1] : 0.0f,
         pPlane ? pPlane[2] : 0.0f, pPlane ? pPlane[3] : 0.0f);
+
+    user_assert(Index < PIPE_MAX_CLIP_PLANES, D3DERR_INVALIDCALL);
 
     memcpy(&state->clip.ucp[Index][0], pPlane, sizeof(state->clip.ucp[0]));
     state->changed.ucp |= 1 << Index;
@@ -1860,7 +1873,8 @@ NineDevice9_GetClipPlane( struct NineDevice9 *This,
                           DWORD Index,
                           float *pPlane )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(Index < PIPE_MAX_CLIP_PLANES, D3DERR_INVALIDCALL);
 
     memcpy(pPlane, &state->clip.ucp[Index][0], sizeof(state->clip.ucp[0]));
@@ -1872,11 +1886,12 @@ NineDevice9_SetRenderState( struct NineDevice9 *This,
                             D3DRENDERSTATETYPE State,
                             DWORD Value )
 {
-    NINESTATEPOINTER_SET(This);
-    user_assert(State < Elements(state->rs), D3DERR_INVALIDCALL);
+    struct nine_state *state = This->update;
 
     DBG("This=%p State=%u(%s) Value=%08x\n", This,
         State, nine_d3drs_to_string(State), Value);
+
+    user_assert(State < Elements(state->rs), D3DERR_INVALIDCALL);
 
     state->rs[State] = Value;
     state->changed.rs[State / 32] |= 1 << (State % 32);
@@ -1890,10 +1905,9 @@ NineDevice9_GetRenderState( struct NineDevice9 *This,
                             D3DRENDERSTATETYPE State,
                             DWORD *pValue )
 {
-    NINESTATEPOINTER_GET(This);
-    user_assert(State < Elements(state->rs), D3DERR_INVALIDCALL);
+    user_assert(State < Elements(This->state.rs), D3DERR_INVALIDCALL);
 
-    *pValue = state->rs[State];
+    *pValue = This->state.rs[State];
     return D3D_OK;
 }
 
@@ -1953,7 +1967,7 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
            dst->ff.light = CALLOC(This->state.ff.num_lights,
                                   sizeof(D3DLIGHT9));
            if (!dst->ff.light) {
-               nine_reference(ppSB, NULL);
+               nine_bind(ppSB, NULL);
                return E_OUTOFMEMORY;
            }
        }
@@ -2006,8 +2020,11 @@ NineDevice9_BeginStateBlock( struct NineDevice9 *This )
     hr = NineStateBlock9_new(This, &This->record, NINESBT_CUSTOM);
     if (FAILED(hr))
         return hr;
+    NineUnknown_ConvertRefToBind(NineUnknown(This->record));
 
     This->update = &This->record->state;
+    This->is_recording = TRUE;
+
     return D3D_OK;
 }
 
@@ -2019,10 +2036,14 @@ NineDevice9_EndStateBlock( struct NineDevice9 *This,
 
     user_assert(This->record, D3DERR_INVALIDCALL);
 
-    nine_reference_set(ppSB, This->record);
-    nine_reference(&This->record, NULL);
-
     This->update = &This->state;
+    This->is_recording = FALSE;
+
+    NineUnknown_AddRef(NineUnknown(This->record));
+    *ppSB = (IDirect3DStateBlock9 *)This->record;
+    NineUnknown_Unbind(NineUnknown(This->record));
+    This->record = NULL;
+
     return D3D_OK;
 }
 
@@ -2045,7 +2066,6 @@ NineDevice9_GetTexture( struct NineDevice9 *This,
                         DWORD Stage,
                         IDirect3DBaseTexture9 **ppTexture )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(Stage < This->caps.MaxSimultaneousTextures ||
                 Stage == D3DDMAPSAMPLER ||
                 (Stage >= D3DVERTEXTEXTURESAMPLER0 &&
@@ -2055,10 +2075,10 @@ NineDevice9_GetTexture( struct NineDevice9 *This,
     if (Stage >= D3DDMAPSAMPLER)
         Stage = Stage - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
-    *ppTexture = (IDirect3DBaseTexture9 *)state->texture[Stage];
+    *ppTexture = (IDirect3DBaseTexture9 *)This->state.texture[Stage];
 
-    if (state->texture[Stage])
-        NineUnknown_AddRef(NineUnknown(state->texture[Stage]));
+    if (This->state.texture[Stage])
+        NineUnknown_AddRef(NineUnknown(This->state.texture[Stage]));
     return D3D_OK;
 }
 
@@ -2067,7 +2087,7 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
                         DWORD Stage,
                         IDirect3DBaseTexture9 *pTexture )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p Stage=%u pTexture=%p\n", This, Stage, pTexture);
 
@@ -2079,22 +2099,22 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
     if (Stage >= D3DDMAPSAMPLER)
         Stage = Stage - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
-    if (!This->record) {
+    if (This->is_recording) {
+        nine_reference(&state->texture[Stage], pTexture);
+    } else {
         struct NineBaseTexture9 *tex = NineBaseTexture9(pTexture);
         if (state->texture[Stage] == tex)
             return D3D_OK;
-        if (state->texture[Stage]) {
-            if (!--state->texture[Stage]->base.bind_count)
-                list_del(&state->texture[Stage]->list);
-        }
-        if (tex) {
-            if (tex->base.bind_count == 0)
-                list_add(&tex->list, &This->bound_textures);
-            tex->base.bind_count++;
-        }
-    }
 
-    nine_reference(&state->texture[Stage], pTexture);
+        if (state->texture[Stage])
+            if (state->texture[Stage]->base.base.bind == 1)
+                list_delinit(&state->texture[Stage]->list);
+        if (tex)
+            if (tex->base.base.bind == 0)
+                list_add(&tex->list, &This->bound_textures);
+
+        nine_bind(&state->texture[Stage], pTexture);
+    }
     state->changed.texture |= 1 << Stage;
     state->changed.group |= NINE_STATE_TEXTURE;
 
@@ -2107,7 +2127,8 @@ NineDevice9_GetTextureStageState( struct NineDevice9 *This,
                                   D3DTEXTURESTAGESTATETYPE Type,
                                   DWORD *pValue )
 {
-    NINESTATEPOINTER_SET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(Stage < Elements(state->ff.tex_stage), D3DERR_INVALIDCALL);
     user_assert(Type < Elements(state->ff.tex_stage[0]), D3DERR_INVALIDCALL);
 
@@ -2122,7 +2143,7 @@ NineDevice9_SetTextureStageState( struct NineDevice9 *This,
                                   D3DTEXTURESTAGESTATETYPE Type,
                                   DWORD Value )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("Stage=%u Type=%u Value=%08x\n", Stage, Type, Value);
     nine_dump_D3DTSS_value(DBG_FF, Type, Value);
@@ -2144,8 +2165,6 @@ NineDevice9_GetSamplerState( struct NineDevice9 *This,
                              D3DSAMPLERSTATETYPE Type,
                              DWORD *pValue )
 {
-    NINESTATEPOINTER_GET(This);
-
     user_assert(Sampler < This->caps.MaxSimultaneousTextures ||
                 Sampler == D3DDMAPSAMPLER ||
                 (Sampler >= D3DVERTEXTEXTURESAMPLER0 &&
@@ -2154,7 +2173,7 @@ NineDevice9_GetSamplerState( struct NineDevice9 *This,
     if (Sampler >= D3DDMAPSAMPLER)
         Sampler = Sampler - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
-    *pValue = state->samp[Sampler][Type];
+    *pValue = This->state.samp[Sampler][Type];
     return D3D_OK;
 }
 
@@ -2164,7 +2183,7 @@ NineDevice9_SetSamplerState( struct NineDevice9 *This,
                              D3DSAMPLERSTATETYPE Type,
                              DWORD Value )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p Sampler=%u Type=%u Value=%08x\n", This, Sampler, Type, Value);
 
@@ -2257,7 +2276,7 @@ HRESULT WINAPI
 NineDevice9_SetScissorRect( struct NineDevice9 *This,
                             const RECT *pRect )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("x=(%u..%u) y=(%u..%u)\n",
         pRect->left, pRect->top, pRect->right, pRect->bottom);
@@ -2276,12 +2295,10 @@ HRESULT WINAPI
 NineDevice9_GetScissorRect( struct NineDevice9 *This,
                             RECT *pRect )
 {
-    NINESTATEPOINTER_GET(This);
-
-    pRect->left   = state->scissor.minx;
-    pRect->top    = state->scissor.miny;
-    pRect->right  = state->scissor.maxx;
-    pRect->bottom = state->scissor.maxy;
+    pRect->left   = This->state.scissor.minx;
+    pRect->top    = This->state.scissor.miny;
+    pRect->right  = This->state.scissor.maxx;
+    pRect->bottom = This->state.scissor.maxy;
 
     return D3D_OK;
 }
@@ -2296,8 +2313,7 @@ NineDevice9_SetSoftwareVertexProcessing( struct NineDevice9 *This,
 BOOL WINAPI
 NineDevice9_GetSoftwareVertexProcessing( struct NineDevice9 *This )
 {
-    return (This->params.BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING)
-               ? TRUE : FALSE;
+    return !!(This->params.BehaviorFlags & D3DCREATE_SOFTWARE_VERTEXPROCESSING);
 }
 
 HRESULT WINAPI
@@ -2421,7 +2437,9 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
 
     This->pipe->draw_vbo(This->pipe, &info);
 
+    NineDevice9_PauseRecording(This);
     NineDevice9_SetStreamSource(This, 0, NULL, 0, 0);
+    NineDevice9_ResumeRecording(This);
 
     return D3D_OK;
 }
@@ -2477,8 +2495,10 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
 
     This->pipe->draw_vbo(This->pipe, &info);
 
+    NineDevice9_PauseRecording(This);
     NineDevice9_SetIndices(This, NULL);
     NineDevice9_SetStreamSource(This, 0, NULL, 0, 0);
+    NineDevice9_ResumeRecording(This);
 
     return D3D_OK;
 }
@@ -2591,10 +2611,16 @@ HRESULT WINAPI
 NineDevice9_SetVertexDeclaration( struct NineDevice9 *This,
                                   IDirect3DVertexDeclaration9 *pDecl )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
+
     DBG("This=%p pDecl=%p\n", This, pDecl);
-    nine_reference(&state->vdecl, pDecl);
+
+    if (This->is_recording)
+        nine_reference(&state->vdecl, pDecl);
+    else
+        nine_bind(&state->vdecl, pDecl);
     state->changed.group |= NINE_STATE_VDECL;
+
     /* XXX: should this really change the result of GetFVF ? */
     return D3D_OK;
 }
@@ -2603,13 +2629,11 @@ HRESULT WINAPI
 NineDevice9_GetVertexDeclaration( struct NineDevice9 *This,
                                   IDirect3DVertexDeclaration9 **ppDecl )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(ppDecl, D3DERR_INVALIDCALL);
 
-    *ppDecl = (IDirect3DVertexDeclaration9 *)state->vdecl;
-
-    if (state->vdecl)
-        NineUnknown_AddRef(NineUnknown(state->vdecl));
+    *ppDecl = (IDirect3DVertexDeclaration9 *)This->state.vdecl;
+    if (*ppDecl)
+        NineUnknown_AddRef(NineUnknown(*ppDecl));
     return D3D_OK;
 }
 
@@ -2617,18 +2641,12 @@ HRESULT WINAPI
 NineDevice9_SetFVF( struct NineDevice9 *This,
                     DWORD FVF )
 {
-    NINESTATEPOINTER_SET(This);
     struct NineVertexDeclaration9 *vdecl;
     HRESULT hr;
 
     DBG("FVF = %08x\n", FVF);
-
-    if (!FVF) {
-        /* XXX: is this correct ? */
-        if (state->vdecl && state->vdecl->fvf)
-            nine_reference(&state->vdecl, NULL);
-        return D3D_OK;
-    }
+    if (!FVF)
+        return D3D_OK; /* like wine */
 
     vdecl = util_hash_table_get(This->ff.ht_fvf, &FVF);
     if (!vdecl) {
@@ -2637,20 +2655,17 @@ NineDevice9_SetFVF( struct NineDevice9 *This,
             return hr;
         vdecl->fvf = FVF;
         util_hash_table_set(This->ff.ht_fvf, &vdecl->fvf, vdecl);
+        NineUnknown_ConvertRefToBind(NineUnknown(vdecl));
     }
-
-    nine_reference(&state->vdecl, vdecl);
-    state->changed.group |= NINE_STATE_VDECL;
-
-    return D3D_OK;
+    return NineDevice9_SetVertexDeclaration(
+        This, (IDirect3DVertexDeclaration9 *)vdecl);
 }
 
 HRESULT WINAPI
 NineDevice9_GetFVF( struct NineDevice9 *This,
                     DWORD *pFVF )
 {
-    NINESTATEPOINTER_GET(This);
-    *pFVF = state->vdecl ? state->vdecl->fvf : 0;
+    *pFVF = This->state.vdecl ? This->state.vdecl->fvf : 0;
     return D3D_OK;
 }
 
@@ -2673,12 +2688,16 @@ HRESULT WINAPI
 NineDevice9_SetVertexShader( struct NineDevice9 *This,
                              IDirect3DVertexShader9 *pShader )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p pShader=%p\n", This, pShader);
 
-    nine_reference(&state->vs, pShader);
+    if (This->is_recording)
+        nine_reference(&state->vs, pShader);
+    else
+        nine_bind(&state->vs, pShader);
     state->changed.group |= NINE_STATE_VS;
+
     return D3D_OK;
 }
 
@@ -2686,9 +2705,8 @@ HRESULT WINAPI
 NineDevice9_GetVertexShader( struct NineDevice9 *This,
                              IDirect3DVertexShader9 **ppShader )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(ppShader, D3DERR_INVALIDCALL);
-    nine_reference_set(ppShader, state->vs);
+    nine_reference_set(ppShader, This->state.vs);
     return D3D_OK;
 }
 
@@ -2698,7 +2716,7 @@ NineDevice9_SetVertexShaderConstantF( struct NineDevice9 *This,
                                       const float *pConstantData,
                                       UINT Vector4fCount )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     uint32_t mask;
     unsigned i;
     unsigned c;
@@ -2742,7 +2760,8 @@ NineDevice9_GetVertexShaderConstantF( struct NineDevice9 *This,
                                       float *pConstantData,
                                       UINT Vector4fCount )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(StartRegister                  < This->caps.MaxVertexShaderConst, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4fCount <= This->caps.MaxVertexShaderConst, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -2760,7 +2779,7 @@ NineDevice9_SetVertexShaderConstantI( struct NineDevice9 *This,
                                       const int *pConstantData,
                                       UINT Vector4iCount )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p StartRegister=%u pConstantData=%p Vector4iCount=%u\n",
         This, StartRegister, pConstantData, Vector4iCount);
@@ -2785,7 +2804,8 @@ NineDevice9_GetVertexShaderConstantI( struct NineDevice9 *This,
                                       int *pConstantData,
                                       UINT Vector4iCount )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(StartRegister                  < NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4iCount <= NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -2803,7 +2823,7 @@ NineDevice9_SetVertexShaderConstantB( struct NineDevice9 *This,
                                       const BOOL *pConstantData,
                                       UINT BoolCount )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p StartRegister=%u pConstantData=%p BoolCount=%u\n",
         This, StartRegister, pConstantData, BoolCount);
@@ -2828,7 +2848,8 @@ NineDevice9_GetVertexShaderConstantB( struct NineDevice9 *This,
                                       BOOL *pConstantData,
                                       UINT BoolCount )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(StartRegister              < NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(StartRegister + BoolCount <= NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -2847,7 +2868,7 @@ NineDevice9_SetStreamSource( struct NineDevice9 *This,
                              UINT OffsetInBytes,
                              UINT Stride )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     struct NineVertexBuffer9 *pVBuf9 = NineVertexBuffer9(pStreamData);
     const unsigned i = StreamNumber;
 
@@ -2860,9 +2881,12 @@ NineDevice9_SetStreamSource( struct NineDevice9 *This,
     }
     state->vtxbuf[i].buffer = pStreamData ? pVBuf9->base.resource : NULL;
 
-    nine_reference(&state->stream[i], pStreamData);
-
+    if (likely(!This->is_recording))
+        nine_bind(&state->stream[i], pStreamData);
+    else
+        nine_reference(&state->stream[i], pStreamData);
     state->changed.vtxbuf |= 1 << StreamNumber;
+
     return D3D_OK;
 }
 
@@ -2873,7 +2897,7 @@ NineDevice9_GetStreamSource( struct NineDevice9 *This,
                              UINT *pOffsetInBytes,
                              UINT *pStride )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
     const unsigned i = StreamNumber;
 
     user_assert(StreamNumber < This->caps.MaxStreams, D3DERR_INVALIDCALL);
@@ -2891,7 +2915,7 @@ NineDevice9_SetStreamSourceFreq( struct NineDevice9 *This,
                                  UINT StreamNumber,
                                  UINT Setting )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     /* const UINT freq = Setting & 0x7FFFFF; */
 
     DBG("This=%p StreamNumber=%u FrequencyParameter=0x%x\n", This,
@@ -2920,11 +2944,8 @@ NineDevice9_GetStreamSourceFreq( struct NineDevice9 *This,
                                  UINT StreamNumber,
                                  UINT *pSetting )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(StreamNumber < This->caps.MaxStreams, D3DERR_INVALIDCALL);
-
-    *pSetting = state->stream_freq[StreamNumber];
-
+    *pSetting = This->state.stream_freq[StreamNumber];
     return D3D_OK;
 }
 
@@ -2932,9 +2953,12 @@ HRESULT WINAPI
 NineDevice9_SetIndices( struct NineDevice9 *This,
                         IDirect3DIndexBuffer9 *pIndexData )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
-    nine_reference(&state->idxbuf, pIndexData);
+    if (likely(!This->is_recording))
+        nine_bind(&state->idxbuf, pIndexData);
+    else
+        nine_reference(&state->idxbuf, pIndexData);
 
     state->changed.group |= NINE_STATE_IDXBUF;
     return D3D_OK;
@@ -2948,10 +2972,8 @@ NineDevice9_GetIndices( struct NineDevice9 *This,
                         IDirect3DIndexBuffer9 **ppIndexData /*,
                         UINT *pBaseVertexIndex */ )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(ppIndexData, D3DERR_INVALIDCALL);
-
-    nine_reference_set(ppIndexData, state->idxbuf);
+    nine_reference_set(ppIndexData, This->state.idxbuf);
     return D3D_OK;
 }
 
@@ -2974,12 +2996,16 @@ HRESULT WINAPI
 NineDevice9_SetPixelShader( struct NineDevice9 *This,
                             IDirect3DPixelShader9 *pShader )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p pShader=%p\n", This, pShader);
 
-    nine_reference(&state->ps, pShader);
+    if (likely(!This->is_recording))
+        nine_bind(&state->ps, pShader);
+    else
+        nine_reference(&state->ps, pShader);
     state->changed.group |= NINE_STATE_PS;
+
     return D3D_OK;
 }
 
@@ -2987,9 +3013,8 @@ HRESULT WINAPI
 NineDevice9_GetPixelShader( struct NineDevice9 *This,
                             IDirect3DPixelShader9 **ppShader )
 {
-    NINESTATEPOINTER_GET(This);
     user_assert(ppShader, D3DERR_INVALIDCALL);
-    nine_reference_set(ppShader, state->ps);
+    nine_reference_set(ppShader, This->state.ps);
     return D3D_OK;
 }
 
@@ -2999,7 +3024,7 @@ NineDevice9_SetPixelShaderConstantF( struct NineDevice9 *This,
                                      const float *pConstantData,
                                      UINT Vector4fCount )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
     uint32_t mask;
     unsigned i;
     unsigned c;
@@ -3043,7 +3068,8 @@ NineDevice9_GetPixelShaderConstantF( struct NineDevice9 *This,
                                      float *pConstantData,
                                      UINT Vector4fCount )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(StartRegister                  < NINE_MAX_CONST_F, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4fCount <= NINE_MAX_CONST_F, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -3061,7 +3087,7 @@ NineDevice9_SetPixelShaderConstantI( struct NineDevice9 *This,
                                      const int *pConstantData,
                                      UINT Vector4iCount )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p StartRegister=%u pConstantData=%p Vector4iCount=%u\n",
         This, StartRegister, pConstantData, Vector4iCount);
@@ -3086,7 +3112,8 @@ NineDevice9_GetPixelShaderConstantI( struct NineDevice9 *This,
                                      int *pConstantData,
                                      UINT Vector4iCount )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(StartRegister                  < NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(StartRegister + Vector4iCount <= NINE_MAX_CONST_I, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -3104,7 +3131,7 @@ NineDevice9_SetPixelShaderConstantB( struct NineDevice9 *This,
                                      const BOOL *pConstantData,
                                      UINT BoolCount )
 {
-    NINESTATEPOINTER_SET(This);
+    struct nine_state *state = This->update;
 
     DBG("This=%p StartRegister=%u pConstantData=%p BoolCount=%u\n",
         This, StartRegister, pConstantData, BoolCount);
@@ -3129,7 +3156,8 @@ NineDevice9_GetPixelShaderConstantB( struct NineDevice9 *This,
                                      BOOL *pConstantData,
                                      UINT BoolCount )
 {
-    NINESTATEPOINTER_GET(This);
+    const struct nine_state *state = &This->state;
+
     user_assert(StartRegister              < NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(StartRegister + BoolCount <= NINE_MAX_CONST_B, D3DERR_INVALIDCALL);
     user_assert(pConstantData, D3DERR_INVALIDCALL);
@@ -3321,7 +3349,7 @@ NineDevice9_new( struct pipe_screen *pScreen,
                  PPRESENT_TO_RESOURCE pPTR,
                  struct NineDevice9 **ppOut )
 {
-    NINE_NEW(NineDevice9, ppOut, /* args */
+    NINE_NEW(NineDevice9, ppOut, NULL, /* args */
              pScreen, pCreationParameters, pCaps,
              pD3D9, pPresentationFactory, pPTR);
 }

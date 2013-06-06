@@ -41,7 +41,6 @@
 HRESULT
 NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        struct NineUnknownParams *pParams,
-                       struct NineDevice9 *pDevice,
                        D3DRESOURCETYPE Type,
                        D3DPOOL Pool )
 {
@@ -54,11 +53,11 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
     user_assert(!(usage & D3DUSAGE_DYNAMIC) ||
                 Pool != D3DPOOL_MANAGED, D3DERR_INVALIDCALL);
 
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, alloc, Type, Pool);
+    hr = NineResource9_ctor(&This->base, pParams, alloc, Type, Pool);
     if (FAILED(hr))
         return hr;
 
-    This->pipe = NineDevice9_GetPipe(pDevice);
+    This->pipe = pParams->device->pipe;
     This->mipfilter = (This->base.usage & D3DUSAGE_AUTOGENMIPMAP) ?
         D3DTEXF_LINEAR : D3DTEXF_NONE;
     This->lod = 0;
@@ -72,6 +71,8 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
 void
 NineBaseTexture9_dtor( struct NineBaseTexture9 *This )
 {
+    DBG("This=%p\n", This);
+
     pipe_sampler_view_reference(&This->view, NULL);
 
     list_del(&This->list),
@@ -150,8 +151,8 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         DBG("updating LOD from %u to %u ...\n", This->lod_resident, This->lod);
 
         pipe_sampler_view_reference(&This->view, NULL);
-        if (This->base.bind_count)
-            This->base.device->state.changed.group |= NINE_STATE_TEXTURE;
+        if (This->base.base.bind)
+            This->base.base.device->state.changed.group |= NINE_STATE_TEXTURE;
 
         hr = NineBaseTexture9_CreatePipeResource(This);
         if (FAILED(hr))
@@ -307,13 +308,13 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
     }
 
     for (i = 0; i < faces; ++i)
-        util_gen_mipmap(This->base.device->gen_mipmap,
+        util_gen_mipmap(This->base.base.device->gen_mipmap,
                         This->view,
                         i, base_level, last_level, filter);
 
     This->dirty_mip = FALSE;
 
-    NineDevice9_RestoreNonCSOState(This->base.device, ~0x3);
+    NineDevice9_RestoreNonCSOState(This->base.base.device, ~0x3);
 }
 
 HRESULT

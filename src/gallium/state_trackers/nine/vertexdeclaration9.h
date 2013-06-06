@@ -43,7 +43,6 @@ struct NineVertexDeclaration9
      * for each VS input */
     uint8_t usage_map[NINE_DECLUSAGE_COUNT];
 
-    struct NineDevice9 *device;
     D3DVERTEXELEMENT9 *decls;
     DWORD fvf;
 };
@@ -66,15 +65,10 @@ NineVertexDeclaration9_new_from_fvf( struct NineDevice9 *pDevice,
 HRESULT
 NineVertexDeclaration9_ctor( struct NineVertexDeclaration9 *This,
                              struct NineUnknownParams *pParams,
-                             struct NineDevice9 *pDevice,
                              const D3DVERTEXELEMENT9 *pElements );
 
 void
 NineVertexDeclaration9_dtor( struct NineVertexDeclaration9 *This );
-
-HRESULT WINAPI
-NineVertexDeclaration9_GetDevice( struct NineVertexDeclaration9 *This,
-                                  IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NineVertexDeclaration9_GetDeclaration( struct NineVertexDeclaration9 *This,

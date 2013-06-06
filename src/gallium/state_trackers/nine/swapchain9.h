@@ -48,9 +48,6 @@ struct NineSwapChain9
     PPRESENT_TO_RESOURCE ptrfunc;
     BOOL implicit;
 
-    /* parent device */
-    struct NineDevice9 *device;
-
     /* buffer handles */
     struct NineSurface9 **buffers; /* [0] is frontbuffer */
     struct NineSurface9 *zsbuf;
@@ -74,7 +71,6 @@ NineSwapChain9_new( struct NineDevice9 *pDevice,
 HRESULT
 NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      struct NineUnknownParams *pParams,
-                     struct NineDevice9 *pDevice,
                      BOOL implicit,
                      ID3DPresent *pPresent,
                      PPRESENT_TO_RESOURCE pPTR,
@@ -112,10 +108,6 @@ NineSwapChain9_GetRasterStatus( struct NineSwapChain9 *This,
 HRESULT WINAPI
 NineSwapChain9_GetDisplayMode( struct NineSwapChain9 *This,
                                D3DDISPLAYMODE *pMode );
-
-HRESULT WINAPI
-NineSwapChain9_GetDevice( struct NineSwapChain9 *This,
-                          IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NineSwapChain9_GetPresentParameters( struct NineSwapChain9 *This,

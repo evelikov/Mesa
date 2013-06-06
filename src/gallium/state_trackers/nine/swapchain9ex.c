@@ -55,7 +55,7 @@ IDirect3DSwapChain9ExVtbl NineSwapChain9Ex_vtable = {
     (void *)NineSwapChain9_GetBackBuffer,
     (void *)NineSwapChain9_GetRasterStatus,
     (void *)NineSwapChain9_GetDisplayMode,
-    (void *)NineSwapChain9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of NineSwapChain9 iface */
     (void *)NineSwapChain9_GetPresentParameters,
     (void *)NineSwapChain9Ex_GetLastPresentCount,
     (void *)NineSwapChain9Ex_GetPresentStats,

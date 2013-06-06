@@ -1283,6 +1283,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
         err = util_hash_table_set(device->ff.ht_vs, &vs->ff_key, vs);
         assert(err == PIPE_OK);
         device->ff.num_vs++;
+        NineUnknown_ConvertRefToBind(NineUnknown(vs));
 
         vs->num_inputs = bld.num_inputs;
         for (n = 0; n < bld.num_inputs; ++n)
@@ -1371,6 +1372,7 @@ nine_ff_get_ps(struct NineDevice9 *device)
         err = util_hash_table_set(device->ff.ht_ps, &ps->ff_key, ps);
         assert(err == PIPE_OK);
         device->ff.num_ps++;
+        NineUnknown_ConvertRefToBind(NineUnknown(ps));
     }
     return ps;
 }
@@ -1685,7 +1687,7 @@ nine_ff_init(struct NineDevice9 *device)
 
 static enum pipe_error nine_ff_ht_delete_cb(void *key, void *value, void *data)
 {
-    NineUnknown_Release(NineUnknown(value));
+    NineUnknown_Unbind(NineUnknown(value));
     return PIPE_OK;
 }
 
@@ -1704,6 +1706,8 @@ nine_ff_fini(struct NineDevice9 *device)
         util_hash_table_foreach(device->ff.ht_fvf, nine_ff_ht_delete_cb, NULL);
         util_hash_table_destroy(device->ff.ht_fvf);
     }
+    device->ff.vs = NULL; /* destroyed by unbinding from hash table */
+    device->ff.ps = NULL;
 }
 
 static void

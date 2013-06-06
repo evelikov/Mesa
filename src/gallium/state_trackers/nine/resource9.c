@@ -38,23 +38,18 @@
 HRESULT
 NineResource9_ctor( struct NineResource9 *This,
                     struct NineUnknownParams *pParams,
-                    struct NineDevice9 *pDevice,
                     BOOL Allocate,
                     D3DRESOURCETYPE Type,
                     D3DPOOL Pool )
 {
-    struct pipe_screen *screen = pDevice->screen;
+    struct pipe_screen *screen;
     HRESULT hr;
 
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
 
-    This->device = pDevice;
-    if (!NineUnknown(This)->container)
-        NineUnknown_AddRef(NineUnknown(This->device));
-
-    This->info.screen = screen;
+    This->info.screen = screen = This->base.device->screen;
 
     if (Allocate) {
         DBG("(%p) Creating pipe_resource.\n", This);
@@ -90,9 +85,6 @@ NineResource9_dtor( struct NineResource9 *This )
     if (This->data)
         FREE(This->data);
 
-    if (!This->base.container && This->device)
-        NineUnknown_Release(NineUnknown(This->device));
-
     NineUnknown_dtor(&This->base);
 }
 
@@ -106,16 +98,6 @@ D3DPOOL
 NineResource9_GetPool( struct NineResource9 *This )
 {
     return This->pool;
-}
-
-HRESULT WINAPI
-NineResource9_GetDevice( struct NineResource9 *This,
-                         IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice, E_POINTER);
-    NineUnknown_AddRef(NineUnknown(This->device));
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
 }
 
 HRESULT WINAPI

@@ -31,19 +31,16 @@
 HRESULT
 NineStateBlock9_ctor( struct NineStateBlock9 *This,
                       struct NineUnknownParams *pParams,
-                      struct NineDevice9 *pDevice,
                       enum nine_stateblock_type type )
 {
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
 
-    nine_reference_set(&This->device, pDevice);
-
     This->type = type;
 
-    This->state.vs_const_f = MALLOC(pDevice->constbuf_vs->width0);
-    This->state.ps_const_f = MALLOC(pDevice->constbuf_ps->width0);
+    This->state.vs_const_f = MALLOC(pParams->device->constbuf_vs->width0);
+    This->state.ps_const_f = MALLOC(pParams->device->constbuf_ps->width0);
     if (!This->state.vs_const_f || !This->state.ps_const_f)
         return E_OUTOFMEMORY;
 
@@ -73,19 +70,7 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
     if (state->ps_const_f)
         FREE(state->ps_const_f);
 
-    nine_reference(&This->device, NULL);
-
     NineUnknown_dtor(&This->base);
-}
-
-HRESULT WINAPI
-NineStateBlock9_GetDevice( struct NineStateBlock9 *This,
-                           IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice, E_POINTER);
-    NineUnknown_AddRef(NineUnknown(This->device));
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
 }
 
 /* Fast path for all state. */
@@ -332,7 +317,7 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
 {
     DBG("This=%p\n", This);
 
-    nine_state_transfer(&This->state, &This->device->state, &This->state,
+    nine_state_transfer(&This->state, &This->base.device->state, &This->state,
                         FALSE);
     return D3D_OK;
 }
@@ -344,8 +329,9 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
     DBG("This=%p\n", This);
 
     if (This->type == NINESBT_ALL && 0) /* TODO */
-       nine_state_transfer_all(&This->device->state, &This->state);
-    nine_state_transfer(&This->device->state, &This->state, &This->state, TRUE);
+       nine_state_transfer_all(&This->base.device->state, &This->state);
+    nine_state_transfer(&This->base.device->state, &This->state, &This->state,
+                        TRUE);
     return D3D_OK;
 }
 
@@ -353,7 +339,7 @@ IDirect3DStateBlock9Vtbl NineStateBlock9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineStateBlock9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of StateBlock9 iface */
     (void *)NineStateBlock9_Capture,
     (void *)NineStateBlock9_Apply
 };

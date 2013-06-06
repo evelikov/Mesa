@@ -36,7 +36,6 @@ enum nine_query_state
 struct NineQuery9
 {
     struct NineUnknown base;
-    struct NineDevice9 *device;
     struct pipe_query *pq;
     DWORD result_size;
     D3DQUERYTYPE type;
@@ -60,15 +59,10 @@ NineQuery9_new( struct NineDevice9 *Device,
 HRESULT
 NineQuery9_ctor( struct NineQuery9 *,
                  struct NineUnknownParams *pParams,
-                 struct NineDevice9 *Device,
                  D3DQUERYTYPE Type );
 
 void
 NineQuery9_dtor( struct NineQuery9 * );
-
-HRESULT WINAPI
-NineQuery9_GetDevice( struct NineQuery9 *This,
-                      IDirect3DDevice9 **ppDevice );
 
 D3DQUERYTYPE WINAPI
 NineQuery9_GetType( struct NineQuery9 *This );

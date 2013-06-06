@@ -38,14 +38,13 @@
 static HRESULT
 NineTexture9_ctor( struct NineTexture9 *This,
                    struct NineUnknownParams *pParams,
-                   struct NineDevice9 *pDevice,
                    UINT Width, UINT Height, UINT Levels,
                    DWORD Usage,
                    D3DFORMAT Format,
                    D3DPOOL Pool,
                    HANDLE *pSharedHandle )
 {
-    struct pipe_screen *screen = pDevice->screen;
+    struct pipe_screen *screen = pParams->device->screen;
     struct pipe_resource *info = &This->base.base.info;
     unsigned l;
     D3DSURFACE_DESC sfdesc;
@@ -71,7 +70,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
     This->base.format = Format;
     This->base.base.usage = Usage;
 
-    info->screen = pDevice->screen;
+    info->screen = screen;
     info->target = PIPE_TEXTURE_2D;
     info->format = d3d9_to_pipe_format(Format);
     info->width0 = Width;
@@ -122,8 +121,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
     if (!This->surfaces)
         return E_OUTOFMEMORY;
 
-    hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
-                               D3DRTYPE_TEXTURE, Pool);
+    hr = NineBaseTexture9_ctor(&This->base, pParams, D3DRTYPE_TEXTURE, Pool);
     if (FAILED(hr))
         return hr;
 
@@ -141,7 +139,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
         sfdesc.Width = u_minify(Width, l);
         sfdesc.Height = u_minify(Height, l);
 
-        hr = NineSurface9_new(pDevice, NineUnknown(This),
+        hr = NineSurface9_new(This->base.base.base.device, NineUnknown(This),
                               This->base.base.resource, D3DRTYPE_TEXTURE, l, 0,
                               &sfdesc, &This->surfaces[l]);
         if (FAILED(hr))
@@ -174,8 +172,9 @@ NineTexture9_dtor( struct NineTexture9 *This )
     unsigned l;
 
     if (This->surfaces) {
+        /* The surfaces should have 0 references and be unbound now. */
         for (l = 0; l <= This->base.base.info.last_level; ++l)
-            nine_reference(&This->surfaces[l], NULL);
+            NineUnknown_Destroy(&This->surfaces[l]->base.base);
         FREE(This->surfaces);
     }
 
@@ -269,7 +268,7 @@ IDirect3DTexture9Vtbl NineTexture9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineResource9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Resource9 iface */
     (void *)NineResource9_SetPrivateData,
     (void *)NineResource9_GetPrivateData,
     (void *)NineResource9_FreePrivateData,

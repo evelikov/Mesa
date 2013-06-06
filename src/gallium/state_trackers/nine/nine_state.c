@@ -769,15 +769,15 @@ nine_state_clear(struct nine_state *state, const D3DCAPS9 *caps)
     unsigned i;
 
     for (i = 0; i < caps->NumSimultaneousRTs; ++i)
-       nine_reference(&state->rt[i], NULL);
-    nine_reference(&state->ds, NULL);
-    nine_reference(&state->vs, NULL);
-    nine_reference(&state->ps, NULL);
-    nine_reference(&state->vdecl, NULL);
+       nine_bind(&state->rt[i], NULL);
+    nine_bind(&state->ds, NULL);
+    nine_bind(&state->vs, NULL);
+    nine_bind(&state->ps, NULL);
+    nine_bind(&state->vdecl, NULL);
     for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
-        nine_reference(&state->stream[i], NULL);
+        nine_bind(&state->stream[i], NULL);
     for (i = 0; i < NINE_MAX_SAMPLERS; ++i)
-        nine_reference(&state->texture[i], NULL);
+        nine_bind(&state->texture[i], NULL);
 }
 
 /*

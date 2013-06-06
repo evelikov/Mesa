@@ -34,22 +34,23 @@
 #include "d3d9.h"
 
 struct Nine9;
+struct NineDevice9;
 
 struct NineUnknown
 {
     /* pointer to vtable  */
     void *vtable;
 
-    /* reference count */
-    ULONG refs;
-    /* for which we can hold a special internal reference */
-    struct NineUnknown *container;
+    ULONG refs; /* external reference count */
+    uint16_t bind; /* internal bind count */
+    boolean forward; /* whether to forward references to the container */
 
-    /* for QueryInterface */
-    const GUID **guids;
+    struct NineUnknown *container; /* referenced if (refs | bind) */
+    struct NineDevice9 *device;    /* referenced if (refs) */
 
-    /* top-level dtor */
-    void (*dtor)(void *data);
+    const GUID **guids; /* for QueryInterface */
+
+    void (*dtor)(void *data); /* top-level dtor */
 };
 static INLINE struct NineUnknown *
 NineUnknown( void *data )
@@ -57,16 +58,16 @@ NineUnknown( void *data )
     return (struct NineUnknown *)data;
 }
 
-/* Use this instead of a shitload of arguments */
+/* Use this instead of a shitload of arguments: */
 struct NineUnknownParams
 {
     void *vtable;
     const GUID **guids;
     void (*dtor)(void *data);
     struct NineUnknown *container;
+    struct NineDevice9 *device;
 };
 
-/* ctor/dtor */
 HRESULT
 NineUnknown_ctor( struct NineUnknown *This,
                   struct NineUnknownParams *pParams );
@@ -74,14 +75,8 @@ NineUnknown_ctor( struct NineUnknown *This,
 void
 NineUnknown_dtor( struct NineUnknown *This );
 
-/* nine private */
-static INLINE ULONG
-NineUnknown_GetRefCount( struct NineUnknown *This )
-{
-    return This->refs;
-}
+/*** Direct3D public methods ***/
 
-/* Methods */
 HRESULT WINAPI
 NineUnknown_QueryInterface( struct NineUnknown *This,
                             REFIID riid,
@@ -92,5 +87,67 @@ NineUnknown_AddRef( struct NineUnknown *This );
 
 ULONG WINAPI
 NineUnknown_Release( struct NineUnknown *This );
+
+HRESULT WINAPI
+NineUnknown_GetDevice( struct NineUnknown *This,
+                       IDirect3DDevice9 **ppDevice );
+
+/*** Nine private methods ***/
+
+static INLINE void
+NineUnknown_Destroy( struct NineUnknown *This )
+{
+    assert(!(This->refs | This->bind));
+    This->dtor(This);
+}
+
+static INLINE UINT
+NineUnknown_Bind( struct NineUnknown *This )
+{
+    UINT b = ++This->bind;
+    assert(b);
+    if (b == 1 && This->container) {
+        if (This->container != NineUnknown(This->device))
+            NineUnknown_Bind(This->container);
+    }
+    return b;
+}
+
+static INLINE UINT
+NineUnknown_Unbind( struct NineUnknown *This )
+{
+    UINT b = --This->bind;
+    if (!b) {
+        if (This->container) {
+            if (This->container != NineUnknown(This->device))
+                NineUnknown_Unbind(This->container);
+        } else
+        if (This->refs == 0) {
+            This->dtor(This);
+        }
+    }
+    return b;
+}
+
+static INLINE void
+NineUnknown_ConvertRefToBind( struct NineUnknown *This )
+{
+    NineUnknown_Bind(This);
+    NineUnknown_Release(This);
+}
+
+/* Detach from container. */
+static INLINE void
+NineUnknown_Detach( struct NineUnknown *This )
+{
+    assert(This->container && !This->forward);
+    if (This->refs)
+        NineUnknown_Unbind(This->container);
+    if (This->bind)
+        NineUnknown_Unbind(This->container);
+    This->container = NULL;
+    if (!(This->refs | This->bind))
+        This->dtor(This);
+}
 
 #endif /* _NINE_IUNKNOWN_H_ */

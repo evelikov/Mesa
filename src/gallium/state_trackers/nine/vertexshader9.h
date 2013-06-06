@@ -39,7 +39,6 @@ struct NineVertexShader9
         const DWORD *tokens;
         DWORD size;
     } byte_code;
-    struct NineDevice9 *device;
 
     boolean position_t;
 
@@ -63,15 +62,10 @@ NineVertexShader9_new( struct NineDevice9 *pDevice,
 HRESULT
 NineVertexShader9_ctor( struct NineVertexShader9 *,
                         struct NineUnknownParams *pParams,
-                        struct NineDevice9 *pDevice,
                         const DWORD *pFunction, void *cso );
 
 void
 NineVertexShader9_dtor( struct NineVertexShader9 * );
-
-HRESULT WINAPI
-NineVertexShader9_GetDevice( struct NineVertexShader9 *This,
-                             IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NineVertexShader9_GetFunction( struct NineVertexShader9 *This,

@@ -101,17 +101,15 @@ nine_is_query_supported(D3DQUERYTYPE type)
 HRESULT
 NineQuery9_ctor( struct NineQuery9 *This,
                  struct NineUnknownParams *pParams,
-                 struct NineDevice9 *pDevice,
                  D3DQUERYTYPE Type )
 {
-    struct pipe_context *pipe = pDevice->pipe;
+    struct pipe_context *pipe = pParams->device->pipe;
     const unsigned ptype = d3dquerytype_to_pipe_query(Type);
     HRESULT hr;
 
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
-    nine_reference_set(&This->device, pDevice);
 
     This->state = NINE_QUERY_STATE_FRESH;
     This->type = Type;
@@ -143,26 +141,15 @@ NineQuery9_ctor( struct NineQuery9 *This,
 void
 NineQuery9_dtor( struct NineQuery9 *This )
 {
-    struct pipe_context *pipe = This->device->pipe;
+    struct pipe_context *pipe = This->base.device->pipe;
 
     if (This->pq) {
         if (This->state == NINE_QUERY_STATE_RUNNING)
             pipe->end_query(pipe, This->pq);
         pipe->destroy_query(pipe, This->pq);
     }
-    nine_reference(&This->device, NULL);
 
     NineUnknown_dtor(&This->base);
-}
-
-HRESULT WINAPI
-NineQuery9_GetDevice( struct NineQuery9 *This,
-                      IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice, E_POINTER);
-    NineUnknown_AddRef(NineUnknown(This->device));
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
 }
 
 D3DQUERYTYPE WINAPI
@@ -181,7 +168,7 @@ HRESULT WINAPI
 NineQuery9_Issue( struct NineQuery9 *This,
                   DWORD dwIssueFlags )
 {
-    struct pipe_context *pipe = This->device->pipe;
+    struct pipe_context *pipe = This->base.device->pipe;
 
     user_assert((dwIssueFlags == D3DISSUE_BEGIN && !This->instant) ||
                 (dwIssueFlags == 0) ||
@@ -223,7 +210,7 @@ NineQuery9_GetData( struct NineQuery9 *This,
                     DWORD dwSize,
                     DWORD dwGetDataFlags )
 {
-    struct pipe_context *pipe = This->device->pipe;
+    struct pipe_context *pipe = This->base.device->pipe;
     boolean ok = !This->pq;
     unsigned i;
     union pipe_query_result presult;
@@ -351,7 +338,7 @@ IDirect3DQuery9Vtbl NineQuery9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineQuery9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Query9 iface */
     (void *)NineQuery9_GetType,
     (void *)NineQuery9_GetDataSize,
     (void *)NineQuery9_Issue,

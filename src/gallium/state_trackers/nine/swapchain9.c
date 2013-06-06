@@ -37,7 +37,6 @@
 HRESULT
 NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      struct NineUnknownParams *pParams,
-                     struct NineDevice9 *pDevice,
                      BOOL implicit,
                      ID3DPresent *pPresent,
                      PPRESENT_TO_RESOURCE pPTR,
@@ -47,19 +46,16 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     HRESULT hr;
 
     DBG("This=%p pDevice=%p pPresent=%p pPTR=%p hFocusWindow=%p\n",
-        This, pDevice, pPresent, pPTR, hFocusWindow);
+        This, pParams->device, pPresent, pPTR, hFocusWindow);
 
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
         return hr;
 
-    This->screen = NineDevice9_GetScreen(pDevice);
-    This->pipe = NineDevice9_GetPipe(pDevice);
-    This->cso = NineDevice9_GetCSO(pDevice);
-    This->device = pDevice;
+    This->screen = NineDevice9_GetScreen(This->base.device);
+    This->pipe = NineDevice9_GetPipe(This->base.device);
+    This->cso = NineDevice9_GetCSO(This->base.device);
     This->implicit = implicit;
-    if (!implicit)
-        NineUnknown_AddRef(NineUnknown(This->device));
     This->ptrfunc = pPTR;
     This->present = pPresent;
     ID3DPresent_AddRef(pPresent);
@@ -76,7 +72,7 @@ HRESULT
 NineSwapChain9_Resize( struct NineSwapChain9 *This,
                        D3DPRESENT_PARAMETERS *pParams )
 {
-    struct NineDevice9 *pDevice = This->device;
+    struct NineDevice9 *pDevice = This->base.device;
     struct NineSurface9 **bufs;
     D3DSURFACE_DESC desc;
     HRESULT hr;
@@ -157,7 +153,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
     if (pParams->BackBufferCount != This->params.BackBufferCount) {
         for (i = pParams->BackBufferCount; i < This->params.BackBufferCount;
              ++i)
-            nine_reference(&This->buffers[i], NULL);
+            NineUnknown_Detach(NineUnknown(This->buffers[i]));
 
         bufs = REALLOC(This->buffers,
                        This->params.BackBufferCount * sizeof(This->buffers[0]),
@@ -193,6 +189,7 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
                 DBG("Failed to create RT surface.\n");
                 return hr;
             }
+            This->buffers[i]->base.base.forward = FALSE;
         }
     }
     if (pParams->EnableAutoDepthStencil) {
@@ -212,13 +209,14 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
             /* XXX wine thinks the container of this should the the device */
             desc.Format = pParams->AutoDepthStencilFormat;
             desc.Usage = D3DUSAGE_DEPTHSTENCIL;
-            hr = NineSurface9_new(pDevice, NineUnknown(This), resource, 0,
+            hr = NineSurface9_new(pDevice, NineUnknown(pDevice), resource, 0,
                                   0, 0, &desc, &This->zsbuf);
             pipe_resource_reference(&resource, NULL);
             if (FAILED(hr)) {
                 DBG("Failed to create ZS surface.\n");
                 return hr;
             }
+            This->zsbuf->base.base.forward = FALSE;
         }
     }
 
@@ -236,17 +234,14 @@ NineSwapChain9_dtor( struct NineSwapChain9 *This )
 
     if (This->buffers) {
         for (i = 0; i < This->params.BackBufferCount; i++)
-            nine_reference(&This->buffers[i], NULL);
+            NineUnknown_Destroy(NineUnknown(This->buffers[i]));
         FREE(This->buffers);
     }
-    nine_reference(&This->zsbuf, NULL);
+    if (This->zsbuf)
+        NineUnknown_Destroy(NineUnknown(This->zsbuf));
 
-    if (This->present) {
+    if (This->present)
         ID3DPresent_Release(This->present);
-    }
-
-    if (!This->implicit)
-        NineUnknown_Release(NineUnknown(This->device));
 
     NineUnknown_dtor(&This->base);
 }
@@ -259,7 +254,7 @@ present( struct NineSwapChain9 *This,
          const RGNDATA *pDirtyRegion,
          DWORD dwFlags )
 {
-    struct NineDevice9 *device = This->device;
+    struct NineDevice9 *device = This->base.device;
     struct pipe_resource *resource;
     HRESULT hr;
     RGNDATA *rgndata;
@@ -426,8 +421,8 @@ NineSwapChain9_Present( struct NineSwapChain9 *This,
             /* XXX not implemented */
             break;
     }
-    This->device->state.changed.group |= NINE_STATE_FB;
-    nine_update_state(This->device, NINE_STATE_FB);
+    This->base.device->state.changed.group |= NINE_STATE_FB;
+    nine_update_state(This->base.device, NINE_STATE_FB);
 
     return hr;
 }
@@ -483,15 +478,6 @@ NineSwapChain9_GetDisplayMode( struct NineSwapChain9 *This,
 }
 
 HRESULT WINAPI
-NineSwapChain9_GetDevice( struct NineSwapChain9 *This,
-                          IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice != NULL, E_POINTER);
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
-}
-
-HRESULT WINAPI
 NineSwapChain9_GetPresentParameters( struct NineSwapChain9 *This,
                                      D3DPRESENT_PARAMETERS *pPresentationParameters )
 {
@@ -509,7 +495,7 @@ IDirect3DSwapChain9Vtbl NineSwapChain9_vtable = {
     (void *)NineSwapChain9_GetBackBuffer,
     (void *)NineSwapChain9_GetRasterStatus,
     (void *)NineSwapChain9_GetDisplayMode,
-    (void *)NineSwapChain9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of SwapChain9 iface */
     (void *)NineSwapChain9_GetPresentParameters
 };
 
@@ -527,6 +513,6 @@ NineSwapChain9_new( struct NineDevice9 *pDevice,
                     HWND hFocusWindow,
                     struct NineSwapChain9 **ppOut )
 {
-    NINE_NEW(NineSwapChain9, ppOut, /* args */
-             pDevice, implicit, pPresent, pPTR, hFocusWindow);
+    NINE_NEW(NineSwapChain9, ppOut, pDevice, /* args */
+             implicit, pPresent, pPTR, hFocusWindow);
 }

@@ -74,6 +74,7 @@ struct NineDevice9
     } pipe_state;
     struct list_head bound_textures; /* XXX: make this dirty_textures */
 
+    boolean is_recording;
     boolean in_scene;
 
     struct pipe_resource *constbuf_vs;
@@ -112,9 +113,6 @@ NineDevice9( void *data )
 {
     return (struct NineDevice9 *)data;
 }
-
-#define NINESTATEPOINTER_GET(d) struct nine_state *state = &(d)->state
-#define NINESTATEPOINTER_SET(d) struct nine_state *state = (d)->update
 
 HRESULT
 NineDevice9_new( struct pipe_screen *pScreen,

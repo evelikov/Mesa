@@ -53,7 +53,6 @@ struct NineVolume9
     struct pipe_box dirty_box[2];
 
     struct pipe_context *pipe;
-    struct NineDevice9 *device; /* creator device */
 
     /* for [GS]etPrivateData/FreePrivateData */
     struct util_hash_table *pdata;
@@ -103,10 +102,6 @@ NineVolume9_UploadSelf( struct NineVolume9 *This );
 
 
 /*** Direct3D public ***/
-
-HRESULT WINAPI
-NineVolume9_GetDevice( struct NineVolume9 *This,
-                       IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NineVolume9_SetPrivateData( struct NineVolume9 *This,

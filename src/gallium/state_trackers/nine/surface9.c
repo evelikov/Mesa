@@ -66,7 +66,6 @@ HRESULT
 NineSurface9_ctor( struct NineSurface9 *This,
                    struct NineUnknownParams *pParams,
                    struct NineUnknown *pContainer,
-                   struct NineDevice9 *pDevice,
                    struct pipe_resource *pResource,
                    uint8_t TextureType,
                    unsigned Level,
@@ -76,7 +75,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
     HRESULT hr;
 
     DBG("This=%p pDevice=%p pResource=%p Level=%u Layer=%u pDesc=%p\n",
-        This, pDevice, pResource, Level, Layer, pDesc);
+        This, pParams->device, pResource, Level, Layer, pDesc);
 
     /* Mark this as a special surface held by another internal resource. */
     pParams->container = pContainer;
@@ -86,7 +85,7 @@ NineSurface9_ctor( struct NineSurface9 *This,
 
     assert(pResource || pDesc->Pool != D3DPOOL_DEFAULT);
 
-    This->base.info.screen = pDevice->screen;
+    This->base.info.screen = pParams->device->screen;
     This->base.info.target = PIPE_TEXTURE_2D;
     This->base.info.format = d3d9_to_pipe_format(pDesc->Format);
     This->base.info.width0 = pDesc->Width;
@@ -115,13 +114,13 @@ NineSurface9_ctor( struct NineSurface9 *This,
         pipe_resource_reference(&This->base.resource, pResource);
     }
 
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, FALSE,
-                            D3DRTYPE_SURFACE, pDesc->Pool);
+    hr = NineResource9_ctor(&This->base, pParams, FALSE, D3DRTYPE_SURFACE,
+                            pDesc->Pool);
     if (FAILED(hr))
         return hr;
     This->base.usage = pDesc->Usage;
 
-    This->pipe = NineDevice9_GetPipe(pDevice);
+    This->pipe = This->base.base.device->pipe;
     This->transfer = NULL;
 
     This->texture = TextureType;
@@ -208,8 +207,10 @@ NineSurface9_Dump( struct NineSurface9 *This )
     if (!This->base.base.container)
         return;
     NineUnknown_QueryInterface(This->base.base.container, ref, (void **)&tex);
-    if (tex)
+    if (tex) {
         NineBaseTexture9_Dump(tex);
+        NineUnknown_Release(NineUnknown(tex));
+    }
 }
 
 HRESULT WINAPI
@@ -509,7 +510,7 @@ IDirect3DSurface9Vtbl NineSurface9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineResource9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Resource9 iface */
     (void *)NineResource9_SetPrivateData,
     (void *)NineResource9_GetPrivateData,
     (void *)NineResource9_FreePrivateData,
@@ -726,6 +727,6 @@ NineSurface9_new( struct NineDevice9 *pDevice,
                   D3DSURFACE_DESC *pDesc,
                   struct NineSurface9 **ppOut )
 {
-    NINE_NEW(NineSurface9, ppOut, /* args */
-             pContainer, pDevice, pResource, TextureType, Level, Layer, pDesc);
+    NINE_NEW(NineSurface9, ppOut, pDevice, /* args */
+             pContainer, pResource, TextureType, Level, Layer, pDesc);
 }

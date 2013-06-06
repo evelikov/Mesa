@@ -54,7 +54,6 @@ NineBaseTexture9( void *data )
 HRESULT
 NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        struct NineUnknownParams *pParams,
-                       struct NineDevice9 *pDevice,
                        D3DRESOURCETYPE Type,
                        D3DPOOL Pool );
 

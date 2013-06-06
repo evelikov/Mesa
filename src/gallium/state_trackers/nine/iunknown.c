@@ -29,8 +29,13 @@ HRESULT
 NineUnknown_ctor( struct NineUnknown *This,
                   struct NineUnknownParams *pParams )
 {
-    This->refs = 1;
+    This->refs = pParams->container ? 0 : 1;
+    This->bind = 0;
+    This->forward = !This->refs;
     This->container = pParams->container;
+    This->device = pParams->device;
+    if (This->refs && This->device)
+        NineUnknown_AddRef(NineUnknown(This->device));
 
     This->vtable = pParams->vtable;
     This->guids = pParams->guids;
@@ -52,12 +57,13 @@ NineUnknown_QueryInterface( struct NineUnknown *This,
 {
     unsigned i = 0;
 
-    if (!ppvObject) { return E_POINTER; }
+    if (!ppvObject) return E_POINTER;
 
     do {
         if (GUID_equal(This->guids[i], riid)) {
             *ppvObject = This;
             This->refs++;
+            assert(This->refs > 1);
             return S_OK;
         }
     } while (This->guids[++i]);
@@ -69,12 +75,17 @@ NineUnknown_QueryInterface( struct NineUnknown *This,
 ULONG WINAPI
 NineUnknown_AddRef( struct NineUnknown *This )
 {
-    ULONG r = ++This->refs; /* TODO: make atomic */
+    ULONG r;
+    if (This->forward)
+        r = NineUnknown_AddRef(This->container);
+    else
+        r = ++This->refs; /* TODO: make atomic */
 
-    if (This->container && r == 2) {
-        /* acquire a reference to the container so it doesn't go away, but only
-         * when a reference is held outside the container itself */
-        NineUnknown_AddRef(This->container);
+    if (r == 1 && !This->forward) {
+        if (This->device)
+            NineUnknown_AddRef(NineUnknown(This->device));
+        if (This->container)
+            NineUnknown_Bind(NineUnknown(This->container));
     }
     return r;
 }
@@ -82,17 +93,34 @@ NineUnknown_AddRef( struct NineUnknown *This )
 ULONG WINAPI
 NineUnknown_Release( struct NineUnknown *This )
 {
-    ULONG r = --This->refs; /* TODO: make atomic */
+    ULONG r;
+    if (This->forward)
+        r = NineUnknown_Release(This->container);
+    else
+        r = --This->refs; /* TODO: make atomic */
+    assert(r != -1); /* this would signify implementation error */
 
-    /* This would signify implementation error */
-    assert(r >= 0);
-
-    if (r == 0) {
-        This->dtor(This);
-    } else if (r == 1 && This->container) {
-        /* release the container when only the container holds a reference
-         * to this object. This avoids circular referencing */
-        NineUnknown_Release(This->container);
+    if (r == 0 && !This->forward) {
+        if (This->device) {
+            if (NineUnknown_Release(NineUnknown(This->device)) == 0)
+                return r; /* everything's gone */
+        }
+        if (This->container) {
+            NineUnknown_Unbind(NineUnknown(This->container));
+        } else
+        if (This->bind == 0) {
+            This->dtor(This);
+        }
     }
     return r;
+}
+
+HRESULT WINAPI
+NineUnknown_GetDevice( struct NineUnknown *This,
+                       IDirect3DDevice9 **ppDevice )
+{
+    user_assert(ppDevice, E_POINTER);
+    NineUnknown_AddRef(NineUnknown(This->device));
+    *ppDevice = (IDirect3DDevice9 *)This->device;
+    return D3D_OK;
 }

@@ -33,7 +33,6 @@
 HRESULT
 NineVertexShader9_ctor( struct NineVertexShader9 *This,
                         struct NineUnknownParams *pParams,
-                        struct NineDevice9 *pDevice,
                         const DWORD *pFunction, void *cso )
 {
     struct nine_shader_info info;
@@ -44,8 +43,6 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     if (FAILED(hr))
         return hr;
 
-    This->device = pDevice;
-
     if (cso) {
         This->cso = cso;
         return D3D_OK;
@@ -54,7 +51,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     info.type = PIPE_SHADER_VERTEX;
     info.byte_code = pFunction;
 
-    hr = nine_translate_shader(pDevice, &info);
+    hr = nine_translate_shader(This->base.device, &info);
     if (FAILED(hr))
         return hr;
 
@@ -62,9 +59,6 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     if (!This->byte_code.tokens)
         return E_OUTOFMEMORY;
     This->byte_code.size = info.byte_size;
-
-    /* FF shaders shouldn't hold references to the device. */
-    NineUnknown_AddRef(NineUnknown(This->device));
 
     This->cso = info.cso;
     This->lconstf = info.lconstf;
@@ -82,16 +76,13 @@ NineVertexShader9_dtor( struct NineVertexShader9 *This )
 {
     DBG("This=%p cso=%p\n", This, This->cso);
 
-    if (This->device) {
-        struct pipe_context *pipe = This->device->pipe;
+    if (This->base.device) {
+        struct pipe_context *pipe = This->base.device->pipe;
         if (This->cso) {
-            if (This->device->state.cso.vs == This->cso)
+            if (This->base.device->state.cso.vs == This->cso)
                 pipe->bind_vs_state(pipe, NULL);
             pipe->delete_vs_state(pipe, This->cso);
         }
-
-        if (This->byte_code.tokens)
-            NineUnknown_Release(NineUnknown(This->device));
     }
 
     if (This->byte_code.tokens)
@@ -101,16 +92,6 @@ NineVertexShader9_dtor( struct NineVertexShader9 *This )
     FREE(This->lconstf.data);
 
     NineUnknown_dtor(&This->base);
-}
-
-HRESULT WINAPI
-NineVertexShader9_GetDevice( struct NineVertexShader9 *This,
-                             IDirect3DDevice9 **ppDevice )
-{
-    user_assert(ppDevice, E_POINTER);
-    NineUnknown_AddRef(NineUnknown(This->device));
-    *ppDevice = (IDirect3DDevice9 *)This->device;
-    return D3D_OK;
 }
 
 HRESULT WINAPI
@@ -135,7 +116,7 @@ IDirect3DVertexShader9Vtbl NineVertexShader9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineVertexShader9_GetDevice,
+    (void *)NineUnknown_GetDevice,
     (void *)NineVertexShader9_GetFunction
 };
 

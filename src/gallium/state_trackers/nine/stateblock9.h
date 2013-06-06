@@ -38,7 +38,6 @@ enum nine_stateblock_type
 struct NineStateBlock9
 {
     struct NineUnknown base;
-    struct NineDevice9 *device;
 
     struct nine_state state;
 
@@ -58,15 +57,10 @@ NineStateBlock9_new( struct NineDevice9 *,
 HRESULT
 NineStateBlock9_ctor( struct NineStateBlock9 *,
                       struct NineUnknownParams *pParams,
-                      struct NineDevice9 *pDevice,
                       enum nine_stateblock_type type );
 
 void
 NineStateBlock9_dtor( struct NineStateBlock9 * );
-
-HRESULT WINAPI
-NineStateBlock9_GetDevice( struct NineStateBlock9 *This,
-                           IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NineStateBlock9_Capture( struct NineStateBlock9 *This );

@@ -54,7 +54,6 @@ NineVertexBuffer9_new( struct NineDevice9 *pDevice,
 HRESULT
 NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
                         struct NineUnknownParams *pParams,
-                        struct NineDevice9 *pDevice,
                         D3DVERTEXBUFFER_DESC *pDesc );
 
 void

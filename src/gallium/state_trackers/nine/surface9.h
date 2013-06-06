@@ -72,7 +72,6 @@ HRESULT
 NineSurface9_ctor( struct NineSurface9 *This,
                    struct NineUnknownParams *pParams,
                    struct NineUnknown *pContainer,
-                   struct NineDevice9 *pDevice,
                    struct pipe_resource *pResource,
                    uint8_t TextureType,
                    unsigned Level,

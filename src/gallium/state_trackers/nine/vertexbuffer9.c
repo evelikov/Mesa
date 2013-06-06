@@ -37,7 +37,6 @@
 HRESULT
 NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
                         struct NineUnknownParams *pParams,
-                        struct NineDevice9 *pDevice,
                         D3DVERTEXBUFFER_DESC *pDesc )
 {
     struct pipe_resource *info = &This->base.info;
@@ -54,9 +53,9 @@ NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
     This->nmaps = 0;
     This->maxmaps = 1;
 
-    This->pipe = pDevice->pipe;
+    This->pipe = pParams->device->pipe;
 
-    info->screen = pDevice->screen;
+    info->screen = pParams->device->screen;
     info->target = PIPE_BUFFER;
     info->format = PIPE_FORMAT_R8_UNORM;
     info->width0 = pDesc->Size;
@@ -86,8 +85,8 @@ NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
     info->last_level = 0;
     info->nr_samples = 0;
 
-    hr = NineResource9_ctor(&This->base, pParams, pDevice, TRUE,
-                            D3DRTYPE_VERTEXBUFFER, pDesc->Pool);
+    hr = NineResource9_ctor(&This->base, pParams, TRUE, D3DRTYPE_VERTEXBUFFER,
+                            pDesc->Pool);
     if (FAILED(hr))
         return hr;
 
@@ -192,7 +191,7 @@ IDirect3DVertexBuffer9Vtbl NineVertexBuffer9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineResource9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Resource9 iface */
     (void *)NineResource9_SetPrivateData,
     (void *)NineResource9_GetPrivateData,
     (void *)NineResource9_FreePrivateData,

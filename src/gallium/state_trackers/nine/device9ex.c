@@ -346,7 +346,7 @@ NineDevice9Ex_new( struct pipe_screen *pScreen,
                    PPRESENT_TO_RESOURCE pPTR,
                    struct NineDevice9Ex **ppOut )
 {
-    NINE_NEW(NineDevice9Ex, ppOut,
+    NINE_NEW(NineDevice9Ex, ppOut, NULL,
              pScreen, pCreationParameters, pCaps,
              pD3D9Ex, pPresentationFactory, pPTR);
 }

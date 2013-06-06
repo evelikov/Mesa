@@ -30,7 +30,6 @@
 static HRESULT
 NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
                          struct NineUnknownParams *pParams,
-                         struct NineDevice9 *pDevice,
                          UINT Width, UINT Height, UINT Depth, UINT Levels,
                          DWORD Usage,
                          D3DFORMAT Format,
@@ -56,7 +55,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
     This->base.format = Format;
     This->base.base.usage = Usage;
 
-    info->screen = pDevice->screen;
+    info->screen = pParams->device->screen;
     info->target = PIPE_TEXTURE_3D;
     info->format = d3d9_to_pipe_format(Format);
     info->width0 = Width;
@@ -83,7 +82,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
     if (!This->volumes)
         return E_OUTOFMEMORY;
 
-    hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
+    hr = NineBaseTexture9_ctor(&This->base, pParams,
                                D3DRTYPE_VOLUMETEXTURE, Pool);
     if (FAILED(hr))
         return hr;
@@ -97,7 +96,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
         voldesc.Height = u_minify(Height, l);
         voldesc.Depth = u_minify(Depth, l);
 
-        hr = NineVolume9_new(pDevice, NineUnknown(This),
+        hr = NineVolume9_new(This->base.base.base.device, NineUnknown(This),
                              This->base.base.resource, l,
                              &voldesc, &This->volumes[l]);
         if (FAILED(hr))
@@ -112,9 +111,11 @@ NineVolumeTexture9_dtor( struct NineVolumeTexture9 *This )
 {
     unsigned l;
 
+    DBG("This=%p\n", This);
+
     if (This->volumes) {
         for (l = 0; l < This->base.base.info.last_level; ++l)
-            nine_reference(&This->volumes[l], NULL);
+            NineUnknown_Destroy(&This->volumes[l]->base);
         FREE(This->volumes);
     }
 
@@ -204,7 +205,7 @@ IDirect3DVolumeTexture9Vtbl NineVolumeTexture9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineResource9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Resource9 iface */
     (void *)NineResource9_SetPrivateData,
     (void *)NineResource9_GetPrivateData,
     (void *)NineResource9_FreePrivateData,

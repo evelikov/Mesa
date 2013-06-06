@@ -31,7 +31,6 @@
 static HRESULT
 NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
                        struct NineUnknownParams *pParams,
-                       struct NineDevice9 *pDevice,
                        UINT EdgeLength, UINT Levels,
                        DWORD Usage,
                        D3DFORMAT Format,
@@ -54,7 +53,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
     This->base.format = Format;
     This->base.base.usage = Usage;
 
-    info->screen = pDevice->screen;
+    info->screen = pParams->device->screen;
     info->target = PIPE_TEXTURE_CUBE;
     info->format = d3d9_to_pipe_format(Format);
     info->width0 = EdgeLength;
@@ -86,8 +85,8 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
     if (!This->surfaces)
         return E_OUTOFMEMORY;
 
-    hr = NineBaseTexture9_ctor(&This->base, pParams, pDevice,
-                               D3DRTYPE_CUBETEXTURE, Pool);
+    hr = NineBaseTexture9_ctor(&This->base, pParams, D3DRTYPE_CUBETEXTURE,
+                               Pool);
     if (FAILED(hr))
         return hr;
 
@@ -104,7 +103,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
     for (i = 0; i < (info->last_level + 1) * 6; ++i) {
         sfdesc.Width = sfdesc.Height = u_minify(EdgeLength, i / 6);
 
-        hr = NineSurface9_new(pDevice, NineUnknown(This),
+        hr = NineSurface9_new(This->base.base.base.device, NineUnknown(This),
                               This->base.base.resource, D3DRTYPE_CUBETEXTURE,
                               i / 6, i % 6,
                               &sfdesc, &This->surfaces[i]);
@@ -122,9 +121,11 @@ NineCubeTexture9_dtor( struct NineCubeTexture9 *This )
 {
     unsigned i;
 
+    DBG("This=%p\n", This);
+
     if (This->surfaces) {
         for (i = 0; i < This->base.base.info.last_level * 6; ++i)
-            nine_reference(&This->surfaces[i], NULL);
+            NineUnknown_Destroy(&This->surfaces[i]->base.base);
         FREE(This->surfaces);
     }
 
@@ -226,7 +227,7 @@ IDirect3DCubeTexture9Vtbl NineCubeTexture9_vtable = {
     (void *)NineUnknown_QueryInterface,
     (void *)NineUnknown_AddRef,
     (void *)NineUnknown_Release,
-    (void *)NineResource9_GetDevice,
+    (void *)NineUnknown_GetDevice, /* actually part of Resource9 iface */
     (void *)NineResource9_SetPrivateData,
     (void *)NineResource9_GetPrivateData,
     (void *)NineResource9_FreePrivateData,

@@ -39,7 +39,7 @@ static inline void _nine_reference(void **ref, void *ptr)
     }
 }
 
-#define nine_reference_set(a, b) _nine_reference_set((void *)(a), (b))
+#define nine_reference_set(a, b) _nine_reference_set((void **)(a), (b))
 
 static inline void _nine_reference_set(void **ref, void *ptr)
 {
@@ -48,7 +48,20 @@ static inline void _nine_reference_set(void **ref, void *ptr)
         NineUnknown_AddRef(ptr);
 }
 
-#define NINE_NEW(nine, out, ...) \
+#define nine_bind(a, b) _nine_bind((void **)(a), (b))
+
+static inline void _nine_bind(void **dst, void *obj)
+{
+    if (*dst != obj) {
+        if (*dst)
+            NineUnknown_Unbind(*dst);
+        if (obj)
+            NineUnknown_Bind(obj);
+        *dst = obj;
+    }
+}
+
+#define NINE_NEW(nine, out, dev, ...) \
     { \
         struct NineUnknownParams __params; \
         struct nine *__data; \
@@ -60,6 +73,7 @@ static inline void _nine_reference_set(void **ref, void *ptr)
         __params.guids = nine##_IIDs; \
         __params.dtor = (void *)nine##_dtor; \
         __params.container = NULL; \
+        __params.device = dev; \
         { \
             HRESULT __hr = nine##_ctor(__data, &__params, ## __VA_ARGS__); \
             if (FAILED(__hr)) { \

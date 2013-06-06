@@ -36,7 +36,6 @@ struct NinePixelShader9
         const DWORD *tokens;
         DWORD size;
     } byte_code;
-    struct NineDevice9 *device;
 
     struct nine_lconstf lconstf;
 
@@ -56,15 +55,10 @@ NinePixelShader9_new( struct NineDevice9 *pDevice,
 HRESULT
 NinePixelShader9_ctor( struct NinePixelShader9 *,
                        struct NineUnknownParams *pParams,
-                       struct NineDevice9 *pDevice,
                        const DWORD *pFunction, void *cso );
 
 void
 NinePixelShader9_dtor( struct NinePixelShader9 * );
-
-HRESULT WINAPI
-NinePixelShader9_GetDevice( struct NinePixelShader9 *This,
-                            IDirect3DDevice9 **ppDevice );
 
 HRESULT WINAPI
 NinePixelShader9_GetFunction( struct NinePixelShader9 *This,
