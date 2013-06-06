@@ -146,7 +146,7 @@ static unsigned nine_ff_fvf_key_hash(void *key)
 }
 static int nine_ff_fvf_key_comp(void *key1, void *key2)
 {
-    return *(DWORD *)key1 == *(DWORD *)key2;
+    return *(DWORD *)key1 != *(DWORD *)key2;
 }
 
 static void nine_ff_prune(struct NineDevice9 *device);
