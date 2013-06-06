@@ -131,6 +131,8 @@ NineDevice9_ctor( struct NineDevice9 *This,
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr)) { return hr; }
 
+    list_inithead(&This->bound_textures);
+
     This->screen = pScreen;
     This->caps = *pCaps;
     This->d3d9 = pD3D9;
@@ -2038,12 +2040,18 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
         Stage = Stage - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
     if (!This->record) {
-        if (state->texture[Stage] == NineBaseTexture9(pTexture))
+        struct NineBaseTexture9 *tex = NineBaseTexture9(pTexture);
+        if (state->texture[Stage] == tex)
             return D3D_OK;
-        if (state->texture[Stage])
-            state->texture[Stage]->base.bind_count--;
-        if (pTexture)
-            NineBaseTexture9(pTexture)->base.bind_count++;
+        if (state->texture[Stage]) {
+            if (!--state->texture[Stage]->base.bind_count)
+                list_del(&state->texture[Stage]->list);
+        }
+        if (tex) {
+            if (tex->base.bind_count == 0)
+                list_add(&tex->list, &This->bound_textures);
+            tex->base.bind_count++;
+        }
     }
 
     nine_reference(&state->texture[Stage], pTexture);

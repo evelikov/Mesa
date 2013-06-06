@@ -378,6 +378,15 @@ update_index_buffer(struct NineDevice9 *device)
         pipe->set_index_buffer(pipe, NULL);
 }
 
+/* TODO: only go through dirty textures */
+static void
+validate_textures(struct NineDevice9 *device)
+{
+    struct NineBaseTexture9 *tex;
+    LIST_FOR_EACH_ENTRY(tex, &device->bound_textures, list)
+        NineBaseTexture9_Validate(tex);
+}
+
 static void
 update_textures_and_samplers(struct NineDevice9 *device)
 {
@@ -457,6 +466,14 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
     DBG("changed state groups: %x | %x\n",
         state->changed.group & NINE_STATE_FREQ_GROUP_0,
         state->changed.group & NINE_STATE_FREQ_GROUP_1);
+
+    /* NOTE: We may want to use the cso cache for everything, or let
+     * NineDevice9.RestoreNonCSOState actually set the states, then we wouldn't
+     * have to care about state being clobbered here and could merge this back
+     * into update_textures. Except, we also need to re-validate textures that
+     * may be dirty anyway, even if no texture bindings changed.
+     */
+    validate_textures(device); /* may clobber state */
 
     /* ff_update may change VS/PS dirty bits */
     if ((mask & NINE_STATE_FF) && unlikely(!state->vs || !state->ps))

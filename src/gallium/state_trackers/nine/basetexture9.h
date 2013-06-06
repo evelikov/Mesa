@@ -25,10 +25,12 @@
 
 #include "resource9.h"
 #include "util/u_inlines.h"
+#include "util/u_double_list.h"
 
 struct NineBaseTexture9
 {
     struct NineResource9 base;
+    struct list_head list;
 
     /* g3d */
     struct pipe_context *pipe;
@@ -107,7 +109,6 @@ NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
 static INLINE struct pipe_sampler_view *
 NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This )
 {
-    NineBaseTexture9_Validate(This);
     if (!This->view)
         NineBaseTexture9_UpdateSamplerView(This);
     return This->view;

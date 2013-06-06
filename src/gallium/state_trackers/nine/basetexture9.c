@@ -64,6 +64,8 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
     This->lod = 0;
     This->lod_resident = -1;
 
+    list_inithead(&This->list);
+
     return D3D_OK;
 }
 
@@ -71,6 +73,8 @@ void
 NineBaseTexture9_dtor( struct NineBaseTexture9 *This )
 {
     pipe_sampler_view_reference(&This->view, NULL);
+
+    list_del(&This->list),
 
     NineResource9_dtor(&This->base);
 }

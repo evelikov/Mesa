@@ -26,6 +26,7 @@
 #include "d3d9.h"
 #include "nine_defines.h"
 #include "pipe/p_state.h"
+#include "util/u_double_list.h"
 
 #define NINED3DRS_LAST   D3DRS_BLENDOPALPHA /* 209 */
 #define NINED3DSAMP_LAST D3DSAMP_DMAPOFFSET /* 13 */

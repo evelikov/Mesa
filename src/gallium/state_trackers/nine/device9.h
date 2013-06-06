@@ -44,6 +44,8 @@ struct hud_context;
 struct NineSwapChain9;
 struct NineStateBlock9;
 
+#include "util/u_double_list.h"
+
 struct NineDevice9
 {
     struct NineUnknown base;
@@ -70,6 +72,7 @@ struct NineDevice9
     struct {
         boolean vport_identity;
     } pipe_state;
+    struct list_head bound_textures; /* XXX: make this dirty_textures */
 
     boolean in_scene;
 
