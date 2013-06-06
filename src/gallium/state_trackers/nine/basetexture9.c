@@ -88,6 +88,8 @@ NineBaseTexture9_SetLOD( struct NineBaseTexture9 *This,
     user_assert(This->base.pool == D3DPOOL_MANAGED, 0);
 
     This->lod = MIN2(LODNew, This->base.info.last_level);
+    if (This->lod != old)
+        This->dirty = TRUE;
 
     return old;
 }
@@ -148,6 +150,8 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         DBG("updating LOD from %u to %u ...\n", This->lod_resident, This->lod);
 
         pipe_sampler_view_reference(&This->view, NULL);
+        if (This->base.bind_count)
+            This->base.device->state.changed.group |= NINE_STATE_TEXTURE;
 
         hr = NineBaseTexture9_CreatePipeResource(This);
         if (FAILED(hr))
@@ -157,6 +161,9 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         if (This->base.type == D3DRTYPE_TEXTURE) {
             struct NineTexture9 *tex = NineTexture9(This);
 
+            u_box_origin_2d(This->base.info.width0, This->base.info.height0,
+                            &tex->dirty_rect);
+
             for (l = 0; l < This->lod; ++l)
                 NineSurface9_SetResource(tex->surfaces[l], NULL, -1);
             for (; l <= last_level; ++l)
@@ -165,6 +172,10 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         if (This->base.type == D3DRTYPE_CUBETEXTURE) {
             struct NineCubeTexture9 *tex = NineCubeTexture9(This);
             unsigned z;
+
+            for (z = 0; z < 6; ++z)
+                u_box_origin_2d(This->base.info.width0, This->base.info.height0,
+                                &tex->dirty_rect[z]);
 
             for (l = 0; l < This->lod; ++l) {
                 for (z = 0; z < 6; ++z)
@@ -179,6 +190,10 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         } else
         if (This->base.type == D3DRTYPE_VOLUMETEXTURE) {
             struct NineVolumeTexture9 *tex = NineVolumeTexture9(This);
+
+            u_box_3d(0, 0, 0, This->base.info.width0,
+                     This->base.info.height0, This->base.info.depth0,
+                     &tex->dirty_box);
 
             for (l = 0; l < This->lod; ++l)
                 NineVolume9_SetResource(tex->volumes[l], NULL, -1);
