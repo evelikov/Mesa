@@ -91,6 +91,7 @@ static INLINE const char *d3dsio_to_string(unsigned opcode);
    TGSI_SWIZZLE_##x, TGSI_SWIZZLE_##y, TGSI_SWIZZLE_##z, TGSI_SWIZZLE_##w
 
 #define NINED3DSPDM_SATURATE (D3DSPDM_SATURATE >> D3DSP_DSTMOD_SHIFT)
+#define NINED3DSPDM_PARTIALP (D3DSPDM_PARTIALPRECISION >> D3DSP_DSTMOD_SHIFT)
 #define NINED3DSPDM_CENTROID (D3DSPDM_MSAMPCENTROID >> D3DSP_DSTMOD_SHIFT)
 
 /*
@@ -293,8 +294,12 @@ sm1_dump_src_param(const struct sm1_src_param *param)
 static void
 sm1_dump_dst_param(const struct sm1_dst_param *param)
 {
-   if (param->mod == NINED3DSPDM_SATURATE)
+   if (param->mod & NINED3DSPDM_SATURATE)
       DUMP("sat ");
+   if (param->mod & NINED3DSPDM_PARTIALP)
+      DUMP("pp ");
+   if (param->mod & NINED3DSPDM_CENTROID)
+      DUMP("centroid ");
    if (param->shift < 0)
       DUMP("/%u ", 1 << -param->shift);
    if (param->shift > 0)
@@ -1023,7 +1028,7 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
 
     if (param->mask != NINED3DSP_WRITEMASK_ALL)
         dst = ureg_writemask(dst, param->mask);
-    if (param->mod == NINED3DSPDM_SATURATE)
+    if (param->mod & NINED3DSPDM_SATURATE)
         dst = ureg_saturate(dst);
 
     assert(!param->shift); /* TODO */
@@ -1675,7 +1680,7 @@ DECL_SPECIAL(DCL)
                 ureg, tgsi.Name, tgsi.Index,
                 nine_tgsi_to_interp_mode(&tgsi),
                 0, /* cylwrap */
-                sem.reg.mod == NINED3DSPDM_CENTROID);
+                sem.reg.mod & NINED3DSPDM_CENTROID);
         } else
         if (!is_input && 0) { /* declare in COLOROUT/DEPTHOUT case */
             /* FragColor or FragDepth */
@@ -2515,14 +2520,12 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     tx->parse++; /* for byte_size */
     ureg_END(tx->ureg);
 
-#if 0
-    {
+    if (debug_get_bool_option("NINE_TGSI_DUMP", FALSE)) {
         unsigned count;
         const struct tgsi_token *toks = ureg_get_tokens(tx->ureg, &count);
         tgsi_dump(toks, 0);
         ureg_free_tokens(toks);
     }
-#endif
 
     /* record local constants */
     if (tx->num_lconstf && tx->indirect_const_access) {
