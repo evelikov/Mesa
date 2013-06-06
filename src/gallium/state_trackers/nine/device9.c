@@ -1487,10 +1487,12 @@ NineDevice9_Clear( struct NineDevice9 *This,
     rect.y2 = This->state.viewport.Height + rect.y1;
 
     /* Both rectangles apply, which is weird, but that's D3D9. */
-    rect.x1 = MAX2(rect.x1, This->state.scissor.minx);
-    rect.y1 = MAX2(rect.y1, This->state.scissor.miny);
-    rect.x2 = MIN2(rect.x2, This->state.scissor.maxx);
-    rect.y2 = MIN2(rect.y2, This->state.scissor.maxy);
+    if (This->state.rs[D3DRS_SCISSORTESTENABLE]) {
+        rect.x1 = MAX2(rect.x1, This->state.scissor.minx);
+        rect.y1 = MAX2(rect.y1, This->state.scissor.miny);
+        rect.x2 = MIN2(rect.x2, This->state.scissor.maxx);
+        rect.y2 = MIN2(rect.y2, This->state.scissor.maxy);
+    }
 
     if (Count) {
         /* Maybe apps like to specify a large rect ? */
@@ -2187,6 +2189,9 @@ NineDevice9_SetScissorRect( struct NineDevice9 *This,
                             const RECT *pRect )
 {
     NINESTATEPOINTER_SET(This);
+
+    DBG("x=(%u..%u) y=(%u..%u)\n",
+        pRect->left, pRect->top, pRect->right, pRect->bottom);
 
     state->scissor.minx = pRect->left;
     state->scissor.miny = pRect->top;
