@@ -552,7 +552,7 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                                D3DPMISCCAPS_COLORWRITEENABLE |
                                D3DPMISCCAPS_CLIPPLANESCALEDPOINTS |
                                /*D3DPMISCCAPS_CLIPTLVERTS |*/
-                               /*D3DPMISCCAPS_TSSARGTEMP |*/
+                               D3DPMISCCAPS_TSSARGTEMP |
                                D3DPMISCCAPS_BLENDOP |
                                D3DPIPECAP(INDEP_BLEND_ENABLE, D3DPMISCCAPS_INDEPENDENTWRITEMASKS) |
                                /*D3DPMISCCAPS_PERSTAGECONSTANT |*/
