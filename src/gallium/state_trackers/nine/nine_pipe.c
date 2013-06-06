@@ -201,8 +201,8 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     samp.max_anisotropy = ss[D3DSAMP_MAXANISOTROPY];
     samp.seamless_cube_map = 1;
     samp.lod_bias = asfloat(ss[D3DSAMP_MIPMAPLODBIAS]);
-    samp.min_lod = 0.0f;
-    samp.max_lod = ss[D3DSAMP_MAXMIPLEVEL];
+    samp.min_lod = ss[D3DSAMP_MAXMIPLEVEL];
+    samp.max_lod = 15.0f;
     d3dcolor_to_pipe_color_union(&samp.border_color, ss[D3DSAMP_BORDERCOLOR]);
 
     /* see nine_state.h */
