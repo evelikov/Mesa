@@ -182,6 +182,8 @@ NineDevice9_ctor( struct NineDevice9 *This,
     }
 
     This->cursor.software = TRUE; /* XXX hardware cursor */
+    This->cursor.hotspot_x = -1;
+    This->cursor.hotspot_y = -1;
     {
         struct pipe_resource tmpl;
         tmpl.target = PIPE_TEXTURE_2D;
@@ -448,28 +450,22 @@ NineDevice9_SetCursorProperties( struct NineDevice9 *This,
     DBG_FLAG(DBG_SWAPCHAIN, "This=%p XHotSpot=%u YHotSpot=%u "
              "pCursorBitmap=%p\n", This, XHotSpot, YHotSpot, pCursorBitmap);
 
-    This->cursor.hotspot_x = XHotSpot;
-    This->cursor.hotspot_y = YHotSpot;
+    user_assert(pCursorBitmap, D3DERR_INVALIDCALL);
 
-    if (surf) {
-        This->cursor.w = MIN2(surf->desc.Width, This->cursor.image->width0);
-        This->cursor.h = MIN2(surf->desc.Height, This->cursor.image->height0);
-    } else {
-        This->cursor.w = This->cursor.image->width0;
-        This->cursor.h = This->cursor.image->height0;
-    }
+    This->cursor.w = MIN2(surf->desc.Width, This->cursor.image->width0);
+    This->cursor.h = MIN2(surf->desc.Height, This->cursor.image->height0);
+
     u_box_origin_2d(This->cursor.w, This->cursor.h, &box);
 
     ptr = pipe->transfer_map(pipe, This->cursor.image, 0,
                              PIPE_TRANSFER_WRITE |
                              PIPE_TRANSFER_DISCARD_WHOLE_RESOURCE,
                              &box, &transfer);
-    if (!ptr) {
-        DBG("Failed to update cursor image.\n");
-        return D3D_OK;
-    }
+    if (!ptr)
+        ret_err("Failed to update cursor image.\n", D3DERR_DRIVERINTERNALERROR);
 
-    if (pCursorBitmap) {
+    /* Copy cursor image to internal storage. */
+    {
         D3DLOCKED_RECT lock;
         HRESULT hr;
         const struct util_format_description *sfmt =
@@ -477,22 +473,19 @@ NineDevice9_SetCursorProperties( struct NineDevice9 *This,
         assert(sfmt);
 
         hr = NineSurface9_LockRect(surf, &lock, NULL, D3DLOCK_READONLY);
-        if (FAILED(hr)) {
-            DBG("Failed to map cursor source image.\n");
-            return D3D_OK; /* don't alarm the app */
-        }
+        if (FAILED(hr))
+            ret_err("Failed to map cursor source image.\n",
+                    D3DERR_DRIVERINTERNALERROR);
+
         sfmt->unpack_rgba_8unorm(ptr, transfer->stride,
                                  lock.pBits, lock.Pitch,
                                  This->cursor.w, This->cursor.h);
         NineSurface9_UnlockRect(surf);
-    } else {
-        uint32_t *rgba = (uint32_t *)ptr;
-        int x, y;
-        for (x = 0; x < This->cursor.w; ++x)
-        for (y = 0; y < This->cursor.h; ++y)
-            rgba[y * (transfer->stride / 4) + x] = 0xffffffff;
     }
     pipe->transfer_unmap(pipe, transfer);
+
+    This->cursor.hotspot_x = XHotSpot;
+    This->cursor.hotspot_y = YHotSpot;
 
     return D3D_OK;
 }
@@ -513,7 +506,7 @@ NineDevice9_ShowCursor( struct NineDevice9 *This,
                         BOOL bShow )
 {
     BOOL old = This->cursor.visible;
-    This->cursor.visible = bShow;
+    This->cursor.visible = bShow && (This->cursor.hotspot_x != -1);
     return old;
 }
 

@@ -31,6 +31,7 @@ _nine_debug_printf( unsigned long flag,
                     const char *fmt,
                     ... ) _util_printf_format(3,4);
 
+#define ERR(fmt, ...) _nine_debug_printf(DBG_ERROR, __FUNCTION__, fmt, ## __VA_ARGS__)
 
 #ifdef DEBUG
 #define DBG_FLAG(flag, fmt, ...) \
@@ -65,6 +66,7 @@ _nine_debug_printf( unsigned long flag,
 #define DBG_SHADER               (1<<22)
 #define DBG_FF                   (1<<23)
 #define DBG_USER                 (1<<24)
+#define DBG_ERROR                (1<<25)
 
 void
 _nine_stub( const char *file,
@@ -107,5 +109,11 @@ _nine_stub( const char *file,
             return r; \
         } \
     } while (0)
+
+#define ret_err(x, r) \
+    do { \
+        ERR(x); \
+        return r; \
+    } while(0)
 
 #endif /* _NINE_DEBUG_H_ */

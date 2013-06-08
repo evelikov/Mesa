@@ -50,6 +50,7 @@ static const struct debug_named_value nine_debug_flags[] = {
     { "shader",  DBG_SHADER,               "Shader token stream translator." },
     { "ff",      DBG_FF,                   "Fixed function emulation." },
     { "user",    DBG_USER,                 "User errors, both fixable and unfixable." },
+    { "error",   DBG_ERROR,                "Driver errors, always visible." },
     DEBUG_NAMED_VALUE_END
 };
 
@@ -60,11 +61,11 @@ _nine_debug_printf( unsigned long flag,
                     ... )
 {
     static boolean first = TRUE;
-    static unsigned long dbg_flags = 0;
+    static unsigned long dbg_flags = DBG_ERROR;
 
     if (first) {
         first = FALSE;
-        dbg_flags = debug_get_flags_option("NINE_DEBUG", nine_debug_flags, 0);
+        dbg_flags |= debug_get_flags_option("NINE_DEBUG", nine_debug_flags, 0);
     }
     if (dbg_flags & flag) {
         const char *f = func ? strrchr(func, '_') : NULL;
