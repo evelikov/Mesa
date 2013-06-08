@@ -185,7 +185,9 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
 {
     struct pipe_sampler_state samp;
 
-    assert(idx >= 0 && (idx <= 15 || idx >= 17) && (idx <= 20));
+    assert(idx >= 0 &&
+           (idx < NINE_MAX_SAMPLERS_PS || idx >= NINE_SAMPLER_VS(0)) &&
+           (idx < NINE_MAX_SAMPLERS));
 
     memset(&samp, 0, sizeof(samp)); /* memcmp safety */
 
@@ -201,15 +203,15 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     samp.max_anisotropy = ss[D3DSAMP_MAXANISOTROPY];
     samp.seamless_cube_map = 1;
     samp.lod_bias = asfloat(ss[D3DSAMP_MIPMAPLODBIAS]);
-    samp.min_lod = ss[D3DSAMP_MAXMIPLEVEL];
+    samp.min_lod = ss[NINED3DSAMP_MINLOD];
     samp.max_lod = 15.0f;
     d3dcolor_to_pipe_color_union(&samp.border_color, ss[D3DSAMP_BORDERCOLOR]);
 
     /* see nine_state.h */
-    if (idx < 16)
-        cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx, &samp);
+    if (idx < NINE_MAX_SAMPLERS_PS)
+        cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx - NINE_SAMPLER_PS(0), &samp);
     else
-        cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - 17, &samp);
+        cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - NINE_SAMPLER_VS(0), &samp);
 }
 
 void

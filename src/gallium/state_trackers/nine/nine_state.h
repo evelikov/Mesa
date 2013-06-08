@@ -28,8 +28,10 @@
 #include "pipe/p_state.h"
 #include "util/u_double_list.h"
 
+#define NINED3DSAMP_MINLOD (D3DSAMP_DMAPOFFSET + 1)
+
 #define NINED3DRS_LAST   D3DRS_BLENDOPALPHA /* 209 */
-#define NINED3DSAMP_LAST D3DSAMP_DMAPOFFSET /* 13 */
+#define NINED3DSAMP_LAST NINED3DSAMP_MINLOD /* 14 */
 #define NINED3DTSS_LAST  D3DTSS_CONSTANT
 #define NINED3DTS_LAST   D3DTS_WORLDMATRIX(255)
 
@@ -157,7 +159,7 @@ struct nine_state
 
     struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS]; /* PS, DMAP, VS */
 
-    DWORD samp[NINE_MAX_SAMPLERS][NINED3DSAMP_LAST + 1];
+    DWORD samp[NINE_MAX_SAMPLERS][NINED3DSAMP_COUNT];
 
     struct {
         struct {

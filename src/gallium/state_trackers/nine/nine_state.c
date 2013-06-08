@@ -404,6 +404,18 @@ validate_textures(struct NineDevice9 *device)
         NineBaseTexture9_Validate(tex);
 }
 
+static INLINE boolean
+update_minlod(struct nine_state *state, unsigned s)
+{
+    int value = state->samp[s][D3DSAMP_MAXMIPLEVEL] - state->texture[s]->lod;
+    if (value < 0)
+        value = 0;
+    if (value == state->samp[s][NINED3DSAMP_MINLOD])
+        return FALSE;
+    state->samp[s][NINED3DSAMP_MINLOD] = value;
+    return TRUE;
+}
+
 static void
 update_textures_and_samplers(struct NineDevice9 *device)
 {
@@ -425,7 +437,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
         num_textures = i + 1;
 
-        if (state->changed.sampler[s]) {
+        if (update_minlod(state, s) || state->changed.sampler[s]) {
             state->changed.sampler[s] = 0;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);
         }
