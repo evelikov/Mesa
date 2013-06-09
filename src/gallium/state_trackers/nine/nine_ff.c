@@ -273,6 +273,14 @@ struct vs_build_ctx
     struct ureg_src mtlE;
 };
 
+static INLINE unsigned
+get_texcoord_sn(struct pipe_screen *screen)
+{
+    if (screen->get_param(screen, PIPE_CAP_TGSI_TEXCOORD))
+        return TGSI_SEMANTIC_TEXCOORD;
+    return TGSI_SEMANTIC_GENERIC;
+}
+
 static INLINE struct ureg_src
 build_vs_add_input(struct vs_build_ctx *vs, unsigned ndecl)
 {
@@ -298,6 +306,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     unsigned num_r = 8;
     boolean need_rNrm = key->lighting || key->pointscale;
     boolean need_rVtx = key->lighting || key->fog_mode;
+    const unsigned texcoord_sn = get_texcoord_sn(device->screen);
 
     vs->ureg = ureg;
 
@@ -489,7 +498,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 
         if (tci == NINED3DTSS_TCI_DISABLE)
             continue;
-        oTex[i] = ureg_DECL_output(ureg, TGSI_SEMANTIC_TEXCOORD, i);
+        oTex[i] = ureg_DECL_output(ureg, texcoord_sn, i);
 
         if (tci == NINED3DTSS_TCI_PASSTHRU)
             vs->aTex[idx] = build_vs_add_input(vs, NINE_DECLUSAGE_TEXCOORD(idx));
@@ -1004,6 +1013,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
     struct ureg_program *ureg = ureg_create(TGSI_PROCESSOR_FRAGMENT);
     struct ureg_dst oCol;
     unsigned i, s;
+    const unsigned texcoord_sn = get_texcoord_sn(device->screen);
 
     memset(&ps, 0, sizeof(ps));
     ps.ureg = ureg;
@@ -1034,7 +1044,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
                 key->ts[s].colorarg1 == D3DTA_TEXTURE ||
                 key->ts[s].colorarg2 == D3DTA_TEXTURE) {
                 ps.s[s] = ureg_DECL_sampler(ureg, s);
-                ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
+                ps.vT[s] = ureg_DECL_fs_input(ureg, texcoord_sn, s, TGSI_INTERPOLATE_PERSPECTIVE);
             }
             if (s && (key->ts[s - 1].colorop == D3DTOP_PREMODULATE ||
                       key->ts[s - 1].alphaop == D3DTOP_PREMODULATE))
@@ -1051,7 +1061,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
                 key->ts[s].alphaarg1 == D3DTA_TEXTURE ||
                 key->ts[s].alphaarg2 == D3DTA_TEXTURE) {
                 ps.s[s] = ureg_DECL_sampler(ureg, s);
-                ps.vT[s] = ureg_DECL_fs_input(ureg, TGSI_SEMANTIC_TEXCOORD, s, TGSI_INTERPOLATE_PERSPECTIVE);
+                ps.vT[s] = ureg_DECL_fs_input(ureg, texcoord_sn, s, TGSI_INTERPOLATE_PERSPECTIVE);
             }
         }
     }
