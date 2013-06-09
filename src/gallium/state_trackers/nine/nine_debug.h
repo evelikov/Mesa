@@ -34,6 +34,21 @@ _nine_debug_printf( unsigned long flag,
 #define ERR(fmt, ...) _nine_debug_printf(DBG_ERROR, __FUNCTION__, fmt, ## __VA_ARGS__)
 
 #ifdef DEBUG
+#define WARN(fmt, ...) _nine_debug_printf(DBG_WARN, __FUNCTION__, fmt, ## __VA_ARGS__)
+#define WARN_ONCE(fmt, ...) \
+    do { \
+        static boolean once = TRUE; \
+        if (once) { \
+            once = FALSE; \
+            _nine_debug_printf(DBG_WARN, __FUNCTION__, fmt, ## __VA_ARGS__); \
+        } \
+    } while(0)
+#else
+#define WARN(fmt, ...)
+#define WARN_ONCE(fmt, ...)
+#endif
+
+#ifdef DEBUG
 #define DBG_FLAG(flag, fmt, ...) \
     _nine_debug_printf(flag, __FUNCTION__, fmt, ## __VA_ARGS__)
 #else
@@ -67,6 +82,7 @@ _nine_debug_printf( unsigned long flag,
 #define DBG_FF                   (1<<23)
 #define DBG_USER                 (1<<24)
 #define DBG_ERROR                (1<<25)
+#define DBG_WARN                 (1<<26)
 
 void
 _nine_stub( const char *file,

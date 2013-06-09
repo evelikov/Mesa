@@ -176,6 +176,8 @@ nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
     }
 
     /* blend.force_srgb = !!rs[D3DRS_SRGBWRITEENABLE]; */
+    if (rs[D3DRS_SRGBWRITEENABLE])
+        WARN_ONCE("D3DRS_SRGBWRITEENABLE=1 not yet supported.\n");
 
     cso_set_blend(ctx, &blend);
 }
@@ -212,6 +214,10 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
         cso_single_sampler(ctx, PIPE_SHADER_FRAGMENT, idx - NINE_SAMPLER_PS(0), &samp);
     else
         cso_single_sampler(ctx, PIPE_SHADER_VERTEX, idx - NINE_SAMPLER_VS(0), &samp);
+
+    /* samp.srgb_enable = !!ss[D3DSAMP_SRGBTEXTURE]; */
+    if (ss[D3DSAMP_SRGBTEXTURE])
+        WARN_ONCE("D3DSAMP_SRGBTEXTURE not yet supported.\n");
 }
 
 void

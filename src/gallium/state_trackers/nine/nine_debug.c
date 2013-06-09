@@ -51,6 +51,7 @@ static const struct debug_named_value nine_debug_flags[] = {
     { "ff",      DBG_FF,                   "Fixed function emulation." },
     { "user",    DBG_USER,                 "User errors, both fixable and unfixable." },
     { "error",   DBG_ERROR,                "Driver errors, always visible." },
+    { "warn",    DBG_WARN,                 "Driver warnings, always visible in debug builds." },
     DEBUG_NAMED_VALUE_END
 };
 
@@ -61,7 +62,7 @@ _nine_debug_printf( unsigned long flag,
                     ... )
 {
     static boolean first = TRUE;
-    static unsigned long dbg_flags = DBG_ERROR;
+    static unsigned long dbg_flags = DBG_ERROR | DBG_WARN;
 
     if (first) {
         first = FALSE;
