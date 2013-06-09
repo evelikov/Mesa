@@ -35,6 +35,27 @@ const char *nine_D3DPOOL_to_str(D3DPOOL pool)
     }
 }
 
+const char *nine_D3DSAMP_to_str(DWORD samp)
+{
+    switch (samp) {
+    case D3DSAMP_ADDRESSU: return "ADDRESSU";
+    case D3DSAMP_ADDRESSV: return "ADDRESSV";
+    case D3DSAMP_ADDRESSW: return "ADDRESSW";
+    case D3DSAMP_BORDERCOLOR: return "BORDERCOLOR";
+    case D3DSAMP_MAGFILTER: return "MAGFILTER";
+    case D3DSAMP_MINFILTER: return "MINFILTER";
+    case D3DSAMP_MIPFILTER: return "MIPFILTER";
+    case D3DSAMP_MIPMAPLODBIAS: return "MIPMAPLODBIAS";
+    case D3DSAMP_MAXMIPLEVEL: return "MAXMIPLEVEL";
+    case D3DSAMP_MAXANISOTROPY: return "MAXANISOTROPY";
+    case D3DSAMP_SRGBTEXTURE: return "SRGBTEXTURE";
+    case D3DSAMP_ELEMENTINDEX: return "ELEMENTINDEX";
+    case D3DSAMP_DMAPOFFSET: return "DMAPOFFSET";
+    default:
+        return "(D3DSAMP_?)";
+    }
+}
+
 #define C2S(n,s) \
     do { \
         if (usage & D3DUSAGE_##n) p += snprintf(&tls[p], sizeof(tls) - p, s); \

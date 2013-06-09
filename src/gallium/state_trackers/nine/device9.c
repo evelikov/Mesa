@@ -2178,7 +2178,8 @@ NineDevice9_SetSamplerState( struct NineDevice9 *This,
 {
     struct nine_state *state = This->update;
 
-    DBG("This=%p Sampler=%u Type=%u Value=%08x\n", This, Sampler, Type, Value);
+    DBG("This=%p Sampler=%u Type=%s Value=%08x\n", This,
+        Sampler, nine_D3DSAMP_to_str(Type), Value);
 
     user_assert(Sampler < This->caps.MaxSimultaneousTextures ||
                 Sampler == D3DDMAPSAMPLER ||

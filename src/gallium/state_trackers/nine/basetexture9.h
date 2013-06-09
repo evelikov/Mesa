@@ -85,7 +85,8 @@ NineBaseTexture9_PreLoad( struct NineBaseTexture9 *This );
 
 /* For D3DPOOL_MANAGED only (after SetLOD change): */
 HRESULT
-NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This );
+NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This,
+                                     BOOL CopyData );
 
 /* For D3DPOOL_MANAGED only: */
 HRESULT
@@ -97,9 +98,10 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This );
 static INLINE void
 NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
 {
-    DBG_FLAG(DBG_BASETEXTURE, "This=%p dirty=%i dirty_mip=%i\n",
-             This, This->dirty, This->dirty_mip);
-    if (This->dirty && This->base.pool == D3DPOOL_MANAGED)
+    DBG_FLAG(DBG_BASETEXTURE, "This=%p dirty=%i dirty_mip=%i lod=%u/%u\n",
+             This, This->dirty, This->dirty_mip, This->lod, This->lod_resident);
+    if ((This->base.pool == D3DPOOL_MANAGED) &&
+        (This->dirty || This->lod != This->lod_resident))
         NineBaseTexture9_UploadSelf(This);
     if (This->dirty_mip)
         NineBaseTexture9_GenerateMipSubLevels(This);
