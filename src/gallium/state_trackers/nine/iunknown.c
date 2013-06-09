@@ -77,11 +77,11 @@ NineUnknown_AddRef( struct NineUnknown *This )
 {
     ULONG r;
     if (This->forward)
-        r = NineUnknown_AddRef(This->container);
+        return NineUnknown_AddRef(This->container);
     else
         r = ++This->refs; /* TODO: make atomic */
 
-    if (r == 1 && !This->forward) {
+    if (r == 1) {
         if (This->device)
             NineUnknown_AddRef(NineUnknown(This->device));
         if (This->container)
@@ -95,12 +95,12 @@ NineUnknown_Release( struct NineUnknown *This )
 {
     ULONG r;
     if (This->forward)
-        r = NineUnknown_Release(This->container);
+        return NineUnknown_Release(This->container);
     else
         r = --This->refs; /* TODO: make atomic */
     assert(r != -1); /* this would signify implementation error */
 
-    if (r == 0 && !This->forward) {
+    if (r == 0) {
         if (This->device) {
             if (NineUnknown_Release(NineUnknown(This->device)) == 0)
                 return r; /* everything's gone */
