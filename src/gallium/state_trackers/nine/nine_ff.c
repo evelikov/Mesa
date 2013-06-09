@@ -53,13 +53,16 @@ struct nine_ff_vs_key
             uint32_t fog_range : 1;
             uint32_t color0in_one : 1;
             uint32_t color1in_one : 1;
-            uint32_t pad1 : 9;
-            uint32_t tc_gen   : 24; /* 8 * 3 */
+            uint32_t pad1 : 8;
+            uint32_t tc_gen : 24; /* 8 * 3 bits */
             uint32_t pad2 : 8;
             uint32_t tc_idx : 24;
+            uint32_t pad3 : 8;
+            uint32_t tc_dim : 24; /* 8 * 3 bits */
+            uint32_t pad4 : 8;
         };
-        uint64_t value64[3]; /* if u64 isn't enough, resize VertexShader9.ff_key */
-        uint32_t value32[6];
+        uint64_t value64[2]; /* don't forget to resize VertexShader9.ff_key */
+        uint32_t value32[4];
     };
 };
 
@@ -103,7 +106,7 @@ struct nine_ff_ps_key
             uint8_t colorarg_b5[3];
             uint8_t alphaarg_b4[3]; /* 11 32-bit words plus a byte */
         };
-        uint64_t value64[6]; /* if u64 isn't enough, resize PixelShader9.ff_key */
+        uint64_t value64[6]; /* don't forget to resize PixelShader9.ff_key */
         uint32_t value32[12];
     };
 };
@@ -493,8 +496,12 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
      * XXX: D3DTTFF_PROJECTED, transform matrix
      */
     for (i = 0; i < 8; ++i) {
-        const unsigned tci = (key->tc_gen >> (i * 3)) & 0x3;
-        const unsigned idx = (key->tc_idx >> (i * 3)) & 0x3;
+        struct ureg_dst dst[5];
+        struct ureg_src src;
+        unsigned c;
+        const unsigned tci = (key->tc_gen >> (i * 3)) & 0x7;
+        const unsigned idx = (key->tc_idx >> (i * 3)) & 0x7;
+        const unsigned dim = (key->tc_dim >> (i * 3)) & 0x7;
 
         if (tci == NINED3DTSS_TCI_DISABLE)
             continue;
@@ -503,15 +510,25 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         if (tci == NINED3DTSS_TCI_PASSTHRU)
             vs->aTex[idx] = build_vs_add_input(vs, NINE_DECLUSAGE_TEXCOORD(idx));
 
+        if (!dim) {
+            dst[4] = oTex[i];
+        } else {
+            dst[4] = tmp;
+            src = ureg_src(dst[4]);
+            for (c = 0; c < (dim - 1); ++c)
+                dst[c] = ureg_writemask(tmp, (1 << dim) - 1);
+            dst[c] = ureg_writemask(oTex[i], (1 << dim) - 1);
+        }
+
         switch (tci) {
         case NINED3DTSS_TCI_PASSTHRU:
-            ureg_MOV(ureg, oTex[i], vs->aTex[idx]);
+            ureg_MOV(ureg, dst[4], vs->aTex[idx]);
             break;
         case NINED3DTSS_TCI_CAMERASPACENORMAL:
-            ureg_MOV(ureg, oTex[i], ureg_src(rNrm));
+            ureg_MOV(ureg, dst[4], ureg_src(rNrm));
             break;
         case NINED3DTSS_TCI_CAMERASPACEPOSITION:
-            ureg_MOV(ureg, oTex[i], ureg_src(rVtx));
+            ureg_MOV(ureg, dst[4], ureg_src(rVtx));
             break;
         case NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
         case NINED3DTSS_TCI_SPHEREMAP:
@@ -520,6 +537,15 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         default:
             break;
         }
+        if (!dim)
+            continue;
+        if (dim > 0) ureg_MUL(ureg, dst[0], _XXXX(src), _CONST(128 + i * 4));
+        if (dim > 1) ureg_MAD(ureg, dst[1], _YYYY(src), _CONST(129 + i * 4), src);
+        if (dim > 2) ureg_MAD(ureg, dst[2], _ZZZZ(src), _CONST(130 + i * 4), src);
+        if (dim > 3) ureg_MAD(ureg, dst[3], _WWWW(src), _CONST(131 + i * 4), src);
+        dst[c].WriteMask = ~dst[c].WriteMask;
+        if (dst[c].WriteMask)
+            ureg_MOV(ureg, dst[c], src);
     }
 
     /* === Lighting:
@@ -1217,6 +1243,8 @@ nine_ff_get_vs(struct NineDevice9 *device)
     struct nine_ff_vs_key key;
     unsigned s;
 
+    assert(sizeof(key) <= sizeof(key.value32));
+
     memset(&key, 0, sizeof(key));
     memset(&bld, 0, sizeof(bld));
 
@@ -1270,11 +1298,15 @@ nine_ff_get_vs(struct NineDevice9 *device)
     }
 
     for (s = 0; s < 8; ++s) {
+        unsigned dim;
         if (state->ff.tex_stage[s][D3DTSS_COLOROP] == D3DTOP_DISABLE &&
             state->ff.tex_stage[s][D3DTSS_ALPHAOP] == D3DTOP_DISABLE)
             break; /* XXX continue ? */
         key.tc_idx |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >>  0) & 7) << (s * 3);
         key.tc_gen |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >> 16) + 1) << (s * 3);
+
+        dim = MIN2(state->ff.tex_stage[s][D3DTSS_TEXTURETRANSFORMFLAGS] & 7, 4);
+        key.tc_dim |= dim << (s * 3);
     }
 
     vs = util_hash_table_get(device->ff.ht_vs, &key);
@@ -1311,6 +1343,8 @@ nine_ff_get_ps(struct NineDevice9 *device)
     enum pipe_error err;
     struct nine_ff_ps_key key;
     unsigned s;
+
+    assert(sizeof(key) <= sizeof(key.value32));
 
     memset(&key, 0, sizeof(key));
     for (s = 0; s < 8; ++s) {
@@ -1350,6 +1384,8 @@ nine_ff_get_ps(struct NineDevice9 *device)
             if (used_a & 0x4) key.alphaarg_b4[2] |= (state->ff.tex_stage[s][D3DTSS_ALPHAARG2] >> 4) << s;
         }
         key.ts[s].resultarg = state->ff.tex_stage[s][D3DTSS_RESULTARG] == D3DTA_TEMP;
+
+        key.ts[s].projected = !!(state->ff.tex_stage[s][D3DTSS_TEXTURETRANSFORMFLAGS] & D3DTTFF_PROJECTED);
 
         if (state->texture[s]) {
             switch (state->texture[s]->base.type) {

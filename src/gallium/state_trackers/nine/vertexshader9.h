@@ -48,7 +48,7 @@ struct NineVertexShader9
 
     const struct pipe_stream_output_info *so;
 
-    uint64_t ff_key[3];
+    uint64_t ff_key[2];
 };
 static INLINE struct NineVertexShader9 *
 NineVertexShader9( void *data )
