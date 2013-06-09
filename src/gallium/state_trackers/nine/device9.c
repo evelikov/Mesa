@@ -46,6 +46,7 @@
 #include "util/u_format.h"
 #include "util/u_gen_mipmap.h"
 #include "util/u_surface.h"
+#include "util/u_upload_mgr.h"
 #include "hud/hud_context.h"
 
 #include "cso_cache/cso_context.h"
@@ -119,6 +120,7 @@ NineDevice9_RestoreNonCSOState( struct NineDevice9 *This, unsigned mask )
     This->state.changed.texture = NINE_PS_SAMPLERS_MASK | NINE_VS_SAMPLERS_MASK;
 }
 
+#define GET_PCAP(n) pScreen->get_param(pScreen, PIPE_CAP_##n)
 HRESULT
 NineDevice9_ctor( struct NineDevice9 *This,
                   struct NineUnknownParams *pParams,
@@ -262,6 +264,19 @@ NineDevice9_ctor( struct NineDevice9 *This,
     if (!This->gen_mipmap)
         return E_OUTOFMEMORY;
 
+    /* Allocate upload helper for drivers that suck (from st pov ;). */
+    {
+        unsigned bind = 0;
+
+        This->driver_caps.user_vbufs = GET_PCAP(USER_VERTEX_BUFFERS);
+        This->driver_caps.user_ibufs = GET_PCAP(USER_INDEX_BUFFERS);
+
+        if (!This->driver_caps.user_vbufs) bind |= PIPE_BIND_VERTEX_BUFFER;
+        if (!This->driver_caps.user_ibufs) bind |= PIPE_BIND_INDEX_BUFFER;
+        if (bind)
+            This->upload = u_upload_create(This->pipe, 1 << 20, 4, bind);
+    }
+
     nine_ff_init(This); /* initialize fixed function code */
 
     NineDevice9_SetDefaultState(This, FALSE);
@@ -274,6 +289,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
 
     return D3D_OK;
 }
+#undef GET_PCAP
 
 void
 NineDevice9_dtor( struct NineDevice9 *This )
@@ -288,6 +304,9 @@ NineDevice9_dtor( struct NineDevice9 *This )
     nine_state_clear(&This->state, &This->caps);
 
     util_destroy_gen_mipmap(This->gen_mipmap);
+
+    if (This->upload)
+        u_upload_destroy(This->upload);
 
     nine_bind(&This->record, NULL);
 
@@ -2421,11 +2440,18 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
     info.min_index = 0;
     info.max_index = info.count - 1;
 
-    /* TODO: stop hating drivers that don't support user buffers */
     vtxbuf.stride = VertexStreamZeroStride;
     vtxbuf.buffer_offset = 0;
     vtxbuf.buffer = NULL;
     vtxbuf.user_buffer = pVertexStreamZeroData;
+
+    if (!This->driver_caps.user_vbufs)
+        u_upload_data(This->upload,
+                      0,
+                      (info.max_index + 1) * VertexStreamZeroStride, /* XXX */
+                      vtxbuf.user_buffer,
+                      &vtxbuf.buffer_offset,
+                      &vtxbuf.buffer);
 
     This->pipe->set_vertex_buffers(This->pipe, 0, 1, &vtxbuf);
 
@@ -2434,6 +2460,8 @@ NineDevice9_DrawPrimitiveUP( struct NineDevice9 *This,
     NineDevice9_PauseRecording(This);
     NineDevice9_SetStreamSource(This, 0, NULL, 0, 0);
     NineDevice9_ResumeRecording(This);
+
+    pipe_resource_reference(&vtxbuf.buffer, NULL);
 
     return D3D_OK;
 }
@@ -2484,10 +2512,32 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
     ibuf.buffer = NULL;
     ibuf.user_buffer = pIndexData;
 
+    if (!This->driver_caps.user_vbufs) {
+        u_upload_data(This->upload,
+                      info.min_index * VertexStreamZeroStride,
+                      (info.max_index -
+                       info.min_index + 1) * VertexStreamZeroStride, /* XXX */
+                      vbuf.user_buffer,
+                      &vbuf.buffer_offset,
+                      &vbuf.buffer);
+        /* Won't be used: */
+        vbuf.buffer_offset -= info.min_index * VertexStreamZeroStride;
+    }
+    if (!This->driver_caps.user_ibufs)
+        u_upload_data(This->upload,
+                      0,
+                      info.count * ibuf.index_size,
+                      ibuf.user_buffer,
+                      &ibuf.offset,
+                      &ibuf.buffer);
+
     This->pipe->set_vertex_buffers(This->pipe, 0, 1, &vbuf);
     This->pipe->set_index_buffer(This->pipe, &ibuf);
 
     This->pipe->draw_vbo(This->pipe, &info);
+
+    pipe_resource_reference(&vbuf.buffer, NULL);
+    pipe_resource_reference(&ibuf.buffer, NULL);
 
     NineDevice9_PauseRecording(This);
     NineDevice9_SetIndices(This, NULL);

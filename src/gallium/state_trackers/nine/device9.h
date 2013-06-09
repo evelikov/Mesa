@@ -40,6 +40,7 @@ struct pipe_screen;
 struct pipe_context;
 struct cso_context;
 struct hud_context;
+struct u_upload_mgr;
 
 struct NineSwapChain9;
 struct NineStateBlock9;
@@ -105,6 +106,13 @@ struct NineDevice9
         BOOL visible;
         boolean software;
     } cursor;
+
+    struct {
+        boolean user_vbufs;
+        boolean user_ibufs;
+    } driver_caps;
+
+    struct u_upload_mgr *upload;
 
     struct hud_context *hud; /* NULL if hud is disabled */
 };
