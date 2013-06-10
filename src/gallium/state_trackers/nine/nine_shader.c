@@ -2515,6 +2515,12 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     tx->texcoord_sn = tx->want_texcoord ?
         TGSI_SEMANTIC_TEXCOORD : TGSI_SEMANTIC_GENERIC;
 
+    /* VS must always write position. Declare it here to make it the 1st output.
+     * (Some drivers like nv50 are buggy and rely on that.)
+     */
+    if (IS_VS)
+        tx->regs.oPos = ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_POSITION, 0);
+
     while (!sm1_parse_eof(tx))
         sm1_parse_instruction(tx);
     tx->parse++; /* for byte_size */
