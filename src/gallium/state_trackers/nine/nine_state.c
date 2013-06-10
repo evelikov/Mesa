@@ -424,9 +424,11 @@ update_textures_and_samplers(struct NineDevice9 *device)
     struct pipe_sampler_view *view[NINE_MAX_SAMPLERS];
     unsigned num_textures;
     unsigned i;
+    boolean commit_samplers;
 
     /* TODO: Can we reduce iterations here ? */
 
+    commit_samplers = FALSE;
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_PS; ++i) {
         const unsigned s = NINE_SAMPLER_PS(i);
         if (!state->texture[s]) {
@@ -437,14 +439,19 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
         num_textures = i + 1;
 
-        if (update_minlod(state, s) || (state->changed.sampler[s] & 0x0ffe)) {
+        if (update_minlod(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
             state->changed.sampler[s] = 0;
+            commit_samplers = TRUE;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);
         }
     }
     if (state->changed.texture & NINE_PS_SAMPLERS_MASK)
         pipe->set_fragment_sampler_views(pipe, num_textures, view);
 
+    if (commit_samplers)
+        cso_single_sampler_done(device->cso, PIPE_SHADER_VERTEX);
+
+    commit_samplers = FALSE;
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_VS; ++i) {
         const unsigned s = NINE_SAMPLER_VS(i);
         if (!state->texture[s]) {
@@ -455,18 +462,17 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
         num_textures = i + 1;
 
-        if (state->changed.sampler[s]) {
+        if (update_minlod(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
             state->changed.sampler[s] = 0;
+            commit_samplers = TRUE;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);
         }
     }
     if (state->changed.texture & NINE_VS_SAMPLERS_MASK)
         pipe->set_vertex_sampler_views(pipe, num_textures, view);
 
-    if (state->changed.group & NINE_STATE_SAMPLER) {
-        cso_single_sampler_done(device->cso, PIPE_SHADER_VERTEX);
+    if (commit_samplers)
         cso_single_sampler_done(device->cso, PIPE_SHADER_FRAGMENT);
-    }
 
     state->changed.texture = 0;
 }
@@ -773,6 +779,9 @@ nine_state_set_defaults(struct nine_state *state, const D3DCAPS9 *caps,
         state->viewport.MinZ = 0.0f;
         state->viewport.MaxZ = 1.0f;
     }
+
+    for (s = 0; s < Elements(state->changed.sampler); ++s)
+        state->changed.sampler[s] = ~0;
 }
 
 void
