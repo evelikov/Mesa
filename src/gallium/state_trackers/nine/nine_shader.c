@@ -2527,8 +2527,12 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     /* VS must always write position. Declare it here to make it the 1st output.
      * (Some drivers like nv50 are buggy and rely on that.)
      */
-    if (IS_VS)
+    if (IS_VS) {
         tx->regs.oPos = ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_POSITION, 0);
+    } else {
+        ureg_property_fs_coord_origin(tx->ureg, TGSI_FS_COORD_ORIGIN_UPPER_LEFT);
+        ureg_property_fs_coord_pixel_center(tx->ureg, TGSI_FS_COORD_PIXEL_CENTER_INTEGER);
+    }
 
     while (!sm1_parse_eof(tx))
         sm1_parse_instruction(tx);
