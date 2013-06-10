@@ -1231,6 +1231,15 @@ DECL_SPECIAL(M3x2)
     return NineTranslateInstruction_Mkxn(tx, 3, 2);
 }
 
+DECL_SPECIAL(CMP)
+{
+    ureg_CMP(tx->ureg, tx_dst_param(tx, &tx->insn.dst[0]),
+             tx_src_param(tx, &tx->insn.src[0]),
+             tx_src_param(tx, &tx->insn.src[2]),
+             tx_src_param(tx, &tx->insn.src[1]));
+    return D3D_OK;
+}
+
 DECL_SPECIAL(CND)
 {
     ureg_CND(tx->ureg, tx_dst_param(tx, &tx->insn.dst[0]),
@@ -2053,7 +2062,7 @@ struct sm1_op_info inst_table[] =
     _OPI(TEXDEPTH,     TEX, V(0,0), V(0,0), V(1,4), V(1,4), 0, 0, SPECIAL(TEXDEPTH)),
 
     /* Misc */
-    _OPI(CMP,    CMP,  V(0,0), V(0,0), V(1,2), V(3,0), 1, 3, NULL),
+    _OPI(CMP,    CMP,  V(0,0), V(0,0), V(1,2), V(3,0), 1, 3, SPECIAL(CMP)), /* reversed */
     _OPI(BEM,    NOP,  V(0,0), V(0,0), V(1,4), V(1,4), 0, 0, SPECIAL(BEM)),
     _OPI(DP2ADD, DP2A, V(0,0), V(0,0), V(2,0), V(3,0), 1, 3, NULL),
     _OPI(DSX,    DDX,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 1, NULL),
