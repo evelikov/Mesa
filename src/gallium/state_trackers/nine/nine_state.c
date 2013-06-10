@@ -37,12 +37,29 @@
 
 #define DBG_CHANNEL DBG_DEVICE
 
-static void
+static INLINE boolean
+is_float_rt(struct pipe_surface *surf)
+{
+    switch (surf->format) {
+    case PIPE_FORMAT_R32_FLOAT:
+    case PIPE_FORMAT_R32G32_FLOAT:
+    case PIPE_FORMAT_R32G32B32A32_FLOAT:
+    case PIPE_FORMAT_R16_FLOAT:
+    case PIPE_FORMAT_R16G16_FLOAT:
+    case PIPE_FORMAT_R16G16B16A16_FLOAT:
+        return TRUE;
+    default:
+        return FALSE;
+    }
+}
+
+static uint32_t
 update_framebuffer(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
     struct pipe_framebuffer_state *fb = &device->state.fb;
+    boolean cbuf_float;
     unsigned i;
     unsigned w = 0, h = 0; /* no surface can have width or height 0 */
 
@@ -50,6 +67,7 @@ update_framebuffer(struct NineDevice9 *device)
 
     fb->nr_cbufs = 0;
 
+    cbuf_float = FALSE;
     for (i = 0; i < device->caps.NumSimultaneousRTs; ++i) {
         if (state->rt[i]) {
             fb->cbufs[i] = NineSurface9_GetSurface(state->rt[i]);
@@ -61,6 +79,8 @@ update_framebuffer(struct NineDevice9 *device)
                 w = state->rt[i]->desc.Width;
                 h = state->rt[i]->desc.Height;
             }
+            if (is_float_rt(fb->cbufs[i]))
+                cbuf_float = TRUE;
         } else {
             /* Color outputs must match RT slot,
              * drivers will have to handle NULL entries for GL, too.
@@ -86,6 +106,12 @@ update_framebuffer(struct NineDevice9 *device)
     fb->height = h;
 
     pipe->set_framebuffer_state(pipe, fb); /* XXX: cso ? */
+
+    if (state->rs[NINED3DRS_COLORCLAMP] != !cbuf_float) {
+        state->rs[NINED3DRS_COLORCLAMP] = !cbuf_float;
+        state->changed.group |= NINE_STATE_RASTERIZER;
+    }
+    return state->changed.group;
 }
 
 static void
@@ -517,7 +543,7 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
 
     if (group & NINE_STATE_FREQ_GROUP_0) {
         if (group & NINE_STATE_FB)
-            update_framebuffer(device);
+            group = update_framebuffer(device) & mask;
         if (group & (NINE_STATE_VIEWPORT | NINE_STATE_VS))
             update_viewport(device);
         if (group & NINE_STATE_SCISSOR)

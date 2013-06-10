@@ -74,8 +74,8 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
 
     rast.flatshade = rs[D3DRS_SHADEMODE] == D3DSHADE_FLAT;
  /* rast.light_twoside = 0; */
-    rast.clamp_vertex_color = 1;
-    rast.clamp_fragment_color = 1; /* XXX */
+    rast.clamp_fragment_color = rs[NINED3DRS_COLORCLAMP];
+    rast.clamp_vertex_color = rast.clamp_vertex_color;
  /* rast.front_ccw = 0; */
     rast.cull_face = d3dcull_to_pipe_face(rs[D3DRS_CULLMODE]);
     rast.fill_front = d3dfillmode_to_pipe_polygon_mode(rs[D3DRS_FILLMODE]);

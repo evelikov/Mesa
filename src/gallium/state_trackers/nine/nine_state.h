@@ -30,7 +30,9 @@
 
 #define NINED3DSAMP_MINLOD (D3DSAMP_DMAPOFFSET + 1)
 
-#define NINED3DRS_LAST   D3DRS_BLENDOPALPHA /* 209 */
+#define NINED3DRS_COLORCLAMP (D3DRS_BLENDOPALPHA + 1)
+
+#define NINED3DRS_LAST   NINED3DRS_COLORCLAMP /* 210 */
 #define NINED3DSAMP_LAST NINED3DSAMP_MINLOD /* 14 */
 #define NINED3DTSS_LAST  D3DTSS_CONSTANT
 #define NINED3DTS_LAST   D3DTS_WORLDMATRIX(255)
@@ -100,7 +102,7 @@ struct nine_state
 {
     struct {
         uint32_t group;
-        uint32_t rs[(NINED3DRS_LAST + 1 + 31) / 32];
+        uint32_t rs[(NINED3DRS_COUNT + 31) / 32];
         uint32_t vtxbuf;
         uint32_t stream_freq;
         uint32_t texture;
@@ -155,7 +157,7 @@ struct nine_state
     struct pipe_clip_state clip;
     struct pipe_framebuffer_state fb;
 
-    DWORD rs[NINED3DRS_LAST + 1];
+    DWORD rs[NINED3DRS_COUNT];
 
     struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS]; /* PS, DMAP, VS */
 
@@ -191,12 +193,12 @@ struct nine_state
 
 /* map D3DRS -> NINE_STATE_x
  */
-const uint32_t nine_render_state_group[NINED3DRS_LAST + 1];
+const uint32_t nine_render_state_group[NINED3DRS_COUNT];
 
 /* for D3DSBT_PIXEL/VERTEX:
  */
-const uint32_t nine_render_states_pixel[(NINED3DRS_LAST + 31) / 32];
-const uint32_t nine_render_states_vertex[(NINED3DRS_LAST + 31) / 32];
+const uint32_t nine_render_states_pixel[(NINED3DRS_COUNT + 31) / 32];
+const uint32_t nine_render_states_vertex[(NINED3DRS_COUNT + 31) / 32];
 
 struct NineDevice9;
 
