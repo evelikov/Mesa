@@ -372,7 +372,7 @@ present( struct NineSwapChain9 *This,
         NineDevice9_RestoreNonCSOState(device, ~0x2);
     }
 
-    This->pipe->flush(This->pipe, NULL, 0);
+    This->pipe->flush(This->pipe, NULL, PIPE_FLUSH_END_OF_FRAME);
 
     /* really present the frame */
     hr = ID3DPresent_Present(This->present, dwFlags);

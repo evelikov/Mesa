@@ -229,26 +229,19 @@ NineQuery9_GetData( struct NineQuery9 *This,
     if (This->state == NINE_QUERY_STATE_FRESH)
         return S_OK;
 
-    if (!dwSize) {
-        ok = pipe->get_query_result(pipe, This->pq, FALSE, &presult);
-        if (ok)
-            return S_OK;
-        /* Actually we don't have to do it, but let's flush anyway. */
-        if (dwGetDataFlags == D3DGETDATA_FLUSH) {
-            if (This->state != NINE_QUERY_STATE_FLUSHED)
-                pipe->flush(pipe, NULL, 0);
-            This->state = NINE_QUERY_STATE_FLUSHED;
-        }
-        return S_FALSE;
-    }
-
     if (!ok) {
-        ok = pipe->get_query_result(pipe, This->pq,
-                                    dwGetDataFlags == D3DGETDATA_FLUSH,
-                                    &presult);
-        if (!ok)
+        ok = pipe->get_query_result(pipe, This->pq, FALSE, &presult);
+        if (!ok) {
+            if (dwGetDataFlags) {
+                if (This->state != NINE_QUERY_STATE_FLUSHED)
+                    pipe->flush(pipe, NULL, 0);
+                This->state = NINE_QUERY_STATE_FLUSHED;
+            }
             return S_FALSE;
+        }
     }
+    if (!dwSize)
+        return S_OK;
 
     switch (This->type) {
     case D3DQUERYTYPE_EVENT:
