@@ -952,6 +952,10 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
             if (ureg_dst_is_undef(tx->regs.tS[param->idx]))
                 tx->regs.tS[param->idx] = ureg_DECL_temporary(tx->ureg);
             dst = tx->regs.tS[param->idx];
+        } else
+        if (!IS_VS && tx->insn.opcode == D3DSIO_TEXKILL) { /* maybe others, too */
+            tx_texcoord_alloc(tx, param->idx);
+            dst = ureg_dst(tx->regs.vT[param->idx]);
         } else {
             tx_addr_alloc(tx, param->idx);
             dst = tx->regs.a;
@@ -1766,10 +1770,14 @@ DECL_SPECIAL(TEXKILL)
 
     if (tx->version.major > 1 || tx->version.minor > 3) {
         reg = ureg_src(tx_dst_param(tx, &tx->insn.dst[0]));
-        ureg_KIL(tx->ureg, ureg_swizzle(reg, NINE_SWIZZLE4(X,Y,Z,Z)));
     } else {
-        return D3DERR_INVALIDCALL;
+        tx_texcoord_alloc(tx, tx->insn.dst[0].idx);
+        reg = tx->regs.vT[tx->insn.dst[0].idx];
     }
+    if (tx->version.major < 2)
+        reg = ureg_swizzle(reg, NINE_SWIZZLE4(X,Y,Z,Z));
+    ureg_KIL(tx->ureg, reg);
+
     return D3D_OK;
 }
 
