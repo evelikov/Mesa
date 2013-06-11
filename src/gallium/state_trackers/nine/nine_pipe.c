@@ -89,7 +89,7 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
  /* rast.point_smooth = 0; */
     rast.sprite_coord_mode = PIPE_SPRITE_COORD_UPPER_LEFT;
     rast.point_quad_rasterization = !!rs[D3DRS_POINTSPRITEENABLE];
-    rast.point_size_per_vertex = 1; /* XXX depends on shader */
+    rast.point_size_per_vertex = rs[NINED3DRS_VSPOINTSIZE];
     rast.multisample = !!rs[D3DRS_MULTISAMPLEANTIALIAS];
     rast.line_smooth = !!rs[D3DRS_ANTIALIASEDLINEENABLE];
  /* rast.line_stipple_enable = 0; */

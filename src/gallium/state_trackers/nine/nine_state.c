@@ -223,6 +223,23 @@ update_vertex_elements(struct NineDevice9 *device)
     cso_set_vertex_elements(device->cso, vs->num_inputs, ve);
 }
 
+static INLINE uint32_t
+update_vs(struct NineDevice9 *device)
+{
+    struct NineVertexShader9 *vs;
+
+    vs = device->state.vs ? device->state.vs : device->ff.vs;
+
+    device->state.cso.vs = vs->cso;
+    device->pipe->bind_vs_state(device->pipe, vs->cso);
+
+    if (device->state.rs[NINED3DRS_VSPOINTSIZE] != vs->point_size) {
+        device->state.rs[NINED3DRS_VSPOINTSIZE] = vs->point_size;
+        return NINE_STATE_RASTERIZER;
+    }
+    return 0;
+}
+
 #define DO_UPLOAD_CONST_F(buf,x,c,d) \
     do { \
         DBG("upload ConstantF [%u .. %u]\n", x, (x) + (c) - 1); \
@@ -549,18 +566,17 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
         if (group & NINE_STATE_SCISSOR)
             update_scissor(device);
 
-        if (group & NINE_STATE_BLEND)
-            update_blend(device);
         if (group & NINE_STATE_DSA)
             update_dsa(device);
+        if (group & NINE_STATE_BLEND)
+            update_blend(device);
+
+        if (group & NINE_STATE_VS)
+            group |= update_vs(device);
+
         if (group & NINE_STATE_RASTERIZER)
             update_rasterizer(device);
 
-        if (group & NINE_STATE_VS) {
-            state->cso.vs =
-                device->state.vs ? device->state.vs->cso : device->ff.vs->cso;
-            pipe->bind_vs_state(pipe, state->cso.vs);
-        }
         if (group & NINE_STATE_PS) {
             state->cso.ps =
                 device->state.ps ? device->state.ps->cso : device->ff.ps->cso;
