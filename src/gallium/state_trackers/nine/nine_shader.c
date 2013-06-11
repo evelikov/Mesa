@@ -2555,6 +2555,13 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     while (!sm1_parse_eof(tx))
         sm1_parse_instruction(tx);
     tx->parse++; /* for byte_size */
+
+    if (IS_PS && (tx->version.major < 2) && tx->num_temp) {
+        ureg_MOV(tx->ureg, ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_COLOR, 0),
+                 ureg_src(tx->regs.r[0]));
+        info->rt_mask |= 0x1;
+    }
+
     ureg_END(tx->ureg);
 
     if (debug_get_bool_option("NINE_TGSI_DUMP", FALSE)) {
