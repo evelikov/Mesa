@@ -998,6 +998,7 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
     case D3DSPR_COLOROUT: /* PS */
         assert(param->idx >= 0 && param->idx < 4);
         assert(!param->rel);
+        tx->info->rt_mask |= 1 << param->idx;
         if (ureg_dst_is_undef(tx->regs.oCol[param->idx]))
             tx->regs.oCol[param->idx] =
                ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_COLOR, param->idx);
@@ -1680,6 +1681,9 @@ DECL_SPECIAL(DCL)
             assert(sem.reg.idx < Elements(tx->regs.o));
             tx->regs.o[sem.reg.idx] = ureg_DECL_output_masked(
                 ureg, tgsi.Name, tgsi.Index, sem.reg.mask);
+
+            if (tgsi.Name == TGSI_SEMANTIC_PSIZE)
+                tx->regs.oPts = tx->regs.o[sem.reg.idx];
         }
     } else {
         if (is_input && tx->version.major >= 3) {
@@ -2427,6 +2431,11 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
         info->input_map[i] = NINE_DECLUSAGE_NONE;
     info->num_inputs = 0;
 
+    info->position_t = FALSE;
+    info->point_size = FALSE;
+
+    info->rt_mask = 0x0;
+
     tx->regs.a = ureg_dst_undef();
     tx->regs.p = ureg_dst_undef();
     tx->regs.oDepth = ureg_dst_undef();
@@ -2489,8 +2498,6 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
 
     user_assert(processor != ~0, D3DERR_INVALIDCALL);
 
-    info->position_t = FALSE;
-
     tx = CALLOC_STRUCT(shader_translator);
     if (!tx)
         return E_OUTOFMEMORY;
@@ -2533,6 +2540,9 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         ureg_property_fs_coord_origin(tx->ureg, TGSI_FS_COORD_ORIGIN_UPPER_LEFT);
         ureg_property_fs_coord_pixel_center(tx->ureg, TGSI_FS_COORD_PIXEL_CENTER_INTEGER);
     }
+
+    if (!ureg_dst_is_undef(tx->regs.oPts))
+        info->point_size = TRUE;
 
     while (!sm1_parse_eof(tx))
         sm1_parse_instruction(tx);

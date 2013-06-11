@@ -49,7 +49,10 @@ struct nine_shader_info
     uint8_t input_map[PIPE_MAX_ATTRIBS]; /* VS input -> NINE_DECLUSAGE_x */
     uint8_t num_inputs; /* there may be unused inputs (NINE_DECLUSAGE_NONE) */
 
-    boolean position_t;
+    boolean position_t; /* true if VP writes pre-transformed position */
+    boolean point_size; /* true if VP writes point size */
+
+    uint8_t rt_mask; /* which render targets are being written */
 
     struct nine_lconstf lconstf; /* members to be free'd by user */
 };

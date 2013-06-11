@@ -30,17 +30,19 @@ struct NineVertexShader9
 {
     struct NineUnknown base;
     void *cso;
+
     struct {
         uint8_t ndecl; /* NINE_DECLUSAGE_x */
     } input_map[PIPE_MAX_ATTRIBS];
     unsigned num_inputs;
-    boolean point_size; /* if TRUE, set rasterizer.point_size_per_vertex to 1 */
+
     struct {
         const DWORD *tokens;
         DWORD size;
     } byte_code;
 
-    boolean position_t;
+    boolean position_t; /* if true, disable vport transform */
+    boolean point_size; /* if true, set rasterizer.point_size_per_vertex to 1 */
 
     struct nine_lconstf lconstf;
 

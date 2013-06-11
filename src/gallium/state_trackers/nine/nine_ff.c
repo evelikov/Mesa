@@ -1230,11 +1230,9 @@ nine_ff_get_vs(struct NineDevice9 *device)
             key.color0in_one = 1;
         if (state->vdecl->usage_map[NINE_DECLUSAGE_COLOR(1)] == 0xff)
             key.color1in_one = 1;
+        if (state->vdecl->usage_map[NINE_DECLUSAGE_PSIZE] != 0xff)
+            key.vertexpointsize = 1;
     }
-
-    if (state->vdecl &&
-        state->vdecl->usage_map[NINE_DECLUSAGE_PSIZE] != 0xff)
-        key.vertexpointsize = 1;
     if (!key.vertexpointsize)
         key.pointscale = !!state->rs[D3DRS_POINTSCALEENABLE];
 
@@ -1300,6 +1298,7 @@ nine_ff_get_vs(struct NineDevice9 *device)
             vs->input_map[n].ndecl = bld.input[n];
 
         vs->position_t = key.position_t;
+        vs->point_size = key.vertexpointsize | key.pointscale;
     }
     return vs;
 }
@@ -1383,6 +1382,8 @@ nine_ff_get_ps(struct NineDevice9 *device)
         assert(err == PIPE_OK);
         device->ff.num_ps++;
         NineUnknown_ConvertRefToBind(NineUnknown(ps));
+
+        ps->rt_mask = 0x1;
     }
     return ps;
 }

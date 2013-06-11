@@ -39,6 +39,8 @@ struct NinePixelShader9
 
     struct nine_lconstf lconstf;
 
+    uint8_t rt_mask;
+
     uint64_t ff_key[6];
 };
 static INLINE struct NinePixelShader9 *
