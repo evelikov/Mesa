@@ -1410,7 +1410,7 @@ DECL_SPECIAL(REP)
     tx_endcond(tx);
     ureg_ENDIF(ureg);
 #else
-    ureg_BREAKC(ureg, tx_src_scala(tmp));
+    ureg_BREAKC(ureg, tx_src_scalar(tmp));
 #endif
 
     return D3D_OK;
@@ -2026,7 +2026,7 @@ struct sm1_op_info inst_table[] =
     _OPI(ELSE,   ELSE,   V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(ELSE)),
     _OPI(ENDIF,  ENDIF,  V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(ENDIF)),
     _OPI(BREAK,  BRK,    V(2,1), V(3,0), V(2,1), V(3,0), 0, 0, NULL),
-    _OPI(BREAKC, BREAKC, V(2,1), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(BREAKC)),
+    _OPI(BREAKC, BREAKC, V(2,1), V(3,0), V(2,1), V(3,0), 0, 2, SPECIAL(BREAKC)),
 
     _OPI(MOVA, ARL, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, SPECIAL(MOVA)),
 
@@ -2143,7 +2143,7 @@ static INLINE void
 TOKEN_JUMP(struct shader_translator *tx)
 {
     if (tx->parse_next && tx->parse != tx->parse_next) {
-        DBG("parse(%p) != parse_next(%p) !\n", tx->parse, tx->parse_next);
+        WARN("parse(%p) != parse_next(%p) !\n", tx->parse, tx->parse_next);
         tx->parse = tx->parse_next;
     }
 }
