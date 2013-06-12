@@ -2115,13 +2115,15 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
         nine_reference(&state->texture[Stage], pTexture);
     } else {
         struct NineBaseTexture9 *tex = NineBaseTexture9(pTexture);
-        if (state->texture[Stage] == tex)
+        struct NineBaseTexture9 *old = state->texture[Stage];
+        if (old == tex)
             return D3D_OK;
 
-        if (state->texture[Stage])
-            if (state->texture[Stage]->base.base.bind == 1)
-                list_delinit(&state->texture[Stage]->list);
-        if (tex)
+        /* NOTE: bind count is only reliable (hope it is) for non-RT textures */
+        if (old && old->base.pool == D3DPOOL_MANAGED)
+            if (old->base.base.bind == 1)
+                list_delinit(&old->list);
+        if (tex && tex->base.pool == D3DPOOL_MANAGED)
             if (tex->base.base.bind == 0)
                 list_add(&tex->list, &This->bound_textures);
 
