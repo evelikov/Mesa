@@ -1011,7 +1011,7 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
 {
     struct NineBaseTexture9 *dstb = NineBaseTexture9(pDestinationTexture);
     struct NineBaseTexture9 *srcb = NineBaseTexture9(pSourceTexture);
-    unsigned l;
+    unsigned l, m;
     unsigned last_level = dstb->base.info.last_level;
 
     DBG("This=%p pSourceTexture=%p pDestinationTexture=%p\n", This,
@@ -1035,13 +1035,32 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
      * Yes, this seems silly, but it's what MSDN says ...
      */
 
+    /* Find src level that matches dst level 0: */
+    user_assert(srcb->base.info.width0 >= dstb->base.info.width0 &&
+                srcb->base.info.height0 >= dstb->base.info.height0 &&
+                srcb->base.info.depth0 >= dstb->base.info.depth0,
+                D3DERR_INVALIDCALL);
+    for (m = 0; m <= srcb->base.info.last_level; ++m) {
+        unsigned w = u_minify(srcb->base.info.width0, m);
+        unsigned h = u_minify(srcb->base.info.height0, m);
+        unsigned d = u_minify(srcb->base.info.depth0, m);
+
+        if (w == dstb->base.info.width0 &&
+            h == dstb->base.info.height0 &&
+            d == dstb->base.info.depth0)
+            break;
+    }
+    user_assert(m <= srcb->base.info.last_level, D3DERR_INVALIDCALL);
+
+    last_level = MIN2(last_level, srcb->base.info.last_level - m);
+
     if (dstb->base.type == D3DRTYPE_TEXTURE) {
         struct NineTexture9 *dst = NineTexture9(dstb);
         struct NineTexture9 *src = NineTexture9(srcb);
 
-        for (l = 0; l <= last_level; ++l)
+        for (l = 0; l <= last_level; ++l, ++m)
             NineSurface9_CopySurface(dst->surfaces[l],
-                                     src->surfaces[l], NULL, NULL);
+                                     src->surfaces[m], NULL, NULL);
     } else
     if (dstb->base.type == D3DRTYPE_CUBETEXTURE) {
         struct NineCubeTexture9 *dst = NineCubeTexture9(dstb);
@@ -1050,9 +1069,9 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
 
         /* GPUs usually have them stored as arrays of mip-mapped 2D textures. */
         for (z = 0; z < 6; ++z) {
-            for (l = 0; l <= last_level; ++l) {
+            for (l = 0; l <= last_level; ++l, ++m) {
                 NineSurface9_CopySurface(dst->surfaces[l * 6 + z],
-                                         src->surfaces[l * 6 + z], NULL, NULL);
+                                         src->surfaces[m * 6 + z], NULL, NULL);
             }
         }
     } else
@@ -1060,9 +1079,9 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
         struct NineVolumeTexture9 *dst = NineVolumeTexture9(dstb);
         struct NineVolumeTexture9 *src = NineVolumeTexture9(srcb);
 
-        for (l = 0; l <= last_level; ++l)
+        for (l = 0; l <= last_level; ++l, ++m)
             NineVolume9_CopyVolume(dst->volumes[l],
-                                   src->volumes[l], 0, 0, 0, NULL);
+                                   src->volumes[m], 0, 0, 0, NULL);
     } else{
         assert(!"invalid texture type");
     }
