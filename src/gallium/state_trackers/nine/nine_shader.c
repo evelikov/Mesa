@@ -1288,8 +1288,12 @@ DECL_SPECIAL(MOVA)
     struct ureg_dst tmp = tx_scratch(tx);
 
     tmp.WriteMask = dst.WriteMask;
-    ureg_ROUND(tx->ureg, tmp, src);
-    ureg_ARL(tx->ureg, dst, ureg_src(tmp));
+    if (tx->version.major > 1) {
+        ureg_ROUND(tx->ureg, tmp, src);
+        ureg_ARL(tx->ureg, dst, ureg_src(tmp));
+    } else {
+        ureg_ARL(tx->ureg, dst, src);
+    }
 
     return D3D_OK;
 }
