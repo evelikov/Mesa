@@ -492,7 +492,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
         pipe->set_fragment_sampler_views(pipe, num_textures, view);
 
     if (commit_samplers)
-        cso_single_sampler_done(device->cso, PIPE_SHADER_VERTEX);
+        cso_single_sampler_done(device->cso, PIPE_SHADER_FRAGMENT);
 
     commit_samplers = FALSE;
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_VS; ++i) {
@@ -515,7 +515,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
         pipe->set_vertex_sampler_views(pipe, num_textures, view);
 
     if (commit_samplers)
-        cso_single_sampler_done(device->cso, PIPE_SHADER_FRAGMENT);
+        cso_single_sampler_done(device->cso, PIPE_SHADER_VERTEX);
 
     state->changed.texture = 0;
 }
