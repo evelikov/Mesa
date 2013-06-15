@@ -341,7 +341,8 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         if (c) {
             DBG("upload ConstantI [%u .. %u]\n", x, x + c - 1);
             data = &const_i[x * 4];
-            box.x = x * 4 * sizeof(int);
+            box.x  = buf->width0 - (NINE_MAX_CONST_I * 4 + NINE_MAX_CONST_B) * 4;
+            box.x += x * 4 * sizeof(int);
             box.width = c * 4 * sizeof(int);
             c = 0;
             pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
@@ -350,7 +351,8 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     if (c) {
         DBG("upload ConstantI [%u .. %u]\n", x, x + c - 1);
         data = &const_i[x * 4];
-        box.x = x * 4 * sizeof(int);
+        box.x  = buf->width0 - (NINE_MAX_CONST_I * 4 + NINE_MAX_CONST_B) * 4;
+        box.x += x * 4 * sizeof(int);
         box.width = c * 4 * sizeof(int);
         pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
