@@ -381,7 +381,7 @@ NineDevice9_ResumeRecording( struct NineDevice9 *This )
 HRESULT WINAPI
 NineDevice9_TestCooperativeLevel( struct NineDevice9 *This )
 {
-    STUB(D3D_OK);
+    return D3D_OK; /* TODO */
 }
 
 UINT WINAPI
