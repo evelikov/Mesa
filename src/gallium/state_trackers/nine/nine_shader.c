@@ -1387,12 +1387,18 @@ DECL_SPECIAL(SINCOS)
     struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
     struct ureg_src src = tx_src_param(tx, &tx->insn.src[0]);
 
-    if (tx->version.major == 1)
-        return D3DERR_INVALIDCALL;
     assert(!(dst.WriteMask & 0xc));
 
-    dst.WriteMask &= TGSI_WRITEMASK_XY;
+    dst.WriteMask &= TGSI_WRITEMASK_XY; /* z undefined, w untouched */
     ureg_SCS(tx->ureg, dst, src);
+    return D3D_OK;
+}
+
+DECL_SPECIAL(SGN)
+{
+    ureg_SSG(tx->ureg,
+             tx_dst_param(tx, &tx->insn.dst[0]),
+             tx_src_param(tx, &tx->insn.src[0]));
     return D3D_OK;
 }
 
@@ -2041,11 +2047,12 @@ struct sm1_op_info inst_table[] =
 
     _OPI(POW, POW, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL),
     _OPI(CRS, XPD, V(0,0), V(3,0), V(0,0), V(3,0), 1, 2, NULL), /* XXX: .w */
-    _OPI(SGN, SSG, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL), /* XXX: special ? */
+    _OPI(SGN, SSG, V(2,0), V(3,0), V(0,0), V(0,0), 1, 3, SPECIAL(SGN)), /* ignore src1,2 */
     _OPI(ABS, ABS, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, NULL),
     _OPI(NRM, NRM, V(0,0), V(3,0), V(0,0), V(3,0), 1, 1, SPECIAL(NRM)), /* NRM doesn't fit */
 
-    _OPI(SINCOS, SCS, V(2,0), V(3,0), V(2,0), V(3,0), 1, 1, SPECIAL(SINCOS)),
+    _OPI(SINCOS, SCS, V(2,0), V(2,1), V(2,0), V(2,1), 1, 3, SPECIAL(SINCOS)),
+    _OPI(SINCOS, SCS, V(3,0), V(3,0), V(3,0), V(3,0), 1, 1, SPECIAL(SINCOS)),
 
     /* More flow control */
     _OPI(REP,    NOP,    V(2,0), V(3,0), V(2,1), V(3,0), 0, 1, SPECIAL(REP)),
