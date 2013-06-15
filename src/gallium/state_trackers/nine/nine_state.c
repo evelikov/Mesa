@@ -240,7 +240,34 @@ update_vs(struct NineDevice9 *device)
         device->state.rs[NINED3DRS_VSPOINTSIZE] = vs->point_size;
         return NINE_STATE_RASTERIZER;
     }
+#ifdef DEBUG
+    {
+        unsigned s, mask = vs->sampler_mask;
+        for (s = 0; mask; ++s, mask >>= 1)
+            if ((mask & 1) && !(device->state.texture[NINE_SAMPLER_VS(s)]))
+                WARN_ONCE("FIXME: unbound sampler should return alpha=1\n");
+    }
+#endif
     return 0;
+}
+
+static INLINE void
+update_ps(struct NineDevice9 *device)
+{
+    struct NinePixelShader9 *ps;
+
+    ps = device->state.ps ? device->state.ps : device->ff.ps;
+
+    device->state.cso.ps = ps->cso;
+    device->pipe->bind_fs_state(device->pipe, ps->cso);
+#ifdef DEBUG
+    {
+        unsigned s, mask = ps->sampler_mask;
+        for (s = 0; mask; ++s, mask >>= 1)
+            if ((mask & 1) && !(device->state.texture[NINE_SAMPLER_PS(s)]))
+                WARN_ONCE("FIXME: unbound sampler should return alpha=1\n");
+    }
+#endif
 }
 
 #define DO_UPLOAD_CONST_F(buf,x,c,d) \
@@ -481,6 +508,10 @@ update_textures_and_samplers(struct NineDevice9 *device)
         const unsigned s = NINE_SAMPLER_PS(i);
         if (!state->texture[s]) {
             view[i] = NULL;
+#ifdef DEBUG
+            if (state->ps && state->ps->sampler_mask & (1 << i))
+                WARN_ONCE("FIXME: unbound sampler should return alpha=1\n");
+#endif
             continue;
         }
         view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
@@ -504,6 +535,10 @@ update_textures_and_samplers(struct NineDevice9 *device)
         const unsigned s = NINE_SAMPLER_VS(i);
         if (!state->texture[s]) {
             view[i] = NULL;
+#ifdef DEBUG
+            if (state->vs && state->vs->sampler_mask & (1 << i))
+                WARN_ONCE("FIXME: unbound sampler should return alpha=1\n");
+#endif
             continue;
         }
         view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
@@ -582,11 +617,8 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
         if (group & NINE_STATE_RASTERIZER)
             update_rasterizer(device);
 
-        if (group & NINE_STATE_PS) {
-            state->cso.ps =
-                device->state.ps ? device->state.ps->cso : device->ff.ps->cso;
-            pipe->bind_fs_state(pipe, state->cso.ps);
-        }
+        if (group & NINE_STATE_PS)
+            update_ps(device);
 
         if (group & NINE_STATE_BLEND_COLOR) {
             struct pipe_blend_color color;

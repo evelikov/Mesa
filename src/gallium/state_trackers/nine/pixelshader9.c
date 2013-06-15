@@ -60,6 +60,7 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
     This->byte_code.size = info.byte_size;
 
     This->cso = info.cso;
+    This->sampler_mask = info.sampler_mask;
     This->rt_mask = info.rt_mask;
     This->lconstf = info.lconstf;
 

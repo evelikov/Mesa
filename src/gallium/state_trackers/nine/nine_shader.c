@@ -1690,6 +1690,7 @@ DECL_SPECIAL(DCL)
 
     if (is_sampler) {
         ureg_DECL_sampler(ureg, sem.reg.idx);
+        tx->info->sampler_mask |= 1 << sem.reg.idx;
         tx->sampler_targets[sem.reg.idx] = d3dstt_to_tgsi_tex(sem.sampler_type);
         return D3D_OK;
     }
@@ -1925,7 +1926,7 @@ DECL_SPECIAL(TEXLD)
 
 DECL_SPECIAL(TEXLD_14)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEX)
@@ -1940,6 +1941,9 @@ DECL_SPECIAL(TEX)
 
     src[0] = tx->regs.vT[s];
     src[1] = ureg_DECL_sampler(ureg, s);
+    tx->info->sampler_mask |= 1 << s;
+
+    WARN("FIXME: < PS 2.0 TEX only works for 2D textures\n");
 
     /* XXX TODO: Need shader variants because target depends on outside state.
      */
@@ -2470,6 +2474,7 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
     info->position_t = FALSE;
     info->point_size = FALSE;
 
+    info->sampler_mask = 0x0;
     info->rt_mask = 0x0;
 
     for (i = 0; i < Elements(tx->regs.aL); ++i) {

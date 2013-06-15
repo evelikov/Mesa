@@ -52,6 +52,7 @@ struct nine_shader_info
     boolean position_t; /* true if VP writes pre-transformed position */
     boolean point_size; /* true if VP writes point size */
 
+    uint16_t sampler_mask; /* which samplers are being used */
     uint8_t rt_mask; /* which render targets are being written */
 
     struct nine_lconstf lconstf; /* members to be free'd by user */

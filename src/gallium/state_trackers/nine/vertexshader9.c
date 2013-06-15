@@ -62,6 +62,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
 
     This->cso = info.cso;
     This->lconstf = info.lconstf;
+    This->sampler_mask = info.sampler_mask;
     This->position_t = info.position_t;
     This->point_size = info.point_size;
 
