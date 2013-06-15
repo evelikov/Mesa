@@ -186,11 +186,13 @@ update_rasterizer(struct NineDevice9 *device)
 static void
 update_vertex_elements(struct NineDevice9 *device)
 {
-    const struct nine_state *state = &device->state;
+    struct nine_state *state = &device->state;
     const struct NineVertexDeclaration9 *vdecl = device->state.vdecl;
     const struct NineVertexShader9 *vs;
     unsigned n, l, b;
     struct pipe_vertex_element ve[PIPE_MAX_ATTRIBS];
+
+    state->stream_usage_mask = 0;
 
     vs = device->state.vs ? device->state.vs : device->ff.vs;
 
@@ -205,6 +207,7 @@ update_vertex_elements(struct NineDevice9 *device)
         if (likely(l < vdecl->nelems)) {
             ve[n] = vdecl->elems[l];
             b = ve[n].vertex_buffer_index;
+            state->stream_usage_mask |= 1 << b;
             /* XXX wine just uses 1 here: */
             if (state->stream_freq[b] & D3DSTREAMSOURCE_INSTANCEDATA)
                 ve[n].instance_divisor = state->stream_freq[b] & 0x7FFFFF;
