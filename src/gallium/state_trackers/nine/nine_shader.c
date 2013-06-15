@@ -464,7 +464,8 @@ struct shader_translator
         struct ureg_dst t[5]; /* scratch TEMPs */
         struct ureg_src vC[2]; /* PS color in */
         struct ureg_src vT[8]; /* PS texcoord in */
-        struct ureg_dst aL[NINE_MAX_LOOP_DEPTH]; /* loop ctr */
+        struct ureg_dst rL[NINE_MAX_LOOP_DEPTH]; /* loop ctr */
+        struct ureg_dst aL[NINE_MAX_LOOP_DEPTH]; /* loop ctr ADDR register */
     } regs;
     unsigned num_temp; /* Elements(regs.r) */
     unsigned num_scratch;
@@ -702,14 +703,24 @@ tx_get_loopctr(struct shader_translator *tx)
 
     if (ureg_dst_is_undef(tx->regs.aL[l]))
     {
-        struct ureg_dst reg = ureg_DECL_local_temporary(tx->ureg);
+        struct ureg_dst rreg = ureg_DECL_local_temporary(tx->ureg);
+        struct ureg_dst areg = ureg_DECL_address(tx->ureg);
         unsigned c;
 
         assert(l % 4 == 0);
-        for (c = l; c < (l + 4) && c < Elements(tx->regs.aL); ++c)
-            tx->regs.aL[c] = ureg_writemask(reg, 1 << (c & 3));
+        for (c = l; c < (l + 4) && c < Elements(tx->regs.aL); ++c) {
+            tx->regs.rL[c] = ureg_writemask(rreg, 1 << (c & 3));
+            tx->regs.aL[c] = ureg_writemask(areg, 1 << (c & 3));
+        }
     }
-    return tx->regs.aL[l];
+    return tx->regs.rL[l];
+}
+static struct ureg_dst
+tx_get_aL(struct shader_translator *tx)
+{
+    if (!ureg_dst_is_undef(tx_get_loopctr(tx)))
+        return tx->regs.aL[tx->loop_depth - 1];
+    return ureg_dst_undef();
 }
 
 static INLINE unsigned *
@@ -827,7 +838,7 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         }
         break;
     case D3DSPR_LOOP:
-        src = ureg_src(tx_get_loopctr(tx));
+        src = tx_src_scalar(tx_get_aL(tx));
         break;
     case D3DSPR_MISCTYPE:
         switch (param->idx) {
@@ -1324,18 +1335,24 @@ DECL_SPECIAL(LOOP)
     if (tx->native_integers) {
         /* we'll let the backend pull up that MAD ... */
         ureg_UMAD(ureg, tmp, iter, step, init);
-        ureg_USGE(ureg, tmp, ureg_src(ctr), tx_src_scalar(tmp));
-        ureg_UADD(ureg, ctr, tx_src_scalar(ctr), step);
+        ureg_USEQ(ureg, tmp, ureg_src(ctr), tx_src_scalar(tmp));
         ureg_UIF(ureg, tx_src_scalar(tmp), tx_cond(tx));
     } else {
+        /* can't simply use SGE for precision because step might be negative */
         ureg_MAD(ureg, tmp, iter, step, init);
-        ureg_SGE(ureg, tmp, ureg_src(ctr), tx_src_scalar(tmp));
-        ureg_ADD(ureg, ctr, tx_src_scalar(ctr), step);
+        ureg_SEQ(ureg, tmp, ureg_src(ctr), tx_src_scalar(tmp));
         ureg_IF(ureg, tx_src_scalar(tmp), tx_cond(tx));
     }
     ureg_BRK(ureg);
     tx_endcond(tx);
     ureg_ENDIF(ureg);
+    if (tx->native_integers) {
+        ureg_UARL(ureg, tx_get_aL(tx), tx_src_scalar(ctr));
+        ureg_UADD(ureg, ctr, tx_src_scalar(ctr), step);
+    } else {
+        ureg_ARL(ureg, tx_get_aL(tx), tx_src_scalar(ctr));
+        ureg_ADD(ureg, ctr, tx_src_scalar(ctr), step);
+    }
     return D3D_OK;
 }
 
@@ -2017,7 +2034,7 @@ struct sm1_op_info inst_table[] =
     _OPI(CALLNZ,  CAL,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(CALLNZ)),
     _OPI(LOOP,    BGNLOOP, V(2,0), V(3,0), V(3,0), V(3,0), 0, 2, SPECIAL(LOOP)),
     _OPI(RET,     RET,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(RET)),
-    _OPI(ENDLOOP, ENDLOOP, V(3,0), V(3,0), V(3,0), V(3,0), 0, 0, SPECIAL(ENDLOOP)),
+    _OPI(ENDLOOP, ENDLOOP, V(2,0), V(3,0), V(3,0), V(3,0), 0, 0, SPECIAL(ENDLOOP)),
     _OPI(LABEL,   NOP,     V(2,0), V(3,0), V(2,1), V(3,0), 0, 0, SPECIAL(LABEL)),
 
     _OPI(DCL, NOP, V(0,0), V(3,0), V(0,0), V(3,0), 0, 0, SPECIAL(DCL)),
@@ -2448,6 +2465,10 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
 
     info->rt_mask = 0x0;
 
+    for (i = 0; i < Elements(tx->regs.aL); ++i) {
+        tx->regs.aL[i] = ureg_dst_undef();
+        tx->regs.rL[i] = ureg_dst_undef();
+    }
     tx->regs.a = ureg_dst_undef();
     tx->regs.p = ureg_dst_undef();
     tx->regs.oDepth = ureg_dst_undef();
