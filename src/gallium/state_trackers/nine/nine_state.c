@@ -65,12 +65,14 @@ update_framebuffer(struct NineDevice9 *device)
 
     DBG("\n");
 
+    state->rt_mask = 0x0;
     fb->nr_cbufs = 0;
 
     cbuf_float = FALSE;
     for (i = 0; i < device->caps.NumSimultaneousRTs; ++i) {
         if (state->rt[i]) {
             fb->cbufs[i] = NineSurface9_GetSurface(state->rt[i]);
+            state->rt_mask |= 1 << i;
             fb->nr_cbufs = i + 1;
             if (w) {
                 w = MIN2(w, state->rt[i]->desc.Width);
@@ -111,6 +113,11 @@ update_framebuffer(struct NineDevice9 *device)
         state->rs[NINED3DRS_COLORCLAMP] = !cbuf_float;
         state->changed.group |= NINE_STATE_RASTERIZER;
     }
+#ifdef DEBUG
+    if (state->rt_mask & (state->ps ? ~state->ps->rt_mask : 0))
+        WARN_ONCE("FIXME: writing undefined values to cbufs 0x%x\n",
+                  state->rt_mask & ~state->ps->rt_mask);
+#endif
     return state->changed.group;
 }
 
@@ -251,7 +258,7 @@ update_vs(struct NineDevice9 *device)
     return 0;
 }
 
-static INLINE void
+static INLINE uint32_t
 update_ps(struct NineDevice9 *device)
 {
     struct NinePixelShader9 *ps;
@@ -266,8 +273,12 @@ update_ps(struct NineDevice9 *device)
         for (s = 0; mask; ++s, mask >>= 1)
             if ((mask & 1) && !(device->state.texture[NINE_SAMPLER_PS(s)]))
                 WARN_ONCE("FIXME: unbound sampler should return alpha=1\n");
+        if (device->state.rt_mask & ~ps->rt_mask)
+            WARN_ONCE("FIXME: writing undefined values to cbufs 0x%x\n",
+                device->state.rt_mask & ~ps->rt_mask);
     }
 #endif
+    return 0;
 }
 
 #define DO_UPLOAD_CONST_F(buf,x,c,d) \
@@ -618,7 +629,7 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
             update_rasterizer(device);
 
         if (group & NINE_STATE_PS)
-            update_ps(device);
+            group |= update_ps(device);
 
         if (group & NINE_STATE_BLEND_COLOR) {
             struct pipe_blend_color color;

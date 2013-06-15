@@ -32,8 +32,9 @@
 
 #define NINED3DRS_COLORCLAMP  (D3DRS_BLENDOPALPHA + 1)
 #define NINED3DRS_VSPOINTSIZE (D3DRS_BLENDOPALPHA + 2)
+#define NINED3DRS_RTMASK      (D3DRS_BLENDOPALPHA + 3)
 
-#define NINED3DRS_LAST   NINED3DRS_VSPOINTSIZE /* 211 */
+#define NINED3DRS_LAST   NINED3DRS_RTMASK /* 212 */
 #define NINED3DSAMP_LAST NINED3DSAMP_MINLOD /* 14 */
 #define NINED3DTSS_LAST  D3DTSS_CONSTANT
 #define NINED3DTS_LAST   D3DTS_WORLDMATRIX(255)
@@ -157,6 +158,7 @@ struct nine_state
 
     struct pipe_clip_state clip;
     struct pipe_framebuffer_state fb;
+    uint8_t rt_mask;
 
     DWORD rs[NINED3DRS_COUNT];
 
