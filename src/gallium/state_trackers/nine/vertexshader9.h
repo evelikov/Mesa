@@ -29,7 +29,7 @@
 struct NineVertexShader9
 {
     struct NineUnknown base;
-    void *cso;
+    struct nine_shader_variant variant;
 
     struct {
         uint8_t ndecl; /* NINE_DECLUSAGE_x */
@@ -58,6 +58,12 @@ NineVertexShader9( void *data )
 {
     return (struct NineVertexShader9 *)data;
 }
+
+void *
+NineVertexShader9_GetVariant( struct NineVertexShader9 *vs,
+                              uint32_t key );
+
+/*** public ***/
 
 HRESULT
 NineVertexShader9_new( struct NineDevice9 *pDevice,

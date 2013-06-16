@@ -31,7 +31,8 @@ struct nine_lconstf;
 struct NinePixelShader9
 {
     struct NineUnknown base;
-    void *cso;
+    struct nine_shader_variant variant;
+
     struct {
         const DWORD *tokens;
         DWORD size;
@@ -50,6 +51,12 @@ NinePixelShader9( void *data )
 {
     return (struct NinePixelShader9 *)data;
 }
+
+void *
+NinePixelShader9_GetVariant( struct NinePixelShader9 *vs,
+                             uint32_t key );
+
+/*** public ***/
 
 HRESULT
 NinePixelShader9_new( struct NineDevice9 *pDevice,

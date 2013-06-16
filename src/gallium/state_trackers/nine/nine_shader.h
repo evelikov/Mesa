@@ -27,6 +27,7 @@
 #include "d3d9caps.h"
 #include "nine_defines.h"
 #include "pipe/p_state.h" /* PIPE_MAX_ATTRIBS */
+#include "util/u_memory.h"
 
 struct NineDevice9;
 
@@ -61,5 +62,50 @@ struct nine_shader_info
 
 HRESULT
 nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *);
+
+
+struct nine_shader_variant
+{
+    struct nine_shader_variant *next;
+    void *cso;
+    uint32_t key;
+};
+
+static INLINE void *
+nine_shader_variant_get(struct nine_shader_variant *list, uint32_t key)
+{
+    while (list->key != key && list->next)
+        list = list->next;
+    if (list->key == key)
+        return list->cso;
+    return NULL;
+}
+
+static INLINE boolean
+nine_shader_variant_add(struct nine_shader_variant *list,
+                        uint32_t key, void *cso)
+{
+    while (list->next) {
+        assert(list->key != key);
+        list = list->next;
+    }
+    list->next = MALLOC_STRUCT(nine_shader_variant);
+    if (!list->next)
+        return FALSE;
+    list->next->next = NULL;
+    list->next->key = key;
+    list->next->cso = cso;
+    return TRUE;
+}
+
+static INLINE void
+nine_shader_variants_free(struct nine_shader_variant *list)
+{
+    while (list->next) {
+        struct nine_shader_variant *ptr = list->next;
+        list->next = ptr->next;
+        FREE(ptr);
+    }
+}
 
 #endif /* _NINE_SHADER_H_ */

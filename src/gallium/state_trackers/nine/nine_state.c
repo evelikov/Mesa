@@ -234,17 +234,47 @@ update_vertex_elements(struct NineDevice9 *device)
 }
 
 static INLINE uint32_t
+update_shader_variant_keys(struct NineDevice9 *device)
+{
+    struct nine_state *state = &device->state;
+    uint32_t mask = 0;
+    uint32_t vs_key = state->samplers_shadow;
+    uint32_t ps_key = state->samplers_shadow;
+
+    vs_key = (vs_key & NINE_VS_SAMPLERS_MASK) >> NINE_SAMPLER_VS(0);
+    ps_key = (ps_key & NINE_PS_SAMPLERS_MASK) >> NINE_SAMPLER_PS(0);
+
+    if (state->vs) vs_key &= state->vs->sampler_mask;
+    if (state->ps) ps_key &= state->ps->sampler_mask;
+
+    if (state->vs && state->vs_key != vs_key) {
+        state->vs_key = vs_key;
+        mask |= NINE_STATE_VS;
+    }
+    if (state->ps && state->ps_key != ps_key) {
+        state->ps_key = ps_key;
+        mask |= NINE_STATE_PS;
+    }
+    return mask;
+}
+
+static INLINE uint32_t
 update_vs(struct NineDevice9 *device)
 {
-    struct NineVertexShader9 *vs;
+    struct nine_state *state = &device->state;
+    struct NineVertexShader9 *vs = state->vs;
 
-    vs = device->state.vs ? device->state.vs : device->ff.vs;
+    /* likely because we dislike FF */
+    if (likely(vs)) {
+        state->cso.vs = NineVertexShader9_GetVariant(vs, state->vs_key);
+    } else {
+        vs = device->ff.vs;
+        state->cso.vs = vs->variant.cso;
+    }
+    device->pipe->bind_vs_state(device->pipe, state->cso.vs);
 
-    device->state.cso.vs = vs->cso;
-    device->pipe->bind_vs_state(device->pipe, vs->cso);
-
-    if (device->state.rs[NINED3DRS_VSPOINTSIZE] != vs->point_size) {
-        device->state.rs[NINED3DRS_VSPOINTSIZE] = vs->point_size;
+    if (state->rs[NINED3DRS_VSPOINTSIZE] != vs->point_size) {
+        state->rs[NINED3DRS_VSPOINTSIZE] = vs->point_size;
         return NINE_STATE_RASTERIZER;
     }
 #ifdef DEBUG
@@ -261,12 +291,17 @@ update_vs(struct NineDevice9 *device)
 static INLINE uint32_t
 update_ps(struct NineDevice9 *device)
 {
-    struct NinePixelShader9 *ps;
+    struct nine_state *state = &device->state;
+    struct NinePixelShader9 *ps = state->ps;
 
-    ps = device->state.ps ? device->state.ps : device->ff.ps;
+    if (likely(ps)) {
+        state->cso.ps = NinePixelShader9_GetVariant(ps, state->ps_key);
+    } else {
+        ps = device->ff.ps;
+        state->cso.ps = ps->variant.cso;
+    }
+    device->pipe->bind_fs_state(device->pipe, state->cso.ps);
 
-    device->state.cso.ps = ps->cso;
-    device->pipe->bind_fs_state(device->pipe, ps->cso);
 #ifdef DEBUG
     {
         unsigned s, mask = ps->sampler_mask;
@@ -580,6 +615,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
     state->changed.texture = 0;
 }
 
+
 #define NINE_STATE_FREQ_GROUP_0 \
    (NINE_STATE_FB |             \
     NINE_STATE_VIEWPORT |       \
@@ -594,6 +630,12 @@ update_textures_and_samplers(struct NineDevice9 *device)
     NINE_STATE_SAMPLE_MASK)
 
 #define NINE_STATE_FREQ_GROUP_1 ~NINE_STATE_FREQ_GROUP_0
+
+#define NINE_STATE_SHADER_VARIANT_GROUP \
+    (NINE_STATE_TEXTURE | \
+     NINE_STATE_VS | \
+     NINE_STATE_PS)
+
 boolean
 nine_update_state(struct NineDevice9 *device, uint32_t mask)
 {
@@ -617,6 +659,9 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
     if ((mask & NINE_STATE_FF) && unlikely(!state->vs || !state->ps))
         nine_ff_update(device);
     group = state->changed.group & mask;
+
+    if (group & NINE_STATE_SHADER_VARIANT_GROUP)
+        group |= update_shader_variant_keys(device);
 
     if (group & NINE_STATE_FREQ_GROUP_0) {
         if (group & NINE_STATE_FB)

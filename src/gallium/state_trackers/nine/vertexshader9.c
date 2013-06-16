@@ -44,7 +44,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
         return hr;
 
     if (cso) {
-        This->cso = cso;
+        This->variant.cso = cso;
         return D3D_OK;
     }
 
@@ -60,7 +60,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
         return E_OUTOFMEMORY;
     This->byte_code.size = info.byte_size;
 
-    This->cso = info.cso;
+    This->variant.cso = info.cso;
     This->lconstf = info.lconstf;
     This->sampler_mask = info.sampler_mask;
     This->position_t = info.position_t;
@@ -76,16 +76,21 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
 void
 NineVertexShader9_dtor( struct NineVertexShader9 *This )
 {
-    DBG("This=%p cso=%p\n", This, This->cso);
+    DBG("This=%p cso=%p\n", This, This->variant.cso);
 
     if (This->base.device) {
         struct pipe_context *pipe = This->base.device->pipe;
-        if (This->cso) {
-            if (This->base.device->state.cso.vs == This->cso)
-                pipe->bind_vs_state(pipe, NULL);
-            pipe->delete_vs_state(pipe, This->cso);
-        }
+        struct nine_shader_variant *var = &This->variant;
+        do {
+            if (var->cso) {
+                if (This->base.device->state.cso.vs == var->cso)
+                    pipe->bind_vs_state(pipe, NULL);
+                pipe->delete_vs_state(pipe, var->cso);
+            }
+            var = var->next;
+        } while (var);
     }
+    nine_shader_variants_free(&This->variant);
 
     if (This->byte_code.tokens)
         FREE((void *)This->byte_code.tokens); /* const_cast */
@@ -112,6 +117,28 @@ NineVertexShader9_GetFunction( struct NineVertexShader9 *This,
     memcpy(pData, This->byte_code.tokens, This->byte_code.size);
 
     return D3D_OK;
+}
+
+void *
+NineVertexShader9_GetVariant( struct NineVertexShader9 *This,
+                              uint32_t key )
+{
+    void *cso = nine_shader_variant_get(&This->variant, key);
+    if (!cso) {
+        struct nine_shader_info info;
+        HRESULT hr;
+
+        info.type = PIPE_SHADER_VERTEX;
+        info.byte_code = This->byte_code.tokens;
+        info.sampler_mask_shadow = key & 0xf;
+
+        hr = nine_translate_shader(This->base.device, &info);
+        if (FAILED(hr))
+            return NULL;
+        nine_shader_variant_add(&This->variant, key, info.cso);
+        cso = info.cso;
+    }
+    return cso;
 }
 
 IDirect3DVertexShader9Vtbl NineVertexShader9_vtable = {

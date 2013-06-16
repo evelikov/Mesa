@@ -1696,6 +1696,7 @@ nine_ff_update(struct NineDevice9 *device)
 
         memset(state->ff.changed.transform, 0, sizeof(state->ff.changed.transform));
 
+        device->state.changed.group |= NINE_STATE_VS;
         device->state.changed.group |= NINE_STATE_VS_CONST;
         memset(device->state.changed.vs_const_f, ~0, 256 / 8);
     }
@@ -1709,12 +1710,12 @@ nine_ff_update(struct NineDevice9 *device)
         }
         nine_ff_upload_ps_params(device);
 
+        device->state.changed.group |= NINE_STATE_PS;
         device->state.changed.group |= NINE_STATE_PS_CONST;
         memset(device->state.changed.ps_const_f, ~0, 24 / 8);
     }
 
     device->state.changed.group &= ~NINE_STATE_FF;
-    device->state.changed.group |= NINE_STATE_VS | NINE_STATE_PS;
 }
 
 
