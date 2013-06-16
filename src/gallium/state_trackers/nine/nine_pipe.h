@@ -178,8 +178,7 @@ d3d9_to_pipe_format(D3DFORMAT format)
     if (format <= D3DFMT_A2B10G10R10_XR_BIAS)
         return nine_d3d9_to_pipe_format_map[format];
     switch (format) {
-    case D3DFMT_DF16: return PIPE_FORMAT_Z16_UNORM;
-    case D3DFMT_DF24: return PIPE_FORMAT_Z24X8_UNORM;
+    case D3DFMT_INTZ: return PIPE_FORMAT_Z24_UNORM_S8_UINT;
     case D3DFMT_DXT1: return PIPE_FORMAT_DXT1_RGBA;
     case D3DFMT_DXT2: return PIPE_FORMAT_DXT3_RGBA; /* XXX */
     case D3DFMT_DXT3: return PIPE_FORMAT_DXT3_RGBA;
@@ -195,7 +194,9 @@ d3d9_to_pipe_format(D3DFORMAT format)
     case D3DFMT_Y210: /* XXX */
     case D3DFMT_Y216:
     case D3DFMT_NV11:
-    case D3DFMT_NULL: /* ? */
+    case D3DFMT_DF16: /* useless, not supported by wine either */
+    case D3DFMT_DF24: /* useless, not supported by wine either */
+    case D3DFMT_NULL: /* TODO, hack for setting RT[0] to NULL */
         return PIPE_FORMAT_NONE;
     default:
         DBG_FLAG(DBG_UNKNOWN, "unknown D3DFORMAT: 0x%x/%c%c%c%c\n",
@@ -276,6 +277,7 @@ d3dformat_to_string(D3DFORMAT fmt)
     case D3DFMT_BINARYBUFFER: return "D3DFMT_BINARYBUFFER";
     case D3DFMT_DF16: return "D3DFMT_DF16";
     case D3DFMT_DF24: return "D3DFMT_DF24";
+    case D3DFMT_INTZ: return "D3DFMT_INTZ";
     case D3DFMT_NULL: return "D3DFMT_NULL";
     default:
         break;

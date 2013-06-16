@@ -1619,6 +1619,19 @@ d3dstt_to_tgsi_tex(BYTE sampler_type)
         return TGSI_TEXTURE_UNKNOWN;
     }
 }
+static INLINE unsigned
+d3dstt_to_tgsi_tex_shadow(BYTE sampler_type)
+{
+    switch (sampler_type) {
+    case NINED3DSTT_1D: return TGSI_TEXTURE_SHADOW1D;
+    case NINED3DSTT_2D: return TGSI_TEXTURE_SHADOW2D;
+    case NINED3DSTT_VOLUME:
+    case NINED3DSTT_CUBE:
+    default:
+        assert(0);
+        return TGSI_TEXTURE_UNKNOWN;
+    }
+}
 
 static const char *
 sm1_sampler_type_name(BYTE sampler_type)
@@ -1689,9 +1702,12 @@ DECL_SPECIAL(DCL)
         DUMP("\n");
 
     if (is_sampler) {
+        const unsigned m = 1 << sem.reg.idx;
         ureg_DECL_sampler(ureg, sem.reg.idx);
-        tx->info->sampler_mask |= 1 << sem.reg.idx;
-        tx->sampler_targets[sem.reg.idx] = d3dstt_to_tgsi_tex(sem.sampler_type);
+        tx->info->sampler_mask |= m;
+        tx->sampler_targets[sem.reg.idx] = (tx->info->sampler_mask_shadow & m) ?
+            d3dstt_to_tgsi_tex_shadow(sem.sampler_type) :
+            d3dstt_to_tgsi_tex(sem.sampler_type);
         return D3D_OK;
     }
 

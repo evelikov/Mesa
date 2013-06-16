@@ -2151,6 +2151,11 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
             if (tex->base.base.bind == 0)
                 list_add(&tex->list, &This->bound_textures);
 
+        /* %(($)!P)="=&% */
+        state->samplers_shadow &= ~(1 << Stage);
+        if (tex)
+            state->samplers_shadow |= tex->shadow << Stage;
+
         nine_bind(&state->texture[Stage], pTexture);
     }
     state->changed.texture |= 1 << Stage;

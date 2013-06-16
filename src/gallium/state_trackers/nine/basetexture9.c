@@ -62,6 +62,8 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
         D3DTEXF_LINEAR : D3DTEXF_NONE;
     This->lod = 0;
     This->lod_resident = -1;
+    This->shadow = This->format != D3DFMT_INTZ && util_format_has_depth(
+        util_format_description(This->base.info.format));
 
     list_inithead(&This->list);
 
@@ -436,12 +438,12 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     swizzle[1] = PIPE_SWIZZLE_GREEN;
     swizzle[2] = PIPE_SWIZZLE_BLUE;
     swizzle[3] = PIPE_SWIZZLE_ALPHA;
-    /* see end of docs/source/tgsi.rst */
     desc = util_format_description(resource->format);
     if (desc->colorspace == UTIL_FORMAT_COLORSPACE_ZS) {
-        /* ZZZ1 -> 0Z01 */
+        /* ZZZ1 -> 0Z01 (see end of docs/source/tgsi.rst)
+         * XXX: but it's wrong
         swizzle[0] = PIPE_SWIZZLE_ZERO;
-        swizzle[2] = PIPE_SWIZZLE_ZERO;
+        swizzle[2] = PIPE_SWIZZLE_ZERO; */
     } else
     if (desc->swizzle[0] == UTIL_FORMAT_SWIZZLE_X &&
         desc->swizzle[3] == UTIL_FORMAT_SWIZZLE_1) {

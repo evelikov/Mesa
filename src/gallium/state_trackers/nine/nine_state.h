@@ -29,13 +29,14 @@
 #include "util/u_double_list.h"
 
 #define NINED3DSAMP_MINLOD (D3DSAMP_DMAPOFFSET + 1)
+#define NINED3DSAMP_SHADOW (D3DSAMP_DMAPOFFSET + 2)
 
 #define NINED3DRS_COLORCLAMP  (D3DRS_BLENDOPALPHA + 1)
 #define NINED3DRS_VSPOINTSIZE (D3DRS_BLENDOPALPHA + 2)
 #define NINED3DRS_RTMASK      (D3DRS_BLENDOPALPHA + 3)
 
 #define NINED3DRS_LAST   NINED3DRS_RTMASK /* 212 */
-#define NINED3DSAMP_LAST NINED3DSAMP_MINLOD /* 14 */
+#define NINED3DSAMP_LAST NINED3DSAMP_SHADOW /* 15 */
 #define NINED3DTSS_LAST  D3DTSS_CONSTANT
 #define NINED3DTS_LAST   D3DTS_WORLDMATRIX(255)
 
@@ -139,12 +140,8 @@ struct nine_state
     BOOL   ps_const_b[NINE_MAX_CONST_B];
 
     struct {
-        void *rast;
-        void *dsa;
-        void *blend;
         void *vs;
         void *ps;
-        void *samp[NINE_MAX_SAMPLERS];
     } cso;
 
     struct NineVertexDeclaration9 *vdecl;
@@ -165,6 +162,7 @@ struct nine_state
     struct NineBaseTexture9 *texture[NINE_MAX_SAMPLERS]; /* PS, DMAP, VS */
 
     DWORD samp[NINE_MAX_SAMPLERS][NINED3DSAMP_COUNT];
+    uint32_t samplers_shadow;
 
     struct {
         struct {

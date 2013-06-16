@@ -42,6 +42,7 @@ struct NineVertexShader9
     } byte_code;
 
     uint8_t sampler_mask;
+    uint8_t sampler_mask_shadow;
 
     boolean position_t; /* if true, disable vport transform */
     boolean point_size; /* if true, set rasterizer.point_size_per_vertex to 1 */

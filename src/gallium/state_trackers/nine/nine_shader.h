@@ -49,13 +49,14 @@ struct nine_shader_info
     uint8_t input_map[PIPE_MAX_ATTRIBS]; /* VS input -> NINE_DECLUSAGE_x */
     uint8_t num_inputs; /* there may be unused inputs (NINE_DECLUSAGE_NONE) */
 
-    boolean position_t; /* true if VP writes pre-transformed position */
-    boolean point_size; /* true if VP writes point size */
+    boolean position_t; /* out, true if VP writes pre-transformed position */
+    boolean point_size; /* out, true if VP writes point size */
 
-    uint16_t sampler_mask; /* which samplers are being used */
-    uint8_t rt_mask; /* which render targets are being written */
+    uint16_t sampler_mask; /* out, which samplers are being used */
+    uint16_t sampler_mask_shadow; /* in, which samplers use depth compare */
+    uint8_t rt_mask; /* out, which render targets are being written */
 
-    struct nine_lconstf lconstf; /* members to be free'd by user */
+    struct nine_lconstf lconstf; /* out, NOTE: members to be free'd by user */
 };
 
 HRESULT

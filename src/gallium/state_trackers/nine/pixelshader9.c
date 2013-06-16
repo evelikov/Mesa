@@ -49,6 +49,7 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
 
     info.type = PIPE_SHADER_FRAGMENT;
     info.byte_code = pFunction;
+    info.sampler_mask_shadow = 0x0;
 
     hr = nine_translate_shader(This->base.device, &info);
     if (FAILED(hr))

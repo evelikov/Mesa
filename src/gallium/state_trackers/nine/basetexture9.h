@@ -42,6 +42,8 @@ struct NineBaseTexture9
     DWORD lod;
     DWORD lod_resident;
 
+    boolean shadow;
+
     boolean dirty;
     boolean dirty_mip;
 };

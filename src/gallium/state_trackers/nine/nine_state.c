@@ -491,15 +491,24 @@ validate_textures(struct NineDevice9 *device)
 }
 
 static INLINE boolean
-update_minlod(struct nine_state *state, unsigned s)
+update_sampler_derived(struct nine_state *state, unsigned s)
 {
-    int value = state->samp[s][D3DSAMP_MAXMIPLEVEL] - state->texture[s]->lod;
-    if (value < 0 || state->samp[s][D3DSAMP_MIPFILTER] == D3DTEXF_NONE)
-        value = 0;
-    if (value == state->samp[s][NINED3DSAMP_MINLOD])
-        return FALSE;
-    state->samp[s][NINED3DSAMP_MINLOD] = value;
-    return TRUE;
+    boolean ret = FALSE;
+
+    int lod = state->samp[s][D3DSAMP_MAXMIPLEVEL] - state->texture[s]->lod;
+    if (lod < 0 || state->samp[s][D3DSAMP_MIPFILTER] == D3DTEXF_NONE)
+        lod = 0;
+    if (state->samp[s][NINED3DSAMP_MINLOD] != lod) {
+        ret = TRUE;
+        state->samp[s][NINED3DSAMP_MINLOD] = lod;
+    }
+
+    if (state->samp[s][NINED3DSAMP_SHADOW] != state->texture[s]->shadow) {
+        ret = TRUE;
+        state->samp[s][NINED3DSAMP_SHADOW] = state->texture[s]->shadow;
+    }
+
+    return ret;
 }
 
 static void
@@ -529,7 +538,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
         num_textures = i + 1;
 
-        if (update_minlod(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
+        if (update_sampler_derived(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
             state->changed.sampler[s] = 0;
             commit_samplers = TRUE;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);
@@ -556,7 +565,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
 
         num_textures = i + 1;
 
-        if (update_minlod(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
+        if (update_sampler_derived(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
             state->changed.sampler[s] = 0;
             commit_samplers = TRUE;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);
@@ -789,6 +798,9 @@ static const DWORD nine_render_state_defaults[NINED3DRS_LAST + 1] =
     [D3DRS_SRCBLENDALPHA] = D3DBLEND_ONE,
     [D3DRS_DESTBLENDALPHA] = D3DBLEND_ZERO,
     [D3DRS_BLENDOPALPHA] = D3DBLENDOP_ADD,
+    [NINED3DRS_COLORCLAMP] = TRUE,
+    [NINED3DRS_VSPOINTSIZE] = FALSE,
+    [NINED3DRS_RTMASK] = 0xf
 };
 static const DWORD nine_tex_stage_state_defaults[NINED3DTSS_LAST + 1] =
 {
@@ -824,7 +836,9 @@ static const DWORD nine_samp_state_defaults[NINED3DSAMP_LAST + 1] =
     [D3DSAMP_MAXANISOTROPY] = 1,
     [D3DSAMP_SRGBTEXTURE] = 0,
     [D3DSAMP_ELEMENTINDEX] = 0,
-    [D3DSAMP_DMAPOFFSET] = 0
+    [D3DSAMP_DMAPOFFSET] = 0,
+    [NINED3DSAMP_MINLOD] = 0,
+    [NINED3DSAMP_SHADOW] = 0
 };
 void
 nine_state_set_defaults(struct nine_state *state, const D3DCAPS9 *caps,
