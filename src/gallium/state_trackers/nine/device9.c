@@ -1167,6 +1167,11 @@ NineDevice9_StretchRect( struct NineDevice9 *This,
                  pDestRect->top == 0 &&
                  pDestRect->right == dst->desc.Width &&
                  pDestRect->bottom == dst->desc.Height), D3DERR_INVALIDCALL);
+    user_assert(!zs ||
+                (dst->desc.Width == src->desc.Width &&
+                 dst->desc.Height == src->desc.Height), D3DERR_INVALIDCALL);
+    user_assert(zs || !util_format_is_depth_or_stencil(src_res->format),
+                D3DERR_INVALIDCALL);
     user_assert(!zs || dst->desc.Format == src->desc.Format,
                 D3DERR_INVALIDCALL);
     user_assert(screen->is_format_supported(screen, src_res->format,
