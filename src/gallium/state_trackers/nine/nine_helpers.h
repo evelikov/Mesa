@@ -96,4 +96,7 @@ static INLINE float asfloat(DWORD value)
     return u.f;
 }
 
+#define CHECK_PIPE_RESOURCE_TEMPLATE(t) \
+    screen->is_format_supported(screen, (t).format, (t).target, (t).nr_samples, (t).bind)
+
 #endif /* _NINE_HELPERS_H_ */

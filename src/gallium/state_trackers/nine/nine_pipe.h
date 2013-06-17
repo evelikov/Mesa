@@ -196,7 +196,7 @@ d3d9_to_pipe_format(D3DFORMAT format)
     case D3DFMT_NV11:
     case D3DFMT_DF16: /* useless, not supported by wine either */
     case D3DFMT_DF24: /* useless, not supported by wine either */
-    case D3DFMT_NULL: /* TODO, hack for setting RT[0] to NULL */
+    case D3DFMT_NULL: /* special cased, only for surfaces */
         return PIPE_FORMAT_NONE;
     default:
         DBG_FLAG(DBG_UNKNOWN, "unknown D3DFORMAT: 0x%x/%c%c%c%c\n",

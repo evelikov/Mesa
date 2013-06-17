@@ -276,6 +276,12 @@ NineAdapter9_CheckDeviceFormat( struct NineAdapter9 *This,
     if (Usage & D3DUSAGE_RENDERTARGET) bind |= PIPE_BIND_RENDER_TARGET;
     if (Usage & D3DUSAGE_DEPTHSTENCIL) bind |= PIPE_BIND_DEPTH_STENCIL;
 
+    /* API hack because setting RT[0] to NULL is forbidden */
+    if (CheckFormat == D3DFMT_NULL && bind == PIPE_BIND_RENDER_TARGET &&
+        (RType == D3DRTYPE_SURFACE ||
+         RType == D3DRTYPE_TEXTURE))
+        return D3D_OK;
+
     if (Usage & D3DUSAGE_QUERY_POSTPIXELSHADER_BLENDING)
         bind |= PIPE_BIND_BLENDABLE;
 
@@ -406,6 +412,8 @@ NineAdapter9_CheckDepthStencilMatch( struct NineAdapter9 *This,
 
     dfmt = d3d9_to_pipe_format(AdapterFormat);
     bfmt = d3d9_to_pipe_format(RenderTargetFormat);
+    if (RenderTargetFormat == D3DFMT_NULL)
+        bfmt = dfmt;
     zsfmt = d3d9_to_pipe_format(DepthStencilFormat);
     if (dfmt == PIPE_FORMAT_NONE ||
         bfmt == PIPE_FORMAT_NONE ||

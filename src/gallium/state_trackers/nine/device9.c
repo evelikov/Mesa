@@ -907,9 +907,6 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
         assert(type == 2);
         break;
     }
-    /* since resource_create doesn't return an error code, check format here */
-    user_assert(screen->is_format_supported(screen, templ.format, templ.target,
-                    templ.nr_samples, templ.bind), D3DERR_INVALIDCALL);
 
     desc.Format = Format;
     desc.Type = D3DRTYPE_SURFACE;
@@ -925,7 +922,9 @@ create_zs_or_rt_surface(struct NineDevice9 *This,
     default: break;
     }
 
-    if (Pool == D3DPOOL_DEFAULT) {
+    if (Pool == D3DPOOL_DEFAULT && Format != D3DFMT_NULL) {
+        /* resource_create doesn't return an error code, so check format here */
+        user_assert(CHECK_PIPE_RESOURCE_TEMPLATE(templ), D3DERR_INVALIDCALL);
         resource = screen->resource_create(screen, &templ);
         user_assert(resource, D3DERR_OUTOFVIDEOMEMORY);
         if (Discard_or_Lockable && (desc.Usage & D3DUSAGE_RENDERTARGET))

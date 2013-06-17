@@ -72,9 +72,6 @@ NineResource9_GetResource( struct NineResource9 *This );
 D3DPOOL
 NineResource9_GetPool( struct NineResource9 *This );
 
-HRESULT
-NineResource9_AllocateData( struct NineResource9 *This );
-
 /*** Direct3D public methods ***/
 
 HRESULT WINAPI
@@ -106,8 +103,5 @@ NineResource9_PreLoad( struct NineResource9 *This );
 
 D3DRESOURCETYPE WINAPI
 NineResource9_GetType( struct NineResource9 *This );
-
-HRESULT
-NineResource9_CreatePipeResource( struct NineResource9 *This );
 
 #endif /* _NINE_RESOURCE9_H_ */

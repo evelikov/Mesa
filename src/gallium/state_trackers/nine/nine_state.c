@@ -70,7 +70,7 @@ update_framebuffer(struct NineDevice9 *device)
 
     cbuf_float = FALSE;
     for (i = 0; i < device->caps.NumSimultaneousRTs; ++i) {
-        if (state->rt[i]) {
+        if (state->rt[i] && state->rt[i]->desc.Format != D3DFMT_NULL) {
             fb->cbufs[i] = NineSurface9_GetSurface(state->rt[i]);
             state->rt_mask |= 1 << i;
             fb->nr_cbufs = i + 1;

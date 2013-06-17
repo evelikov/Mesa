@@ -44,7 +44,8 @@ NineBaseTexture9_ctor( struct NineBaseTexture9 *This,
                        D3DRESOURCETYPE Type,
                        D3DPOOL Pool )
 {
-    BOOL alloc = (Pool == D3DPOOL_DEFAULT) && !This->base.resource;
+    BOOL alloc = (Pool == D3DPOOL_DEFAULT) && !This->base.resource &&
+        (This->format != D3DFMT_NULL);
     HRESULT hr;
     DWORD usage = This->base.usage;
 

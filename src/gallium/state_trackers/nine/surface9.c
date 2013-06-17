@@ -83,7 +83,8 @@ NineSurface9_ctor( struct NineSurface9 *This,
     user_assert(!(pDesc->Usage & D3DUSAGE_DYNAMIC) ||
                 (pDesc->Pool != D3DPOOL_MANAGED), D3DERR_INVALIDCALL);
 
-    assert(pResource || pDesc->Pool != D3DPOOL_DEFAULT);
+    assert(pResource ||
+           pDesc->Pool != D3DPOOL_DEFAULT || pDesc->Format == D3DFMT_NULL);
 
     This->base.info.screen = pParams->device->screen;
     This->base.info.target = PIPE_TEXTURE_2D;
@@ -130,7 +131,8 @@ NineSurface9_ctor( struct NineSurface9 *This,
     This->desc = *pDesc;
 
     if ((pDesc->Usage & (D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_RENDERTARGET)) &&
-        Level == 0) {
+        Level == 0 &&
+        pDesc->Format != D3DFMT_NULL) {
         NineSurface9_CreatePipeSurface(This);
         if (!This->surface)
             return D3DERR_DRIVERINTERNALERROR;
@@ -174,6 +176,7 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
 
     assert(This->desc.Pool == D3DPOOL_DEFAULT ||
            This->desc.Pool == D3DPOOL_MANAGED);
+    assert(resource);
 
     templ.format = resource->format;
     templ.u.tex.level = This->level;
@@ -380,6 +383,8 @@ NineSurface9_LockRect( struct NineSurface9 *This,
     } else {
         u_box_origin_2d(This->desc.Width, This->desc.Height, &box);
     }
+
+    user_warn(This->desc.Format == D3DFMT_NULL);
 
     if (This->base.data) {
         DBG("returning system memory\n");

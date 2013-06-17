@@ -226,20 +226,3 @@ NineResource9_GetType( struct NineResource9 *This )
 {
     return This->type;
 }
-
-HRESULT
-NineResource9_CreatePipeResource( struct NineResource9 *This )
-{
-    struct pipe_screen *screen = This->info.screen;
-
-    assert(!"Don't use this (yet)");
-
-    if (This->resource) {
-        DBG("releasing old resource\n");
-        pipe_resource_reference(&This->resource, NULL);
-    }
-
-    This->resource = screen->resource_create(screen, &This->info);
-
-    return This->resource ? D3D_OK : D3DERR_OUTOFVIDEOMEMORY;
-}
