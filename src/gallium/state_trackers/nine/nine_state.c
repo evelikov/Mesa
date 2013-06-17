@@ -704,7 +704,7 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
     if (state->changed.ucp)
         pipe->set_clip_state(pipe, &state->clip);
 
-    if (group & NINE_STATE_FREQ_GROUP_1) {
+    if (group & (NINE_STATE_FREQ_GROUP_1 | NINE_STATE_VS)) {
         if (group & (NINE_STATE_TEXTURE | NINE_STATE_SAMPLER))
             update_textures_and_samplers(device);
 

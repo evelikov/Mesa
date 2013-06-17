@@ -2690,11 +2690,14 @@ NineDevice9_SetVertexDeclaration( struct NineDevice9 *This,
 
     DBG("This=%p pDecl=%p\n", This, pDecl);
 
-    if (This->is_recording)
+    if (unlikely(This->is_recording)) {
         nine_reference(&state->vdecl, pDecl);
-    else
+        state->changed.group |= NINE_STATE_VDECL;
+    } else
+    if (state->vdecl != NineVertexDeclaration9(pDecl)) {
         nine_bind(&state->vdecl, pDecl);
-    state->changed.group |= NINE_STATE_VDECL;
+        state->changed.group |= NINE_STATE_VDECL;
+    }
 
     /* XXX: should this really change the result of GetFVF ? */
     return D3D_OK;
