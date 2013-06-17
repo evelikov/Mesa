@@ -41,12 +41,12 @@ void nine_convert_sampler_state(struct cso_context *, int idx, const DWORD *);
 
 void nine_pipe_context_clear(struct cso_context *, struct pipe_context *);
 
-static INLINE unsigned d3dlock_to_pipe_transfer_usage(DWORD Flags)
+static INLINE unsigned d3dlock_buffer_to_pipe_transfer_usage(DWORD Flags)
 {
     unsigned usage;
 
     if (Flags & D3DLOCK_DISCARD)
-        usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+        usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_WHOLE_RESOURCE;
     else
     if (Flags & D3DLOCK_READONLY)
         usage = PIPE_TRANSFER_READ;
@@ -54,7 +54,8 @@ static INLINE unsigned d3dlock_to_pipe_transfer_usage(DWORD Flags)
         usage = PIPE_TRANSFER_READ_WRITE;
 
     if (Flags & D3DLOCK_NOOVERWRITE)
-        usage |= PIPE_TRANSFER_UNSYNCHRONIZED;
+        usage = (PIPE_TRANSFER_UNSYNCHRONIZED |
+                 PIPE_TRANSFER_DISCARD_RANGE | usage) & ~PIPE_TRANSFER_READ;
     else
     if (Flags & D3DLOCK_DONOTWAIT)
         usage |= PIPE_TRANSFER_DONTBLOCK;

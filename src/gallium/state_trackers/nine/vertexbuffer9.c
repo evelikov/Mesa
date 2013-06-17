@@ -119,7 +119,7 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
 {
     struct pipe_box box;
     void *data;
-    const unsigned usage = d3dlock_to_pipe_transfer_usage(Flags);
+    const unsigned usage = d3dlock_buffer_to_pipe_transfer_usage(Flags);
 
     DBG("This=%p(pipe=%p) OffsetToLock=0x%x, SizeToLock=0x%x, Flags=0x%x\n",
         This, This->base.resource,

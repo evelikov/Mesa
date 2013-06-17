@@ -110,7 +110,7 @@ const char *nine_D3DPRESENTFLAG_to_str(DWORD flags)
 
 #define C2S(n) \
     do { \
-        if (lock & D3DLOCK_##n) p += snprintf(&tls[p], sizeof(tls) - p, #n); \
+        if (lock & D3DLOCK_##n) p += snprintf(&tls[p], sizeof(tls) - p, #n"|"); \
     } while(0)
 const char *nine_D3DLOCK_to_str(DWORD lock)
 {

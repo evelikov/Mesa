@@ -118,7 +118,7 @@ NineIndexBuffer9_Lock( struct NineIndexBuffer9 *This,
 {
     struct pipe_box box;
     void *data;
-    const unsigned usage = d3dlock_to_pipe_transfer_usage(Flags);
+    const unsigned usage = d3dlock_buffer_to_pipe_transfer_usage(Flags);
 
     user_assert(!This->transfer, D3DERR_INVALIDCALL);
     user_assert(ppbData, E_POINTER);
