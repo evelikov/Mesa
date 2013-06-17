@@ -2952,17 +2952,22 @@ NineDevice9_SetStreamSource( struct NineDevice9 *This,
     user_assert(StreamNumber < This->caps.MaxStreams, D3DERR_INVALIDCALL);
     user_assert(Stride <= This->caps.MaxStreamStride, D3DERR_INVALIDCALL);
 
+    if (likely(!This->is_recording)) {
+        if (state->stream[i] == NineVertexBuffer9(pStreamData) &&
+            state->vtxbuf[i].stride == Stride &&
+            state->vtxbuf[i].buffer_offset == OffsetInBytes)
+            return D3D_OK;
+        nine_bind(&state->stream[i], pStreamData);
+    } else {
+        nine_reference(&state->stream[i], pStreamData);
+    }
+    state->changed.vtxbuf |= 1 << StreamNumber;
+
     if (pStreamData) {
         state->vtxbuf[i].stride = Stride;
         state->vtxbuf[i].buffer_offset = OffsetInBytes;
     }
     state->vtxbuf[i].buffer = pStreamData ? pVBuf9->base.resource : NULL;
-
-    if (likely(!This->is_recording))
-        nine_bind(&state->stream[i], pStreamData);
-    else
-        nine_reference(&state->stream[i], pStreamData);
-    state->changed.vtxbuf |= 1 << StreamNumber;
 
     return D3D_OK;
 }
@@ -3032,12 +3037,15 @@ NineDevice9_SetIndices( struct NineDevice9 *This,
 {
     struct nine_state *state = This->update;
 
-    if (likely(!This->is_recording))
+    if (likely(!This->is_recording)) {
+        if (state->idxbuf == NineIndexBuffer9(pIndexData))
+            return D3D_OK;
         nine_bind(&state->idxbuf, pIndexData);
-    else
+    } else {
         nine_reference(&state->idxbuf, pIndexData);
-
+    }
     state->changed.group |= NINE_STATE_IDXBUF;
+
     return D3D_OK;
 }
 
