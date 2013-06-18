@@ -86,11 +86,43 @@ static INLINE unsigned decltype_size(BYTE type)
     return 0;
 }
 
+/* Actually, arbitrary usage index values are permitted, but a
+ * simple lookup table won't work in that case. Let's just wait
+ * with making this more generic until we need it.
+ */
+static INLINE boolean
+nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
+{
+    switch (usage) {
+    case D3DDECLUSAGE_POSITION:
+    case D3DDECLUSAGE_POSITIONT:
+    case D3DDECLUSAGE_BLENDWEIGHT:
+    case D3DDECLUSAGE_BLENDINDICES:
+    case D3DDECLUSAGE_PSIZE:
+    case D3DDECLUSAGE_TANGENT:
+    case D3DDECLUSAGE_BINORMAL:
+    case D3DDECLUSAGE_TESSFACTOR:
+    case D3DDECLUSAGE_DEPTH:
+    case D3DDECLUSAGE_FOG:
+    case D3DDECLUSAGE_SAMPLE:
+        return usage_idx <= 0;
+    case D3DDECLUSAGE_NORMAL:
+        return usage_idx <= 1;
+    case D3DDECLUSAGE_COLOR:
+        return usage_idx <= 2;
+    case D3DDECLUSAGE_TEXCOORD:
+        return usage_idx <= 8;
+    default:
+        return FALSE;
+    }
+}
+
 #define NINE_DECLUSAGE_CASE0(n) case D3DDECLUSAGE_##n: return NINE_DECLUSAGE_##n
 #define NINE_DECLUSAGE_CASEi(n) case D3DDECLUSAGE_##n: return NINE_DECLUSAGE_##n(usage_idx)
 INLINE unsigned
 nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
 {
+    assert(nine_d3ddeclusage_check(usage, usage_idx));
     switch (usage) {
     NINE_DECLUSAGE_CASE0(POSITION);
     NINE_DECLUSAGE_CASE0(BLENDWEIGHT);

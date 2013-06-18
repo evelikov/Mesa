@@ -209,6 +209,7 @@ update_vertex_elements(struct NineDevice9 *device)
         DBG("looking up input %u (usage %u) from vdecl(%p)\n",
             n, vs->input_map[n].ndecl, vdecl);
 
+        assert(vs->input_map[n].ndecl < Elements(vdecl->usage_map));
         l = vdecl->usage_map[vs->input_map[n].ndecl];
 
         if (likely(l < vdecl->nelems)) {
