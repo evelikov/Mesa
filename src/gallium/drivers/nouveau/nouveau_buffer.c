@@ -69,6 +69,8 @@ nouveau_buffer_allocate(struct nouveau_screen *screen,
    if (buf->bo)
       buf->address = buf->bo->offset + buf->offset;
 
+   buf->cb_slot = -1;
+
    return TRUE;
 }
 
@@ -208,7 +210,7 @@ nouveau_transfer_write(struct nouveau_context *nv, struct nouveau_transfer *tx,
                     tx->bo, tx->offset + offset, NOUVEAU_BO_GART, size);
    else
    if ((buf->base.bind & PIPE_BIND_CONSTANT_BUFFER) && nv->push_cb && can_cb)
-      nv->push_cb(nv, buf->bo, buf->domain, buf->offset, buf->base.width0,
+      nv->push_cb(nv, buf,
                   base, size / 4, (const uint32_t *)data);
    else
       nv->push_data(nv, buf->bo, buf->offset + base, buf->domain, size, data);
@@ -589,10 +591,7 @@ nouveau_buffer_transfer_inline_write(struct pipe_context *pipe,
        nv->push_cb &&
        !((box->x | box->width) & 3) &&
        box->width < (1 << 12)) {
-      struct nv04_resource *buf = nv04_resource(resource);
-      nv->push_cb(nv,
-                  buf->bo, buf->domain, buf->offset, buf->base.width0,
-                  box->x, box->width / 4, data);
+      nv->push_cb(nv, nv04_resource(resource), box->x, box->width / 4, data);
    } else {
       usage |= (box->x == 0 && box->width == resource->width0) ?
          PIPE_TRANSFER_DISCARD_WHOLE_RESOURCE :
