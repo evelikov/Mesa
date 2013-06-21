@@ -334,7 +334,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
      * (texture coordinates handled later)
      */
     vs->aVtx = build_vs_add_input(vs,
-        key->position_t ? NINE_DECLUSAGE_POSITIONT : NINE_DECLUSAGE_POSITION);
+        key->position_t ? NINE_DECLUSAGE_POSITIONT : NINE_DECLUSAGE_POSITION(0));
 
     if (need_rNrm)
         vs->aNrm = build_vs_add_input(vs, NINE_DECLUSAGE_NORMAL(0));
@@ -371,9 +371,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         vs->aPsz = build_vs_add_input(vs, NINE_DECLUSAGE_PSIZE);
 
     if (key->vertexblend_indexed)
-        vs->aInd = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDINDICES);
+        vs->aInd = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDINDICES(0));
     if (key->vertexblend)
-        vs->aWgt = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDWEIGHT);
+        vs->aWgt = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDWEIGHT(0));
 
     /* Declare outputs:
      */

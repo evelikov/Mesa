@@ -94,10 +94,7 @@ static INLINE boolean
 nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
 {
     switch (usage) {
-    case D3DDECLUSAGE_POSITION:
     case D3DDECLUSAGE_POSITIONT:
-    case D3DDECLUSAGE_BLENDWEIGHT:
-    case D3DDECLUSAGE_BLENDINDICES:
     case D3DDECLUSAGE_PSIZE:
     case D3DDECLUSAGE_TANGENT:
     case D3DDECLUSAGE_BINORMAL:
@@ -106,12 +103,15 @@ nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
     case D3DDECLUSAGE_FOG:
     case D3DDECLUSAGE_SAMPLE:
         return usage_idx <= 0;
+    case D3DDECLUSAGE_POSITION:
+    case D3DDECLUSAGE_BLENDWEIGHT:
+    case D3DDECLUSAGE_BLENDINDICES:
     case D3DDECLUSAGE_NORMAL:
         return usage_idx <= 1;
     case D3DDECLUSAGE_COLOR:
-        return usage_idx <= 2;
+        return usage_idx <= 3;
     case D3DDECLUSAGE_TEXCOORD:
-        return usage_idx <= 8;
+        return usage_idx <= 15;
     default:
         return FALSE;
     }
@@ -122,11 +122,13 @@ nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
 INLINE unsigned
 nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
 {
+    if (!nine_d3ddeclusage_check(usage, usage_idx))
+        ERR("D3DDECLUSAGE_%u[%u]\n",usage,usage_idx);
     assert(nine_d3ddeclusage_check(usage, usage_idx));
     switch (usage) {
-    NINE_DECLUSAGE_CASE0(POSITION);
-    NINE_DECLUSAGE_CASE0(BLENDWEIGHT);
-    NINE_DECLUSAGE_CASE0(BLENDINDICES);
+    NINE_DECLUSAGE_CASEi(POSITION);
+    NINE_DECLUSAGE_CASEi(BLENDWEIGHT);
+    NINE_DECLUSAGE_CASEi(BLENDINDICES);
     NINE_DECLUSAGE_CASEi(NORMAL);
     NINE_DECLUSAGE_CASE0(PSIZE);
     NINE_DECLUSAGE_CASEi(TEXCOORD);
@@ -146,30 +148,43 @@ nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
 
 static const char *nine_declusage_names[] =
 {
-    [NINE_DECLUSAGE_POSITION]     = "POSITION",
-    [NINE_DECLUSAGE_BLENDWEIGHT]  = "BLENDWEIGHT",
-    [NINE_DECLUSAGE_BLENDINDICES] = "BLENDINDICES",
-    [NINE_DECLUSAGE_NORMAL(0)]    = "NORMAL",
-    [NINE_DECLUSAGE_NORMAL(1)]    = "NORMAL1",
-    [NINE_DECLUSAGE_PSIZE]        = "PSIZE",
-    [NINE_DECLUSAGE_TEXCOORD(0)]  = "TEXCOORD0",
-    [NINE_DECLUSAGE_TEXCOORD(1)]  = "TEXCOORD1",
-    [NINE_DECLUSAGE_TEXCOORD(2)]  = "TEXCOORD2",
-    [NINE_DECLUSAGE_TEXCOORD(3)]  = "TEXCOORD3",
-    [NINE_DECLUSAGE_TEXCOORD(4)]  = "TEXCOORD4",
-    [NINE_DECLUSAGE_TEXCOORD(5)]  = "TEXCOORD5",
-    [NINE_DECLUSAGE_TEXCOORD(6)]  = "TEXCOORD6",
-    [NINE_DECLUSAGE_TEXCOORD(7)]  = "TEXCOORD7",
-    [NINE_DECLUSAGE_TANGENT]      = "TANGENT",
-    [NINE_DECLUSAGE_BINORMAL]     = "BINORMAL",
-    [NINE_DECLUSAGE_TESSFACTOR]   = "TESSFACTOR",
-    [NINE_DECLUSAGE_POSITIONT]    = "POSITIONT",
-    [NINE_DECLUSAGE_COLOR(0)]     = "DIFFUSE",
-    [NINE_DECLUSAGE_COLOR(1)]     = "SPECULAR",
-    [NINE_DECLUSAGE_DEPTH]        = "DEPTH",
-    [NINE_DECLUSAGE_FOG]          = "FOG",
-    [NINE_DECLUSAGE_NONE]         = "(NONE)",
-    [NINE_DECLUSAGE_COUNT]        = "(OOB)"
+    [NINE_DECLUSAGE_POSITION(0)]     = "POSITION",
+    [NINE_DECLUSAGE_POSITION(1)]     = "POSITION1",
+    [NINE_DECLUSAGE_BLENDWEIGHT(0)]  = "BLENDWEIGHT",
+    [NINE_DECLUSAGE_BLENDWEIGHT(1)]  = "BLENDWEIGHT",
+    [NINE_DECLUSAGE_BLENDINDICES(0)] = "BLENDINDICES",
+    [NINE_DECLUSAGE_BLENDINDICES(1)] = "BLENDINDICES1",
+    [NINE_DECLUSAGE_NORMAL(0)]       = "NORMAL",
+    [NINE_DECLUSAGE_NORMAL(1)]       = "NORMAL1",
+    [NINE_DECLUSAGE_PSIZE]           = "PSIZE",
+    [NINE_DECLUSAGE_TEXCOORD(0)]     = "TEXCOORD0",
+    [NINE_DECLUSAGE_TEXCOORD(1)]     = "TEXCOORD1",
+    [NINE_DECLUSAGE_TEXCOORD(2)]     = "TEXCOORD2",
+    [NINE_DECLUSAGE_TEXCOORD(3)]     = "TEXCOORD3",
+    [NINE_DECLUSAGE_TEXCOORD(4)]     = "TEXCOORD4",
+    [NINE_DECLUSAGE_TEXCOORD(5)]     = "TEXCOORD5",
+    [NINE_DECLUSAGE_TEXCOORD(6)]     = "TEXCOORD6",
+    [NINE_DECLUSAGE_TEXCOORD(7)]     = "TEXCOORD7",
+    [NINE_DECLUSAGE_TEXCOORD(8)]     = "TEXCOORD8",
+    [NINE_DECLUSAGE_TEXCOORD(9)]     = "TEXCOORD9",
+    [NINE_DECLUSAGE_TEXCOORD(10)]    = "TEXCOORD10",
+    [NINE_DECLUSAGE_TEXCOORD(11)]    = "TEXCOORD11",
+    [NINE_DECLUSAGE_TEXCOORD(12)]    = "TEXCOORD12",
+    [NINE_DECLUSAGE_TEXCOORD(13)]    = "TEXCOORD13",
+    [NINE_DECLUSAGE_TEXCOORD(14)]    = "TEXCOORD14",
+    [NINE_DECLUSAGE_TEXCOORD(15)]    = "TEXCOORD15",
+    [NINE_DECLUSAGE_TANGENT]         = "TANGENT",
+    [NINE_DECLUSAGE_BINORMAL]        = "BINORMAL",
+    [NINE_DECLUSAGE_TESSFACTOR]      = "TESSFACTOR",
+    [NINE_DECLUSAGE_POSITIONT]       = "POSITIONT",
+    [NINE_DECLUSAGE_COLOR(0)]        = "DIFFUSE",
+    [NINE_DECLUSAGE_COLOR(1)]        = "SPECULAR",
+    [NINE_DECLUSAGE_COLOR(2)]        = "COLOR2",
+    [NINE_DECLUSAGE_COLOR(3)]        = "COLOR3",
+    [NINE_DECLUSAGE_DEPTH]           = "DEPTH",
+    [NINE_DECLUSAGE_FOG]             = "FOG",
+    [NINE_DECLUSAGE_NONE]            = "(NONE)",
+    [NINE_DECLUSAGE_COUNT]           = "(OOB)"
 };
 static INLINE const char *
 nine_declusage_name(unsigned ndcl)
