@@ -276,24 +276,26 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
         *ppRegion = NULL;
     }
     if (This->current_window.ancestor != This->current_window.real) {
-        POINT panc, pwnd;
-        RECT rwnd;
-        if (!GetDCOrgEx(GetDC(This->current_window.ancestor), &panc) ||
-            !GetDCOrgEx(GetDC(This->current_window.real), &pwnd) ||
-            !GetClientRect(This->current_window.real, &rwnd)) {
+        HDC hdcAnc, hdcWnd;
+        POINT ptAnc, ptWnd;
+        RECT rectWnd;
+        BOOL ok;
+
+        hdcAnc = GetDC(This->current_window.ancestor);
+        hdcWnd = GetDC(This->current_window.real);
+        ok = GetDCOrgEx(hdcAnc, &ptAnc);
+        ok = ok && GetDCOrgEx(hdcWnd, &ptWnd);
+        ok = ok && GetClientRect(This->current_window.real, &rectWnd);
+        ReleaseDC(This->current_window.ancestor, hdcAnc);
+        ReleaseDC(This->current_window.real, hdcWnd);
+        if (!ok) {
             _ERROR("Unable to get fake subwindow coordinates.\n");
             return D3DERR_DRIVERINTERNALERROR;
         }
-
-        _MESSAGE("pAnc=%u,%u\n", panc.x, panc.y);
-        _MESSAGE("pWnd=%u,%u\n", pwnd.x, pwnd.y);
-        _MESSAGE("rWnd=(%u..%u)x(%u..%u)\n", rwnd.left, rwnd.right,
-                 rwnd.top, rwnd.bottom);
-
-        pRect->left = pwnd.x-panc.x;
-        pRect->top = pwnd.y-panc.y;
-        pRect->right = pRect->left+rwnd.right;
-        pRect->bottom = pRect->top+rwnd.bottom;
+        pRect->left = ptWnd.x - ptAnc.x;
+        pRect->top = ptWnd.y - ptAnc.y;
+        pRect->right = pRect->left + rectWnd.right;
+        pRect->bottom = pRect->top + rectWnd.bottom;
     } else {
         if (!GetClientRect(This->current_window.real, pRect)) {
             _ERROR("Unable to get window size.\n");
@@ -423,10 +425,13 @@ NineWinePresentX11_SetGammaRamp( struct NineWinePresentX11 *This,
                                  HWND hWndOverride )
 {
    HWND hWnd = hWndOverride ? hWndOverride : This->current_window.real;
+   HDC hdc;
    BOOL ok;
    if (!pRamp)
       return D3DERR_INVALIDCALL;
-   ok = SetDeviceGammaRamp(GetDC(hWnd), (void *)pRamp);
+   hdc = GetDC(hWnd);
+   ok = SetDeviceGammaRamp(hdc, (void *)pRamp);
+   ReleaseDC(hWnd, hdc);
    return ok ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
