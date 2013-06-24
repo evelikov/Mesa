@@ -64,6 +64,8 @@ struct NineWinePresentX11
     unsigned dri2_minor;
 
     D3DPRESENT_PARAMETERS params;
+
+    HCURSOR hCursor;
 };
 
 /* ripped from Wine */
@@ -420,6 +422,48 @@ NineWinePresentX11_GetCursorPos( struct NineWinePresentX11 *This,
 }
 
 static HRESULT WINAPI
+NineWinePresentX11_SetCursorPos( struct NineWinePresentX11 *This,
+                                 POINT *pPoint )
+{
+    if (!pPoint)
+        return D3DERR_INVALIDCALL;
+    return SetCursorPos(pPoint->x, pPoint->y);
+}
+
+static HRESULT WINAPI
+NineWinePresentX11_SetCursor( struct NineWinePresentX11 *This,
+                              void *pBitmap,
+                              POINT *pHotspot,
+                              BOOL bShow )
+{
+   if (pBitmap) {
+      ICONINFO info;
+      HCURSOR cursor;
+
+      DWORD mask[32];
+      memset(mask, ~0, sizeof(mask));
+
+      if (!pHotspot)
+         return D3DERR_INVALIDCALL;
+      info.fIcon = FALSE;
+      info.xHotspot = pHotspot->x;
+      info.yHotspot = pHotspot->y;
+      info.hbmMask = CreateBitmap(32, 32, 1, 1, mask);
+      info.hbmColor = CreateBitmap(32, 32, 1, 32, pBitmap);
+
+      cursor = CreateIconIndirect(&info);
+      if (info.hbmMask) DeleteObject(info.hbmMask);
+      if (info.hbmColor) DeleteObject(info.hbmColor);
+      if (cursor)
+         DestroyCursor(This->hCursor);
+      This->hCursor = cursor;
+   }
+   SetCursor(bShow ? This->hCursor : NULL);
+
+   return D3D_OK;
+}
+
+static HRESULT WINAPI
 NineWinePresentX11_SetGammaRamp( struct NineWinePresentX11 *This,
                                  const D3DGAMMARAMP *pRamp,
                                  HWND hWndOverride )
@@ -447,6 +491,8 @@ static ID3DPresentVtbl NineWinePresentX11_vtable = {
     (void *)NineWinePresentX11_GetDisplayMode,
     (void *)NineWinePresentX11_GetPresentStats,
     (void *)NineWinePresentX11_GetCursorPos,
+    (void *)NineWinePresentX11_SetCursorPos,
+    (void *)NineWinePresentX11_SetCursor,
     (void *)NineWinePresentX11_SetGammaRamp
 };
 

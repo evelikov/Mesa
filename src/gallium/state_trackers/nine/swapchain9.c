@@ -353,8 +353,8 @@ present( struct NineSwapChain9 *This,
         ID3DPresent_GetCursorPos(This->present, &device->cursor.pos);
 
         /* NOTE: blit messes up when box.x + box.width < 0, fix driver */
-        blit.dst.box.x = MAX2(device->cursor.pos.x, 0) - device->cursor.hotspot_x;
-        blit.dst.box.y = MAX2(device->cursor.pos.y, 0) - device->cursor.hotspot_y;
+        blit.dst.box.x = MAX2(device->cursor.pos.x, 0) - device->cursor.hotspot.x;
+        blit.dst.box.y = MAX2(device->cursor.pos.y, 0) - device->cursor.hotspot.y;
         blit.dst.box.width = blit.src.box.width;
         blit.dst.box.height = blit.src.box.height;
 

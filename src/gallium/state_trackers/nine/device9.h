@@ -98,10 +98,9 @@ struct NineDevice9
 
     struct {
         struct pipe_resource *image;
-        UINT hotspot_x;
-        UINT hotspot_y; /* -1, -1 if no cursor image set */
         unsigned w;
         unsigned h;
+        POINT hotspot; /* -1, -1 if no cursor image set */
         POINT pos;
         BOOL visible;
         boolean software;

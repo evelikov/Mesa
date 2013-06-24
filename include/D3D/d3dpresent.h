@@ -55,6 +55,9 @@ typedef struct ID3DPresentVtbl
     HRESULT (WINAPI *GetDisplayMode)(ID3DPresent *This, D3DDISPLAYMODEEX *pMode);
     HRESULT (WINAPI *GetPresentStats)(ID3DPresent *This, D3DPRESENTSTATS *pStats);
     HRESULT (WINAPI *GetCursorPos)(ID3DPresent *This, POINT *pPoint);
+    HRESULT (WINAPI *SetCursorPos)(ID3DPresent *This, POINT *pPoint);
+    /* Cursor size is always 32x32. pBitmap and pHotspot can be NULL. */
+    HRESULT (WINAPI *SetCursor)(ID3DPresent *This, void *pBitmap, POINT *pHotspot, BOOL bShow);
     HRESULT (WINAPI *SetGammaRamp)(ID3DPresent *This, const D3DGAMMARAMP *pRamp, HWND hWndOverride);
 } ID3DPresentVtbl;
 
@@ -76,6 +79,8 @@ struct ID3DPresent
 #define ID3DPresent_GetDisplayMode(p,a) (p)->lpVtbl->GetDisplayMode(p,a)
 #define ID3DPresent_GetPresentStats(p,a) (p)->lpVtbl->GetPresentStats(p,a)
 #define ID3DPresent_GetCursorPos(p,a) (p)->lpVtbl->GetCursorPos(p,a)
+#define ID3DPresent_SetCursorPos(p,a) (p)->lpVtbl->SetCursorPos(p,a)
+#define ID3DPresent_SetCursor(p,a,b,c) (p)->lpVtbl->SetCursor(p,a,b,c)
 #define ID3DPresent_SetGammaRamp(p,a,b) (p)->lpVtbl->SetGammaRamp(p,a,b)
 
 typedef struct ID3DPresentFactory ID3DPresentFactory;

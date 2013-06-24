@@ -183,9 +183,9 @@ NineDevice9_ctor( struct NineDevice9 *This,
         NineUnknown_ConvertRefToBind(NineUnknown(This->state.rt[i]));
     }
 
-    This->cursor.software = TRUE; /* XXX hardware cursor */
-    This->cursor.hotspot_x = -1;
-    This->cursor.hotspot_y = -1;
+    This->cursor.software = FALSE;
+    This->cursor.hotspot.x = -1;
+    This->cursor.hotspot.y = -1;
     {
         struct pipe_resource tmpl;
         tmpl.target = PIPE_TEXTURE_2D;
@@ -483,6 +483,9 @@ NineDevice9_SetCursorProperties( struct NineDevice9 *This,
     if (!ptr)
         ret_err("Failed to update cursor image.\n", D3DERR_DRIVERINTERNALERROR);
 
+    This->cursor.hotspot.x = XHotSpot;
+    This->cursor.hotspot.y = YHotSpot;
+
     /* Copy cursor image to internal storage. */
     {
         D3DLOCKED_RECT lock;
@@ -499,12 +502,16 @@ NineDevice9_SetCursorProperties( struct NineDevice9 *This,
         sfmt->unpack_rgba_8unorm(ptr, transfer->stride,
                                  lock.pBits, lock.Pitch,
                                  This->cursor.w, This->cursor.h);
+
+        if (!This->cursor.software &&
+            This->cursor.w == 32 && This->cursor.h == 32)
+            ID3DPresent_SetCursor(This->swapchains[0]->present,
+                                  lock.pBits, &This->cursor.hotspot,
+                                  This->cursor.visible);
+
         NineSurface9_UnlockRect(surf);
     }
     pipe->transfer_unmap(pipe, transfer);
-
-    This->cursor.hotspot_x = XHotSpot;
-    This->cursor.hotspot_y = YHotSpot;
 
     return D3D_OK;
 }
@@ -515,9 +522,13 @@ NineDevice9_SetCursorPosition( struct NineDevice9 *This,
                                int Y,
                                DWORD Flags )
 {
-    /* TODO: hardware cursor */
+    struct NineSwapChain9 *swap = This->swapchains[0];
+
     This->cursor.pos.x = X;
     This->cursor.pos.y = Y;
+
+    if (!This->cursor.software)
+        ID3DPresent_SetCursorPos(swap->present, &This->cursor.pos);
 }
 
 BOOL WINAPI
@@ -525,7 +536,11 @@ NineDevice9_ShowCursor( struct NineDevice9 *This,
                         BOOL bShow )
 {
     BOOL old = This->cursor.visible;
-    This->cursor.visible = bShow && (This->cursor.hotspot_x != -1);
+    This->cursor.visible = bShow && (This->cursor.hotspot.x != -1);
+
+    if (bShow != old && !This->cursor.software)
+        ID3DPresent_SetCursor(This->swapchains[0]->present, NULL, NULL, bShow);
+
     return old;
 }
 
