@@ -41,7 +41,7 @@ struct NineUnknown
     /* pointer to vtable  */
     void *vtable;
 
-    ULONG refs; /* external reference count */
+    int32_t refs; /* external reference count */
     uint16_t bind; /* internal bind count */
     boolean forward; /* whether to forward references to the container */
 

@@ -21,6 +21,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "iunknown.h"
+#include "util/u_atomic.h"
 #include "nine_helpers.h"
 
 #define DBG_CHANNEL DBG_UNKNOWN
@@ -79,7 +80,7 @@ NineUnknown_AddRef( struct NineUnknown *This )
     if (This->forward)
         return NineUnknown_AddRef(This->container);
     else
-        r = ++This->refs; /* TODO: make atomic */
+        r = p_atomic_inc_return(&This->refs);
 
     if (r == 1) {
         if (This->device)
@@ -97,7 +98,7 @@ NineUnknown_Release( struct NineUnknown *This )
     if (This->forward)
         return NineUnknown_Release(This->container);
     else
-        r = --This->refs; /* TODO: make atomic */
+        r = p_atomic_dec_return(&This->refs);
     assert(r != -1); /* this would signify implementation error */
 
     if (r == 0) {
