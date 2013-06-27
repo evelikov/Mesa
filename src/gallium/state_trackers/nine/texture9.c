@@ -306,7 +306,7 @@ NineTexture9_new( struct NineDevice9 *pDevice,
                   struct NineTexture9 **ppOut,
                   HANDLE *pSharedHandle )
 {
-    NINE_NEW(NineTexture9, ppOut, pDevice,
-             Width, Height, Levels,
-             Usage, Format, Pool, pSharedHandle);
+    NINE_DEVICE_CHILD_NEW(Texture9, ppOut, pDevice,
+                          Width, Height, Levels,
+                          Usage, Format, Pool, pSharedHandle);
 }

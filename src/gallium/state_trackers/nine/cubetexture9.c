@@ -265,7 +265,7 @@ NineCubeTexture9_new( struct NineDevice9 *pDevice,
                       struct NineCubeTexture9 **ppOut,
                       HANDLE *pSharedHandle )
 {
-    NINE_NEW(NineCubeTexture9, ppOut, pDevice,
-             EdgeLength, Levels,
-             Usage, Format, Pool, pSharedHandle);
+    NINE_DEVICE_CHILD_NEW(CubeTexture9, ppOut, pDevice,
+                          EdgeLength, Levels,
+                          Usage, Format, Pool, pSharedHandle);
 }

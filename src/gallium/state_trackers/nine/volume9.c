@@ -506,8 +506,8 @@ NineVolume9_new( struct NineDevice9 *pDevice,
                  D3DVOLUME_DESC *pDesc,
                  struct NineVolume9 **ppOut )
 {
-    NINE_NEW(NineVolume9, ppOut, pDevice, /* args */
-             pContainer, pResource, Level, pDesc);
+    NINE_DEVICE_CHILD_NEW(Volume9, ppOut, pDevice, /* args */
+                          pContainer, pResource, Level, pDesc);
 }
 
 

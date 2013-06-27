@@ -732,6 +732,7 @@ NineSurface9_new( struct NineDevice9 *pDevice,
                   D3DSURFACE_DESC *pDesc,
                   struct NineSurface9 **ppOut )
 {
-    NINE_NEW(NineSurface9, ppOut, pDevice, /* args */
-             pContainer, pResource, TextureType, Level, Layer, pDesc);
+    NINE_DEVICE_CHILD_NEW(Surface9, ppOut, pDevice, /* args */
+                          pContainer, pResource,
+                          TextureType, Level, Layer, pDesc);
 }

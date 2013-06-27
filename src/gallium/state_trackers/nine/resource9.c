@@ -210,6 +210,7 @@ NineResource9_GetPriority( struct NineResource9 *This )
     return This->priority;
 }
 
+/* NOTE: Don't forget to adjust locked vtable if you change this ! */
 void WINAPI
 NineResource9_PreLoad( struct NineResource9 *This )
 {

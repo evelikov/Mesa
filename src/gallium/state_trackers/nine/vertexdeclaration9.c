@@ -284,7 +284,7 @@ NineVertexDeclaration9_new( struct NineDevice9 *pDevice,
                             const D3DVERTEXELEMENT9 *pElements,
                             struct NineVertexDeclaration9 **ppOut )
 {
-    NINE_NEW(NineVertexDeclaration9, ppOut, /* args */ pDevice, pElements);
+    NINE_DEVICE_CHILD_NEW(VertexDeclaration9, ppOut, /* args */ pDevice, pElements);
 }
 
 HRESULT
@@ -421,7 +421,7 @@ NineVertexDeclaration9_new_from_fvf( struct NineDevice9 *pDevice,
     }
     elems[nelems++] = decl_end;
 
-    NINE_NEW(NineVertexDeclaration9, ppOut, /* args */ pDevice, elems);
+    NINE_DEVICE_CHILD_NEW(VertexDeclaration9, ppOut, /* args */ pDevice, elems);
 }
 
 /* ProcessVertices runs stream output into a temporary buffer to capture

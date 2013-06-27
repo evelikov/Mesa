@@ -355,5 +355,5 @@ NineStateBlock9_new( struct NineDevice9 *pDevice,
                      struct NineStateBlock9 **ppOut,
                      enum nine_stateblock_type type)
 {
-    NINE_NEW(NineStateBlock9, ppOut, pDevice, type);
+    NINE_DEVICE_CHILD_NEW(StateBlock9, ppOut, pDevice, type);
 }

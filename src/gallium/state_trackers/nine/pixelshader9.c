@@ -155,5 +155,5 @@ NinePixelShader9_new( struct NineDevice9 *pDevice,
                       struct NinePixelShader9 **ppOut,
                       const DWORD *pFunction, void *cso )
 {
-    NINE_NEW(NinePixelShader9, ppOut, pDevice, pFunction, cso);
+    NINE_DEVICE_CHILD_NEW(PixelShader9, ppOut, pDevice, pFunction, cso);
 }

@@ -349,5 +349,5 @@ NineQuery9_new( struct NineDevice9 *pDevice,
                 struct NineQuery9 **ppOut,
                 D3DQUERYTYPE Type )
 {
-    NINE_NEW(NineQuery9, ppOut, pDevice, Type);
+    NINE_DEVICE_CHILD_NEW(Query9, ppOut, pDevice, Type);
 }

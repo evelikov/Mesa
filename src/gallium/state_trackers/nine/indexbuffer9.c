@@ -193,5 +193,5 @@ NineIndexBuffer9_new( struct NineDevice9 *pDevice,
                       D3DINDEXBUFFER_DESC *pDesc,
                       struct NineIndexBuffer9 **ppOut )
 {
-    NINE_NEW(NineIndexBuffer9, ppOut, /* args */ pDevice, pDesc);
+    NINE_DEVICE_CHILD_NEW(IndexBuffer9, ppOut, /* args */ pDevice, pDesc);
 }

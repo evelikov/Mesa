@@ -513,6 +513,6 @@ NineSwapChain9_new( struct NineDevice9 *pDevice,
                     HWND hFocusWindow,
                     struct NineSwapChain9 **ppOut )
 {
-    NINE_NEW(NineSwapChain9, ppOut, pDevice, /* args */
-             implicit, pPresent, pPTR, hFocusWindow);
+    NINE_DEVICE_CHILD_NEW(SwapChain9, ppOut, pDevice, /* args */
+                          implicit, pPresent, pPTR, hFocusWindow);
 }

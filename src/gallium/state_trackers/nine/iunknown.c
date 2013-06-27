@@ -85,8 +85,9 @@ NineUnknown_AddRef( struct NineUnknown *This )
     if (r == 1) {
         if (This->device)
             NineUnknown_AddRef(NineUnknown(This->device));
+        /* This shouldn't be necessary:
         if (This->container)
-            NineUnknown_Bind(NineUnknown(This->container));
+            NineUnknown_Bind(NineUnknown(This->container)); */
     }
     return r;
 }
@@ -107,7 +108,7 @@ NineUnknown_Release( struct NineUnknown *This )
                 return r; /* everything's gone */
         }
         if (This->container) {
-            NineUnknown_Unbind(NineUnknown(This->container));
+            /* NineUnknown_Unbind(NineUnknown(This->container)); */
         } else
         if (This->bind == 0) {
             This->dtor(This);

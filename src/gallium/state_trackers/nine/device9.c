@@ -3449,7 +3449,10 @@ NineDevice9_new( struct pipe_screen *pScreen,
                  PPRESENT_TO_RESOURCE pPTR,
                  struct NineDevice9 **ppOut )
 {
-    NINE_NEW(NineDevice9, ppOut, NULL, /* args */
+    BOOL lock;
+    lock = !!(pCreationParameters->BehaviorFlags & D3DCREATE_MULTITHREADED);
+
+    NINE_NEW(Device9, ppOut, lock, /* args */
              pScreen, pCreationParameters, pCaps,
              pD3D9, pPresentationFactory, pPTR);
 }

@@ -243,8 +243,8 @@ NineVolumeTexture9_new( struct NineDevice9 *pDevice,
                         struct NineVolumeTexture9 **ppOut,
                         HANDLE *pSharedHandle )
 {
-    NINE_NEW(NineVolumeTexture9, ppOut, pDevice,
-             Width, Height, Depth, Levels,
-             Usage, Format, Pool, pSharedHandle);
+    NINE_DEVICE_CHILD_NEW(VolumeTexture9, ppOut, pDevice,
+                          Width, Height, Depth, Levels,
+                          Usage, Format, Pool, pSharedHandle);
 }
 

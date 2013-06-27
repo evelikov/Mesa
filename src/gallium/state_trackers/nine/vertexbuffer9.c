@@ -216,5 +216,5 @@ NineVertexBuffer9_new( struct NineDevice9 *pDevice,
                        D3DVERTEXBUFFER_DESC *pDesc,
                        struct NineVertexBuffer9 **ppOut )
 {
-    NINE_NEW(NineVertexBuffer9, ppOut, /* args */ pDevice, pDesc);
+    NINE_DEVICE_CHILD_NEW(VertexBuffer9, ppOut, /* args */ pDevice, pDesc);
 }

@@ -1071,7 +1071,7 @@ NineAdapter9_new( struct pipe_screen *pScreenHAL,
                   void (*pDestructor)(void *),
                   struct NineAdapter9 **ppOut )
 {
-    NINE_NEW(NineAdapter9, ppOut, NULL,
-             /* args */ pScreenHAL, pScreenREF, pIdentifier,
-                        pPTR, pClosure, pDestructor);
+    NINE_NEW(Adapter9, ppOut, FALSE,
+  /* args */ pScreenHAL, pScreenREF, pIdentifier,
+             pPTR, pClosure, pDestructor);
 }

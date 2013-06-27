@@ -24,6 +24,7 @@
 #define _NINE_HELPERS_H_
 
 #include "iunknown.h"
+#include "nine_lock.h"
 
 /* Sshhh ... */
 #define nine_reference(a, b) _nine_reference((void **)(a), (b))
@@ -61,23 +62,48 @@ static inline void _nine_bind(void **dst, void *obj)
     }
 }
 
-#define NINE_NEW(nine, out, dev, ...) \
+#define NINE_DEVICE_CHILD_NEW(nine, out, dev, ...) \
     { \
         struct NineUnknownParams __params; \
-        struct nine *__data; \
+        struct Nine##nine *__data; \
          \
-        __data = CALLOC_STRUCT(nine); \
+        __data = CALLOC_STRUCT(Nine##nine); \
         if (!__data) { return E_OUTOFMEMORY; } \
          \
-        __params.vtable = &nine##_vtable; \
-        __params.guids = nine##_IIDs; \
-        __params.dtor = (void *)nine##_dtor; \
+        __params.vtable = ((dev)->params.BehaviorFlags & D3DCREATE_MULTITHREADED) ? &Lock##nine##_vtable : &Nine##nine##_vtable; \
+        __params.guids = Nine##nine##_IIDs; \
+        __params.dtor = (void *)Nine##nine##_dtor; \
         __params.container = NULL; \
         __params.device = dev; \
         { \
-            HRESULT __hr = nine##_ctor(__data, &__params, ## __VA_ARGS__); \
+            HRESULT __hr = Nine##nine##_ctor(__data, &__params, ## __VA_ARGS__); \
             if (FAILED(__hr)) { \
-                nine##_dtor(__data); \
+                Nine##nine##_dtor(__data); \
+                return __hr; \
+            } \
+        } \
+         \
+        *(out) = __data; \
+    } \
+    return D3D_OK
+
+#define NINE_NEW(nine, out, lock, ...) \
+    { \
+        struct NineUnknownParams __params; \
+        struct Nine##nine *__data; \
+         \
+        __data = CALLOC_STRUCT(Nine##nine); \
+        if (!__data) { return E_OUTOFMEMORY; } \
+         \
+        __params.vtable = (lock) ? &Lock##nine##_vtable : &Nine##nine##_vtable; \
+        __params.guids = Nine##nine##_IIDs; \
+        __params.dtor = (void *)Nine##nine##_dtor; \
+        __params.container = NULL; \
+        __params.device = NULL; \
+        { \
+            HRESULT __hr = Nine##nine##_ctor(__data, &__params, ## __VA_ARGS__); \
+            if (FAILED(__hr)) { \
+                Nine##nine##_dtor(__data); \
                 return __hr; \
             } \
         } \
