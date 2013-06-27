@@ -56,9 +56,9 @@ NineIndexBuffer9_ctor( struct NineIndexBuffer9 *This,
 
     info->usage = PIPE_USAGE_STATIC;
     if (pDesc->Usage & D3DUSAGE_DYNAMIC)
-        info->usage = PIPE_USAGE_DYNAMIC;
-    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
         info->usage = PIPE_USAGE_STREAM;
+    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
+        info->usage = PIPE_USAGE_STAGING;
 
     /* if (This->desc.Usage & D3DUSAGE_DONOTCLIP) { } */
     /* if (This->desc.Usage & D3DUSAGE_NONSECURE) { } */

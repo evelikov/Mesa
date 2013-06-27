@@ -67,9 +67,9 @@ NineVertexBuffer9_ctor( struct NineVertexBuffer9 *This,
 
     info->usage = PIPE_USAGE_STATIC;
     if (pDesc->Usage & D3DUSAGE_DYNAMIC)
-        info->usage = PIPE_USAGE_DYNAMIC;
-    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
         info->usage = PIPE_USAGE_STREAM;
+    if (pDesc->Pool == D3DPOOL_SYSTEMMEM)
+        info->usage = PIPE_USAGE_STAGING;
 
     /* if (pDesc->Usage & D3DUSAGE_DONOTCLIP) { } */
     /* if (pDesc->Usage & D3DUSAGE_NONSECURE) { } */
