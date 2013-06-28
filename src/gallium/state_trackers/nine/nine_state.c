@@ -945,11 +945,12 @@ nine_state_set_defaults(struct nine_state *state, const D3DCAPS9 *caps,
 }
 
 void
-nine_state_clear(struct nine_state *state, const D3DCAPS9 *caps)
+nine_state_clear(struct NineDevice9 *device)
 {
+    struct nine_state *state = &device->state;
     unsigned i;
 
-    for (i = 0; i < caps->NumSimultaneousRTs; ++i)
+    for (i = 0; i < device->caps.NumSimultaneousRTs; ++i)
        nine_bind(&state->rt[i], NULL);
     nine_bind(&state->ds, NULL);
     nine_bind(&state->vs, NULL);
@@ -957,8 +958,13 @@ nine_state_clear(struct nine_state *state, const D3DCAPS9 *caps)
     nine_bind(&state->vdecl, NULL);
     for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
         nine_bind(&state->stream[i], NULL);
-    for (i = 0; i < NINE_MAX_SAMPLERS; ++i)
+    for (i = 0; i < NINE_MAX_SAMPLERS; ++i) {
+        if (state->texture[i] &&
+            state->texture[i]->base.pool == D3DPOOL_MANAGED)
+            if (state->texture[i]->base.base.bind == 1)
+                list_delinit(&state->texture[i]->list);
         nine_bind(&state->texture[i], NULL);
+    }
 }
 
 /*

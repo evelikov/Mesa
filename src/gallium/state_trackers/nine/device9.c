@@ -301,7 +301,7 @@ NineDevice9_dtor( struct NineDevice9 *This )
     if (This->pipe && This->cso)
         nine_pipe_context_clear(This->cso, This->pipe);
     nine_ff_fini(This);
-    nine_state_clear(&This->state, &This->caps);
+    nine_state_clear(This);
 
     util_destroy_gen_mipmap(This->gen_mipmap);
 
@@ -604,7 +604,7 @@ NineDevice9_Reset( struct NineDevice9 *This,
         return (hr == D3DERR_OUTOFVIDEOMEMORY) ? hr : D3DERR_DEVICELOST;
 
     nine_pipe_context_clear(This->cso, This->pipe);
-    nine_state_clear(&This->state, &This->caps);
+    nine_state_clear(This);
 
     NineDevice9_SetDefaultState(This, TRUE);
     NineDevice9_SetRenderTarget(
