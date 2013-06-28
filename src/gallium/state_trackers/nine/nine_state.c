@@ -337,13 +337,12 @@ update_ps(struct NineDevice9 *device)
     return 0;
 }
 
-#define DO_UPLOAD_CONST_F(buf,x,c,d) \
+#define DO_UPLOAD_CONST_F(buf,p,c,d) \
     do { \
         DBG("upload ConstantF [%u .. %u]\n", x, (x) + (c) - 1); \
-        box.x = (x) * 4 * sizeof(float); \
+        box.x = (p) * 4 * sizeof(float); \
         box.width = (c) * 4 * sizeof(float); \
-        (c) = 0; \
-        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, &((d)[x * 4]), \
+        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, &((d)[p * 4]), \
                                     0, 0); \
     } while(0)
 
@@ -362,18 +361,24 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     uint32_t b_true;
     uint16_t dirty_i;
     uint16_t dirty_b;
-    uint32_t *dirty_f;
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
     unsigned x = 0; /* silence warning */
-    unsigned i, j, c, n;
+    unsigned i, c, n;
     const struct nine_lconstf *lconstf;
+    struct nine_range *r, *p;
 
     if (shader_type == PIPE_SHADER_VERTEX) {
         DBG("VS\n");
         buf = device->constbuf_vs;
 
-        dirty_f = device->state.changed.vs_const_f;
         const_f = device->state.vs_const_f;
+        for (p = r = device->state.changed.vs_const_f; r; p = r, r = r->next)
+            DO_UPLOAD_CONST_F(buf, r->bgn, r->end - r->bgn, const_f);
+        if (p) {
+            nine_range_pool_put_chain(&device->range_pool,
+                                      device->state.changed.vs_const_f, p);
+            device->state.changed.vs_const_f = NULL;
+        }
 
         dirty_i = device->state.changed.vs_const_i;
         device->state.changed.vs_const_i = 0;
@@ -391,8 +396,14 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         DBG("PS\n");
         buf = device->constbuf_ps;
 
-        dirty_f = device->state.changed.ps_const_f;
         const_f = device->state.ps_const_f;
+        for (p = r = device->state.changed.ps_const_f; r; p = r, r = r->next)
+            DO_UPLOAD_CONST_F(buf, r->bgn, r->end - r->bgn, const_f);
+        if (p) {
+            nine_range_pool_put_chain(&device->range_pool,
+                                      device->state.changed.vs_const_f, p);
+            device->state.changed.ps_const_f = NULL;
+        }
 
         dirty_i = device->state.changed.ps_const_i;
         device->state.changed.ps_const_i = 0;
@@ -453,27 +464,6 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         box.width = c * 4 * sizeof(int);
         pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
-
-    /* float4 */
-    for (c = 0, i = 0; i < (NINE_MAX_CONST_F + 31) / 32; ++i) {
-        uint32_t m = dirty_f[i];
-        dirty_f[i] = 0;
-
-        for (j = 0; m; j++, m >>= 1) {
-            if (m & 1) {
-               if (!c)
-                   x = i * 32 + j;
-               ++c;
-            } else
-            if (c) {
-                DO_UPLOAD_CONST_F(buf, x, c, const_f);
-            }
-        }
-        if (c && (j != 32))
-            DO_UPLOAD_CONST_F(buf, x, c, const_f);
-    }
-    if (c)
-        DO_UPLOAD_CONST_F(buf, x, c, const_f);
 
     /* TODO: only upload these when shader itself changes */
     if (lconstf->num) {

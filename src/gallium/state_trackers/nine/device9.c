@@ -2809,9 +2809,6 @@ NineDevice9_SetVertexShaderConstantF( struct NineDevice9 *This,
                                       UINT Vector4fCount )
 {
     struct nine_state *state = This->update;
-    uint32_t mask;
-    unsigned i;
-    unsigned c;
 
     DBG("This=%p StartRegister=%u pConstantData=%p Vector4fCount=%u\n",
         This, StartRegister, pConstantData, Vector4fCount);
@@ -2827,19 +2824,9 @@ NineDevice9_SetVertexShaderConstantF( struct NineDevice9 *This,
            pConstantData,
            Vector4fCount * 4 * sizeof(state->vs_const_f[0]));
 
-    /* set dirty bitmask */
-    i = StartRegister / 32;
-    c = MIN2(Vector4fCount, 32 - (StartRegister % 32));
-    mask = 0xFFFFFFFF;
-    if (Vector4fCount < 32)
-       mask >>= 32 - Vector4fCount;
-
-    state->changed.vs_const_f[i] |= mask << (StartRegister % 32);
-    for (++i; i < (StartRegister + Vector4fCount) / 32; ++i)
-       state->changed.vs_const_f[i] = 0xFFFFFFFF;
-    c = (Vector4fCount - c) - (i - 1) * 32;
-    if (c)
-       state->changed.vs_const_f[i] |= (1 << c) - 1;
+    nine_ranges_insert(&state->changed.vs_const_f,
+                       StartRegister, StartRegister + Vector4fCount,
+                       &This->range_pool);
 
     state->changed.group |= NINE_STATE_VS_CONST;
 
@@ -3125,9 +3112,6 @@ NineDevice9_SetPixelShaderConstantF( struct NineDevice9 *This,
                                      UINT Vector4fCount )
 {
     struct nine_state *state = This->update;
-    uint32_t mask;
-    unsigned i;
-    unsigned c;
 
     DBG("This=%p StartRegister=%u pConstantData=%p Vector4fCount=%u\n",
         This, StartRegister, pConstantData, Vector4fCount);
@@ -3143,19 +3127,9 @@ NineDevice9_SetPixelShaderConstantF( struct NineDevice9 *This,
            pConstantData,
            Vector4fCount * 4 * sizeof(state->ps_const_f[0]));
 
-    /* set dirty bitmask */
-    i = StartRegister / 32;
-    c = MIN2(Vector4fCount, 32 - (StartRegister % 32));
-    mask = 0xFFFFFFFF;
-    if (Vector4fCount < 32)
-       mask >>= 32 - Vector4fCount;
-
-    state->changed.ps_const_f[i] |= mask << (StartRegister % 32);
-    for (++i; i < (StartRegister + Vector4fCount) / 32; ++i)
-       state->changed.ps_const_f[i] = 0xFFFFFFFF;
-    c = (Vector4fCount - c) - (i - 1) * 32;
-    if (c)
-       state->changed.ps_const_f[i] |= (1 << c) - 1;
+    nine_ranges_insert(&state->changed.ps_const_f,
+                       StartRegister, StartRegister + Vector4fCount,
+                       &This->range_pool);
 
     state->changed.group |= NINE_STATE_PS_CONST;
 

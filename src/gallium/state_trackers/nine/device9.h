@@ -23,12 +23,13 @@
 #ifndef _NINE_DEVICE9_H_
 #define _NINE_DEVICE9_H_
 
+#include "nine_helpers.h"
+
 #include "iunknown.h"
+#include "d3dpresent.h"
 #include "adapter9.h"
 
 #include "nine_state.h"
-
-#include "d3dpresent.h"
 
 struct gen_mipmap_state;
 struct util_hash_table;
@@ -108,6 +109,8 @@ struct NineDevice9
     } driver_caps;
 
     struct u_upload_mgr *upload;
+
+    struct nine_range_pool range_pool;
 
     struct hud_context *hud; /* NULL if hud is disabled */
 };

@@ -89,9 +89,10 @@ static void
 nine_state_transfer(struct nine_state *dst,
                     const struct nine_state *src,
                     struct nine_state *mask,
-                    const boolean apply)
+                    const boolean apply,
+                    struct nine_range_pool *pool)
 {
-    unsigned i, j, s;
+    unsigned i, s;
 
     if (mask->changed.group & NINE_STATE_VIEWPORT)
         dst->viewport = src->viewport;
@@ -116,24 +117,15 @@ nine_state_transfer(struct nine_state *dst,
      * Will do that later depending on what works best for specific apps.
      */
     if (mask->changed.group & NINE_STATE_VS_CONST) {
-       for (i = 0; i < Elements(mask->changed.vs_const_f); ++i) {
-          uint32_t m;
-          if (!mask->changed.vs_const_f[i])
-             continue;
-          if (apply)
-             dst->changed.vs_const_f[i] |= mask->changed.vs_const_f[i];
-          m = mask->changed.vs_const_f[i];
-
-          if (m == 0xFFFFFFFF) {
-             memcpy(&dst->vs_const_f[i * 32 * 4],
-                    &src->vs_const_f[i * 32 * 4], 32 * 4 * sizeof(float));
-             continue;
-          }
-          for (j = ffs(m) - 1, m >>= j; m; ++j, m >>= 1)
-             if (m & 1)
-                memcpy(&dst->vs_const_f[(i * 32 + j) * 4],
-                       &src->vs_const_f[(i * 32 + j) * 4], 4 * sizeof(float));
-       }
+        struct nine_range *r;
+        for (r = mask->changed.vs_const_f; r; r = r->next) {
+            memcpy(&dst->vs_const_f[r->bgn * 4],
+                   &src->vs_const_f[r->bgn * 4],
+                   (r->end - r->bgn) * 4 * sizeof(float));
+            if (apply)
+                nine_ranges_insert(&dst->changed.vs_const_f, r->bgn, r->end,
+                                   pool);
+        }
     }
     if (mask->changed.vs_const_i) {
        uint16_t m = mask->changed.vs_const_i;
@@ -154,24 +146,15 @@ nine_state_transfer(struct nine_state *dst,
 
     /* Pixel constants. */
     if (mask->changed.group & NINE_STATE_PS_CONST) {
-       for (i = 0; i < Elements(mask->changed.ps_const_f); ++i) {
-          uint32_t m;
-          if (!mask->changed.ps_const_f[i])
-             continue;
-          if (apply)
-             dst->changed.ps_const_f[i] |= mask->changed.ps_const_f[i];
-          m = mask->changed.ps_const_f[i];
-
-          if (m == 0xFFFFFFFF) {
-             memcpy(&dst->ps_const_f[i * 32 * 4],
-                    &src->ps_const_f[i * 32 * 4], 32 * 4 * sizeof(float));
-             continue;
-          }
-          for (j = ffs(m) - 1, m >>= j; m; ++j, m >>= 1)
-             if (m & 1)
-                memcpy(&dst->ps_const_f[(i * 32 + j) * 4],
-                       &src->ps_const_f[(i * 32 + j) * 4], 4 * sizeof(float));
-       }
+        struct nine_range *r;
+        for (r = mask->changed.ps_const_f; r; r = r->next) {
+            memcpy(&dst->ps_const_f[r->bgn * 4],
+                   &src->ps_const_f[r->bgn * 4],
+                   (r->end - r->bgn) * 4 * sizeof(float));
+            if (apply)
+                nine_ranges_insert(&dst->changed.ps_const_f, r->bgn, r->end,
+                                   pool);
+        }
     }
     if (mask->changed.ps_const_i) {
        uint16_t m = mask->changed.ps_const_i;
@@ -318,7 +301,7 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
     DBG("This=%p\n", This);
 
     nine_state_transfer(&This->state, &This->base.device->state, &This->state,
-                        FALSE);
+                        FALSE, NULL);
     return D3D_OK;
 }
 
@@ -331,7 +314,7 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
     if (This->type == NINESBT_ALL && 0) /* TODO */
        nine_state_transfer_all(&This->base.device->state, &This->state);
     nine_state_transfer(&This->base.device->state, &This->state, &This->state,
-                        TRUE);
+                        TRUE, &This->base.device->range_pool);
     return D3D_OK;
 }
 
