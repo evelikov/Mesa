@@ -1943,9 +1943,11 @@ NineDevice9_SetRenderState( struct NineDevice9 *This,
 
     user_assert(State < Elements(state->rs), D3DERR_INVALIDCALL);
 
-    state->rs[State] = Value;
-    state->changed.rs[State / 32] |= 1 << (State % 32);
-    state->changed.group |= nine_render_state_group[State];
+    if (likely(state->rs[State] != Value) || unlikely(This->is_recording)) {
+        state->rs[State] = Value;
+        state->changed.rs[State / 32] |= 1 << (State % 32);
+        state->changed.group |= nine_render_state_group[State];
+    }
 
     return D3D_OK;
 }
