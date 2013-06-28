@@ -59,6 +59,7 @@ typedef struct ID3DPresentVtbl
     /* Cursor size is always 32x32. pBitmap and pHotspot can be NULL. */
     HRESULT (WINAPI *SetCursor)(ID3DPresent *This, void *pBitmap, POINT *pHotspot, BOOL bShow);
     HRESULT (WINAPI *SetGammaRamp)(ID3DPresent *This, const D3DGAMMARAMP *pRamp, HWND hWndOverride);
+    HRESULT (WINAPI *GetWindowRect)(ID3DPresent *This, HWND hWnd, LPRECT pRect);
 } ID3DPresentVtbl;
 
 struct ID3DPresent
@@ -82,6 +83,7 @@ struct ID3DPresent
 #define ID3DPresent_SetCursorPos(p,a) (p)->lpVtbl->SetCursorPos(p,a)
 #define ID3DPresent_SetCursor(p,a,b,c) (p)->lpVtbl->SetCursor(p,a,b,c)
 #define ID3DPresent_SetGammaRamp(p,a,b) (p)->lpVtbl->SetGammaRamp(p,a,b)
+#define ID3DPresent_GetWindowRect(p,a,b) (p)->lpVtbl->GetWindowRect(p,a,b)
 
 typedef struct ID3DPresentFactory ID3DPresentFactory;
 

@@ -315,6 +315,14 @@ NinePresentXlib_SetGammaRamp( struct NinePresentXlib *This,
     return D3DERR_INVALIDCALL; /* TODO: implement */
 }
 
+static HRESULT WINAPI
+NinePresentXlib_GetWindowRect( struct NinePresentXlib *This,
+                               HWND hWnd,
+                               LPRECT pRect )
+{
+   return D3DERR_INVALIDCALL; /* TODO: implement */
+}
+
 static ID3DPresentVtbl NinePresentXlib_vtable = {
     (void *)NinePresentXlib_QueryInterface,
     (void *)NinePresentXlib_AddRef,
@@ -329,7 +337,8 @@ static ID3DPresentVtbl NinePresentXlib_vtable = {
     (void *)NinePresentXlib_GetCursorPos,
     (void *)NinePresentXlib_SetCursorPos,
     (void *)NinePresentXlib_SetCursor,
-    (void *)NinePresentXlib_SetGammaRamp
+    (void *)NinePresentXlib_SetGammaRamp,
+    (void *)NinePresentXlib_GetWindowRect
 };
 
 static HRESULT

@@ -479,6 +479,16 @@ NineWinePresentX11_SetGammaRamp( struct NineWinePresentX11 *This,
    return ok ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }
 
+static HRESULT WINAPI
+NineWinePresentX11_GetWindowRect( struct NineWinePresentX11 *This,
+                                  HWND hWnd,
+                                  LPRECT pRect )
+{
+   if (!hWnd)
+      hWnd = This->current_window.real;
+   return GetClientRect(hWnd, pRect) ? D3D_OK : D3DERR_INVALIDCALL;
+}
+
 static ID3DPresentVtbl NineWinePresentX11_vtable = {
     (void *)NineWinePresentX11_QueryInterface,
     (void *)NineWinePresentX11_AddRef,
@@ -493,7 +503,8 @@ static ID3DPresentVtbl NineWinePresentX11_vtable = {
     (void *)NineWinePresentX11_GetCursorPos,
     (void *)NineWinePresentX11_SetCursorPos,
     (void *)NineWinePresentX11_SetCursor,
-    (void *)NineWinePresentX11_SetGammaRamp
+    (void *)NineWinePresentX11_SetGammaRamp,
+    (void *)NineWinePresentX11_GetWindowRect
 };
 
 static HRESULT
