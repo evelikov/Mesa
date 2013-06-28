@@ -252,6 +252,8 @@ update_vertex_elements(struct NineDevice9 *device)
         }
     }
     cso_set_vertex_elements(device->cso, vs->num_inputs, ve);
+
+    state->changed.stream_freq = 0;
 }
 
 static INLINE uint32_t
