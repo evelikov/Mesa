@@ -1,11 +1,12 @@
 
-#include "nine_dump.h"
 #include "nine_debug.h"
 #include "nine_pipe.h"
 
 #include <stdio.h>
 #include "util/u_memory.h"
 #include "util/u_math.h"
+
+#include "nine_dump.h"
 
 #ifdef DEBUG
 

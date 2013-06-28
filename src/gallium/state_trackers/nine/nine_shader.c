@@ -2356,7 +2356,7 @@ sm1_read_dst_param(struct shader_translator *tx,
                    struct sm1_dst_param *dst,
                    struct sm1_src_param *rel)
 {
-    DWORD tok_dst, tok_rel;
+    DWORD tok_dst, tok_rel = 0;
 
     sm1_parse_get_param(tx, &tok_dst, &tok_rel);
     sm1_parse_dst_param(dst, tok_dst);
@@ -2371,7 +2371,7 @@ sm1_read_src_param(struct shader_translator *tx,
                    struct sm1_src_param *src,
                    struct sm1_src_param *rel)
 {
-    DWORD tok_src, tok_rel;
+    DWORD tok_src, tok_rel = 0;
 
     sm1_parse_get_param(tx, &tok_src, &tok_rel);
     sm1_parse_src_param(src, tok_src);

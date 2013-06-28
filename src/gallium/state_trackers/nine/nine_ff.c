@@ -511,7 +511,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             vs->aTex[idx] = build_vs_add_input(vs, NINE_DECLUSAGE_TEXCOORD(idx));
 
         if (!dim) {
-            dst[4] = oTex[i];
+            dst[c = 4] = oTex[i];
         } else {
             dst[4] = tmp;
             src = ureg_src(dst[4]);

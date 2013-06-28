@@ -26,6 +26,7 @@
 #include "nine_defines.h"
 #include "iunknown.h"
 
+struct pipe_resource;
 struct pipe_vertex_element;
 struct pipe_stream_output_info;
 struct NineDevice9;

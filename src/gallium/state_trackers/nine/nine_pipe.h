@@ -301,7 +301,7 @@ nine_fvf_stride( DWORD fvf )
     case D3DFVF_XYZB5:  size += 8*4; break;
     case D3DFVF_XYZW:   size += 4*4; break;
     default:
-        user_error(!"Position doesn't match any known combination.");
+        user_warn("Position doesn't match any known combination.");
         break;
     }
 

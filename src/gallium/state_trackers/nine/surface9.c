@@ -188,6 +188,7 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
     return This->surface;
 }
 
+#ifdef DEBUG
 void
 NineSurface9_Dump( struct NineSurface9 *This )
 {
@@ -215,6 +216,7 @@ NineSurface9_Dump( struct NineSurface9 *This )
         NineUnknown_Release(NineUnknown(tex));
     }
 }
+#endif /* DEBUG */
 
 HRESULT WINAPI
 NineSurface9_GetContainer( struct NineSurface9 *This,

@@ -481,6 +481,7 @@ NineBaseTexture9_PreLoad( struct NineBaseTexture9 *This )
         NineBaseTexture9_UploadSelf(This);
 }
 
+#ifdef DEBUG
 void
 NineBaseTexture9_Dump( struct NineBaseTexture9 *This )
 {
@@ -495,3 +496,4 @@ NineBaseTexture9_Dump( struct NineBaseTexture9 *This )
         This->base.info.array_size, This->base.info.last_level,
         This->lod, This->lod_resident);
 }
+#endif /* DEBUG */

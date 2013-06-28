@@ -364,8 +364,8 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     uint16_t dirty_b;
     uint32_t *dirty_f;
     const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    unsigned x = 0; /* silence warning */
     unsigned i, j, c, n;
-    unsigned x;
     const struct nine_lconstf *lconstf;
 
     if (shader_type == PIPE_SHADER_VERTEX) {
