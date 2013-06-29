@@ -36,6 +36,7 @@
 #define DBG_CHANNEL DBG_SHADER
 
 #define NINE_TGSI_LAZY_DEVS /* don't use TGSI_OPCODE_BREAKC */
+#define NINE_TGSI_LAZY_R600 /* don't use TGSI_OPCODE_DP2A */
 
 #define DUMP(args...) _nine_debug_printf(DBG_CHANNEL, NULL, args)
 
@@ -239,6 +240,14 @@ struct sm1_dst_param
     BYTE shift; /* sint4 */
     BYTE type;
 };
+
+static INLINE void
+assert_replicate_swizzle(const struct ureg_src *reg)
+{
+    assert(reg->SwizzleY == reg->SwizzleX &&
+           reg->SwizzleZ == reg->SwizzleX &&
+           reg->SwizzleW == reg->SwizzleX);
+}
 
 static void
 sm1_dump_immediate(const struct sm1_src_param *param)
@@ -1782,6 +1791,27 @@ DECL_SPECIAL(NRM)
     return D3D_OK;
 }
 
+DECL_SPECIAL(DP2ADD)
+{
+#ifdef NINE_TGSI_LAZY_R600
+    struct ureg_dst tmp = tx_scratch_scalar(tx);
+    struct ureg_src dp2 = tx_src_scalar(tmp);
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_src src[3];
+    int i;
+    for (i = 0; i < 3; ++i)
+        src[i] = tx_src_param(tx, &tx->insn.src[i]);
+    assert_replicate_swizzle(&src[2]);
+
+    ureg_DP2(tx->ureg, tmp, src[0], src[1]);
+    ureg_ADD(tx->ureg, dst, src[2], dp2);
+
+    return D3D_OK;
+#else
+    return NineTranslateInstruction_Generic(tx);
+#endif
+}
+
 DECL_SPECIAL(TEXCOORD)
 {
     struct ureg_program *ureg = tx->ureg;
@@ -2124,7 +2154,7 @@ struct sm1_op_info inst_table[] =
     /* Misc */
     _OPI(CMP,    CMP,  V(0,0), V(0,0), V(1,2), V(3,0), 1, 3, SPECIAL(CMP)), /* reversed */
     _OPI(BEM,    NOP,  V(0,0), V(0,0), V(1,4), V(1,4), 0, 0, SPECIAL(BEM)),
-    _OPI(DP2ADD, DP2A, V(0,0), V(0,0), V(2,0), V(3,0), 1, 3, NULL),
+    _OPI(DP2ADD, DP2A, V(0,0), V(0,0), V(2,0), V(3,0), 1, 3, SPECIAL(DP2ADD)), /* for radeons */
     _OPI(DSX,    DDX,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 1, NULL),
     _OPI(DSY,    DDY,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 1, NULL),
     _OPI(TEXLDD, TXD,  V(0,0), V(0,0), V(2,1), V(3,0), 1, 4, SPECIAL(TEXLDD)),
