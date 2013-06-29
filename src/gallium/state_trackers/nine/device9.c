@@ -2417,6 +2417,7 @@ init_draw_info(struct pipe_draw_info *info,
     if (dev->state.stream_instancedata_mask & dev->state.stream_usage_mask)
         info->instance_count = MAX2(dev->state.stream_freq[0] & 0x7FFFFF, 1);
     info->primitive_restart = FALSE;
+    info->restart_index = 0;
     info->count_from_stream_output = NULL;
     /* info->indirect = NULL; */
 }
