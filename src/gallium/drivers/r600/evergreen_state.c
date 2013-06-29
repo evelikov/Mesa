@@ -680,6 +680,11 @@ static bool r600_is_zs_format_supported(enum pipe_format format)
 	return r600_translate_dbformat(format) != ~0U;
 }
 
+static bool r600_is_blending_supported(enum pipe_format format)
+{
+	return !util_format_is_pure_integer(format);
+}
+
 boolean evergreen_is_format_supported(struct pipe_screen *screen,
 				      enum pipe_format format,
 				      enum pipe_texture_target target,
@@ -747,6 +752,10 @@ boolean evergreen_is_format_supported(struct pipe_screen *screen,
 		retval |= PIPE_BIND_TRANSFER_READ;
 	if (usage & PIPE_BIND_TRANSFER_WRITE)
 		retval |= PIPE_BIND_TRANSFER_WRITE;
+
+	if ((usage & PIPE_BIND_BLENDABLE) &&
+	    r600_is_blending_supported(format))
+		retval |= PIPE_BIND_BLENDABLE;
 
 	return retval == usage;
 }
