@@ -227,10 +227,18 @@ NineDevice9_ctor( struct NineDevice9 *This,
         max_const_f_vs -= NINE_MAX_CONST_I + NINE_MAX_CONST_B / 4;
         max_const_f_ps -= NINE_MAX_CONST_I + NINE_MAX_CONST_B / 4;
 
-        This->state.vs_const_f = CALLOC(max_const_f_vs, 4 * sizeof(float));
-        This->state.ps_const_f = CALLOC(max_const_f_ps, 4 * sizeof(float));
+        This->max_vs_const_f = max_const_f_vs;
+        This->max_ps_const_f = max_const_f_ps;
+
+        /* Include space for I,B constants for user constbuf. */
+        This->state.vs_const_f = CALLOC(max_const_vs, 4 * sizeof(float));
+        This->state.ps_const_f = CALLOC(max_const_ps, 4 * sizeof(float));
         if (!This->state.vs_const_f || !This->state.ps_const_f)
             return E_OUTOFMEMORY;
+
+        if (strstr(pScreen->get_name(pScreen), "AMD") ||
+            strstr(pScreen->get_name(pScreen), "ATI"))
+            This->prefer_user_constbuf = TRUE;
 
         tmpl.target = PIPE_BUFFER;
         tmpl.format = PIPE_FORMAT_R8_UNORM;

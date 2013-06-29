@@ -438,7 +438,6 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
        box.width = n * 4;
        DBG("upload ConstantB [%u .. %u]\n", x, x + n - 1);
        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data_b, 0, 0);
-          
     }
 
     /* int4 */
@@ -487,6 +486,88 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         data = &lconstf->data[x * 4];
         pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
+}
+
+static void
+update_vs_constants_userbuf(struct NineDevice9 *device)
+{
+    struct nine_state *state = &device->state;
+    struct pipe_context *pipe = device->pipe;
+    struct pipe_constant_buffer cb;
+    cb.buffer = NULL;
+    cb.buffer_offset = 0;
+    cb.buffer_size = device->constbuf_vs->width0;
+    cb.user_buffer = device->state.vs_const_f;
+
+    if (state->changed.vs_const_i) {
+        int *idst = (int *)&state->vs_const_f[4 * device->max_vs_const_f];
+        memcpy(idst, state->vs_const_i, sizeof(state->vs_const_i));
+        state->changed.vs_const_i = 0;
+    }
+    if (state->changed.vs_const_b) {
+        int *idst = (int *)&state->vs_const_f[4 * device->max_vs_const_f];
+        uint32_t *bdst = (uint32_t *)&idst[4 * NINE_MAX_CONST_I];
+        int i;
+        for (i = 0; i < NINE_MAX_CONST_B; ++i)
+            bdst[i] = state->vs_const_b[i] ? device->vs_bool_true : 0;
+        state->changed.vs_const_b = 0;
+    }
+
+    if (device->state.vs->lconstf.num) {
+        /* TODO: copy everything */
+    }
+    pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
+
+    if (device->state.changed.vs_const_f) {
+        struct nine_range *r = device->state.changed.vs_const_f;
+        struct nine_range *p = r;
+        while (p->next)
+            p = p->next;
+        nine_range_pool_put_chain(&device->range_pool, r, p);
+        device->state.changed.vs_const_f = NULL;
+    }
+    state->changed.group &= ~NINE_STATE_VS_CONST;
+}
+
+static void
+update_ps_constants_userbuf(struct NineDevice9 *device)
+{
+    struct nine_state *state = &device->state;
+    struct pipe_context *pipe = device->pipe;
+    struct pipe_constant_buffer cb;
+    cb.buffer = NULL;
+    cb.buffer_offset = 0;
+    cb.buffer_size = device->constbuf_ps->width0;
+    cb.user_buffer = device->state.ps_const_f;
+
+    if (state->changed.ps_const_i) {
+        int *idst = (int *)&state->ps_const_f[4 * device->max_ps_const_f];
+        memcpy(idst, state->ps_const_i, sizeof(state->ps_const_i));
+        state->changed.ps_const_i = 0;
+    }
+    if (state->changed.ps_const_b) {
+        int *idst = (int *)&state->ps_const_f[4 * device->max_ps_const_f];
+        uint32_t *bdst = (uint32_t *)&idst[4 * NINE_MAX_CONST_I];
+        int i;
+        for (i = 0; i < NINE_MAX_CONST_B; ++i)
+            bdst[i] = state->ps_const_b[i] ? device->ps_bool_true : 0;
+        state->changed.ps_const_b = 0;
+    }
+
+    if (device->state.ps->lconstf.num) {
+        /* TODO: copy everything */
+    }
+    pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
+
+    if (device->state.changed.ps_const_f) {
+        struct nine_range *r = device->state.changed.ps_const_f;
+        struct nine_range *p = r;
+        while (p->next)
+            p = p->next;
+        nine_range_pool_put_chain(&device->range_pool, r, p);
+        device->state.changed.ps_const_f = NULL;
+    }
+    state->changed.group &= ~NINE_STATE_PS_CONST;
 }
 
 static void
@@ -728,10 +809,17 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
             state->changed.stream_freq & ~1)
             update_vertex_elements(device);
 
-        if ((group & NINE_STATE_VS_CONST) && state->vs)
-            update_constants(device, PIPE_SHADER_VERTEX);
-        if ((group & NINE_STATE_PS_CONST) && state->ps)
-            update_constants(device, PIPE_SHADER_FRAGMENT);
+        if (device->prefer_user_constbuf) {
+            if ((group & NINE_STATE_VS_CONST) && state->vs)
+                update_vs_constants_userbuf(device);
+            if ((group & NINE_STATE_PS_CONST) && state->ps)
+                update_ps_constants_userbuf(device);
+        } else {
+            if ((group & NINE_STATE_VS_CONST) && state->vs)
+                update_constants(device, PIPE_SHADER_VERTEX);
+            if ((group & NINE_STATE_PS_CONST) && state->ps)
+                update_constants(device, PIPE_SHADER_FRAGMENT);
+        }
     }
     if (state->changed.vtxbuf)
         update_vertex_buffers(device);

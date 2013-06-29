@@ -129,6 +129,7 @@ struct nine_state
 
     /* NOTE: vs, ps will be NULL for FF and are set in device->ff.vs,ps instead
      *  (XXX: or is it better to reference FF shaders here, too ?)
+     * NOTE: const_f contains extra space for const_i,b to use as user constbuf
      */
     struct NineVertexShader9 *vs;
     float *vs_const_f;
