@@ -2023,7 +2023,8 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        /* TODO: texture/sampler state */
        memcpy(dst->changed.rs,
               nine_render_states_vertex, sizeof(dst->changed.rs));
-       memset(dst->changed.vs_const_f, ~0, sizeof(dst->vs_const_f));
+       nine_ranges_insert(&dst->changed.vs_const_f, 0, This->max_vs_const_f,
+                          &This->range_pool);
        dst->changed.vs_const_i = 0xffff;
        dst->changed.vs_const_b = 0xffff;
        for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
@@ -2047,7 +2048,8 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
        /* TODO: texture/sampler state */
        memcpy(dst->changed.rs,
               nine_render_states_pixel, sizeof(dst->changed.rs));
-       memset(dst->changed.ps_const_f, ~0, sizeof(dst->ps_const_f));
+       nine_ranges_insert(&dst->changed.ps_const_f, 0, This->max_ps_const_f,
+                          &This->range_pool);
        dst->changed.ps_const_i = 0xffff;
        dst->changed.ps_const_b = 0xffff;
        for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
