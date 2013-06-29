@@ -96,14 +96,23 @@ NineDevice9_RestoreNonCSOState( struct NineDevice9 *This, unsigned mask )
 
     if (mask & 0x1) {
         struct pipe_constant_buffer cb;
-        cb.user_buffer = NULL;
         cb.buffer_offset = 0;
 
-        cb.buffer = This->constbuf_vs;
+        if (This->prefer_user_constbuf) {
+            cb.buffer = NULL;
+            cb.user_buffer = This->state.vs_const_f;
+        } else {
+            cb.buffer = This->constbuf_vs;
+            cb.user_buffer = NULL;
+        }
         cb.buffer_size = This->constbuf_vs->width0;
         pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
 
-        cb.buffer = This->constbuf_ps;
+        if (This->prefer_user_constbuf) {
+            cb.user_buffer = This->state.ps_const_f;
+        } else {
+            cb.buffer = This->constbuf_ps;
+        }
         cb.buffer_size = This->constbuf_ps->width0;
         pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
     }

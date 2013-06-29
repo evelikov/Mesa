@@ -369,6 +369,11 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     const struct nine_lconstf *lconstf;
     struct nine_range *r, *p;
 
+    box.y = 0;
+    box.z = 0;
+    box.height = 1;
+    box.depth = 1;
+
     if (shader_type == PIPE_SHADER_VERTEX) {
         DBG("VS\n");
         buf = device->constbuf_vs;
@@ -420,10 +425,6 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
         device->state.ff.clobber.ps_const = TRUE;
         device->state.changed.group &= ~NINE_STATE_PS_CONST;
     }
-    box.y = 0;
-    box.z = 0;
-    box.height = 1;
-    box.depth = 1;
 
     /* write range from min to max changed, it's not much data */
     /* bool1 */

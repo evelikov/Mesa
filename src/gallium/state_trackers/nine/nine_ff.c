@@ -25,12 +25,20 @@
 
 #define DBG_CHANNEL DBG_FF
 
+#define NINE_FF_NUM_VS_CONST 256
+#define NINE_FF_NUM_PS_CONST 24
+
 #define NINED3DTSS_TCI_DISABLE                       0
 #define NINED3DTSS_TCI_PASSTHRU                      1
 #define NINED3DTSS_TCI_CAMERASPACENORMAL             2
 #define NINED3DTSS_TCI_CAMERASPACEPOSITION           3
 #define NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR   4
 #define NINED3DTSS_TCI_SPHEREMAP                     5
+
+struct fvec4
+{
+    float x, y, z, w;
+};
 
 struct nine_ff_vs_key
 {
@@ -1427,247 +1435,161 @@ nine_ff_get_ps(struct NineDevice9 *device)
 #define GET_D3DTS(n) nine_state_access_transform(state, D3DTS_##n, FALSE)
 #define IS_D3DTS_DIRTY(s,n) ((s)->ff.changed.transform[(D3DTS_##n) / 32] & (1 << ((D3DTS_##n) % 32)))
 static void
-nine_ff_upload_vs_transforms(struct NineDevice9 *device)
+nine_ff_load_vs_transforms(struct NineDevice9 *device)
 {
-    struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    D3DMATRIX M[8];
-    struct pipe_box box;
-    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    D3DMATRIX T;
+    D3DMATRIX *M = (D3DMATRIX *)device->ff.vs_const;
     unsigned i;
 
     /* TODO: make this nicer, and only upload the ones we need */
+    /* TODO: use ff.vs_const as storage of W, V, P matrices */
 
     if (IS_D3DTS_DIRTY(state, WORLD) ||
         IS_D3DTS_DIRTY(state, VIEW) ||
         IS_D3DTS_DIRTY(state, PROJECTION)) {
-        /* upload MVP, MV matrices */
+        /* WVP, WV matrices */
         nine_d3d_matrix_matrix_mul(&M[1], GET_D3DTS(WORLD), GET_D3DTS(VIEW));
         nine_d3d_matrix_matrix_mul(&M[0], &M[1], GET_D3DTS(PROJECTION));
-        u_box_1d(0, 2 * sizeof(M[0]), &box);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                    &box,
-                                    &M[0], 0, 0);
-        /* upload normal matrix == transpose(inverse(MV)) */
-        nine_d3d_matrix_inverse_3x3(&M[0], &M[1]);
-        nine_d3d_matrix_transpose(&M[1], &M[0]);
-        box.width = sizeof(M[0]) - sizeof(M[0].m[3]);
-        box.x = 4 * sizeof(M[0]);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                    &box,
-                                    &M[1].m[0][0], 0, 0);
 
-        /* upload VP matrix */
-        nine_d3d_matrix_matrix_mul(&M[0], GET_D3DTS(VIEW), GET_D3DTS(PROJECTION));
-        box.x = 2 * sizeof(M[0]);
-        box.width = sizeof(M[0]);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                    &box,
-                                    &M[0], 0, 0);
-        /* upload V matrix */
-        box.x = 3 * sizeof(M[0]);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                    &box,
-                                    GET_D3DTS(VIEW), 0, 0);
+        /* normal matrix == transpose(inverse(WV)) */
+        nine_d3d_matrix_inverse_3x3(&T, &M[1]);
+        nine_d3d_matrix_transpose(&M[4], &T);
 
-        /* upload W matrix */
-        box.x = (224 / 4) * sizeof(M[0]);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage,
-                                    &box,
-                                    GET_D3DTS(WORLD), 0, 0);
+        /* VP matrix */
+        nine_d3d_matrix_matrix_mul(&M[2], GET_D3DTS(VIEW), GET_D3DTS(PROJECTION));
+
+        /* V and W matrix */
+        M[3] = *GET_D3DTS(VIEW);
+        M[56] = *GET_D3DTS(WORLD);
     }
 
     if (state->rs[D3DRS_VERTEXBLEND] != D3DVBF_DISABLE) {
-        /* upload other world matrices */
-        box.x = (228 / 4) * sizeof(M[0]);
-        box.width = 7 * sizeof(M[0]);
+        /* load other world matrices */
         for (i = 1; i <= 7; ++i)
-            M[i - 1] = *GET_D3DTS(WORLDMATRIX(i));
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, &M[0], 0, 0);
+            M[56 + i] = *GET_D3DTS(WORLDMATRIX(i));
     }
 }
 
 static void
-nine_ff_upload_lights(struct NineDevice9 *device)
+nine_ff_load_lights(struct NineDevice9 *device)
 {
-    struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    float data[8][4];
-    union pipe_color_union color;
+    struct fvec4 *dst = (struct fvec4 *)device->ff.vs_const;
     unsigned l;
-    struct pipe_box box;
-    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
-
-    u_box_1d(0, sizeof(data), &box);
 
     if (state->changed.group & NINE_STATE_FF_MATERIAL) {
         const D3DMATERIAL9 *mtl = &state->ff.material;
 
-        memcpy(data[1], &mtl->Diffuse, sizeof(data[1]));
-        memcpy(data[2], &mtl->Ambient, sizeof(data[2]));
-        memcpy(data[3], &mtl->Specular, sizeof(data[3]));
-        memcpy(data[4], &mtl->Emissive, sizeof(data[4]));
-
-        data[5][0] = mtl->Power;
-        data[5][1] = 0.0f;
-        data[5][2] = 0.0f;
-        data[5][3] = 0.0f;
-
-        d3dcolor_to_rgba(&color.f[0], state->rs[D3DRS_AMBIENT]);
-        data[0][0] = color.f[0] * mtl->Ambient.r + mtl->Emissive.r;
-        data[0][1] = color.f[1] * mtl->Ambient.g + mtl->Emissive.g;
-        data[0][2] = color.f[2] * mtl->Ambient.b + mtl->Emissive.b;
-        data[0][3] = mtl->Ambient.a + mtl->Emissive.a;
-
-        box.width = 6 * 4 * sizeof(float);
-        box.x = 19 * 4 * sizeof(float);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
-                                    data, 0, 0);
+        memcpy(&dst[20], &mtl->Diffuse, 4 * sizeof(float));
+        memcpy(&dst[21], &mtl->Ambient, 4 * sizeof(float));
+        memcpy(&dst[22], &mtl->Specular, 4 * sizeof(float));
+        dst[23].x = mtl->Power;
+        memcpy(&dst[24], &mtl->Emissive, 4 * sizeof(float));
+        d3dcolor_to_rgba(&dst[25].x, state->rs[D3DRS_AMBIENT]);
+        dst[19].x = dst[25].x * mtl->Ambient.r + mtl->Emissive.r;
+        dst[19].y = dst[25].y * mtl->Ambient.g + mtl->Emissive.g;
+        dst[19].z = dst[25].z * mtl->Ambient.b + mtl->Emissive.b;
+        dst[19].w = mtl->Ambient.a + mtl->Emissive.a;
     }
 
     if (!(state->changed.group & NINE_STATE_FF_LIGHTING))
         return;
 
-    /* initialize unused fields */
-    data[6][3] = 0.0f;
-    data[7][0] = 0.0f;
-    data[7][1] = 0.0f;
-    data[7][2] = 0.0f;
     for (l = 0; l < state->ff.num_lights_active; ++l) {
         const D3DLIGHT9 *light = &state->ff.light[state->ff.active_light[l]];
 
-        data[0][0] = light->Type;
-        data[0][1] = light->Attenuation0;
-        data[0][2] = light->Attenuation1;
-        data[0][3] = light->Attenuation2;
-        memcpy(&data[1], &light->Diffuse, sizeof(data[1]));
-        memcpy(&data[2], &light->Specular, sizeof(data[2]));
-        memcpy(&data[3], &light->Ambient, sizeof(data[3]));
-        nine_d3d_vector4_matrix_mul((D3DVECTOR *)data[4], &light->Position, GET_D3DTS(VIEW));
-        nine_d3d_vector3_matrix_mul((D3DVECTOR *)data[5], &light->Direction, GET_D3DTS(VIEW));
-        data[4][3] = light->Type == D3DLIGHT_DIRECTIONAL ? 1e9f : light->Range;
-        data[5][3] = light->Falloff;
-        data[6][0] = cosf(light->Theta * 0.5f);
-        data[6][1] = cosf(light->Phi * 0.5f);
-        data[6][2] = 1.0f / (data[6][0] - data[6][1]);
-        data[7][3] = (l + 1) == state->ff.num_lights_active;
-
-        box.width = 8 * 4 * sizeof(float);
-        box.x = (32 + l * 8) * 4 * sizeof(float);
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box, data, 0, 0);
+        dst[32 + l * 8].x = light->Type;
+        dst[32 + l * 8].y = light->Attenuation0;
+        dst[32 + l * 8].z = light->Attenuation1;
+        dst[32 + l * 8].w = light->Attenuation2;
+        memcpy(&dst[33 + l * 8].x, &light->Diffuse, sizeof(light->Diffuse));
+        memcpy(&dst[34 + l * 8].x, &light->Specular, sizeof(light->Specular));
+        memcpy(&dst[35 + l * 8].x, &light->Ambient, sizeof(light->Ambient));
+        nine_d3d_vector4_matrix_mul((D3DVECTOR *)&dst[36 + l * 8].x, &light->Position, GET_D3DTS(VIEW));
+        nine_d3d_vector3_matrix_mul((D3DVECTOR *)&dst[37 + l * 8].x, &light->Direction, GET_D3DTS(VIEW));
+        dst[36 + l * 8].w = light->Type == D3DLIGHT_DIRECTIONAL ? 1e9f : light->Range;
+        dst[37 + l * 8].w = light->Falloff;
+        dst[38 + l * 8].x = cosf(light->Theta * 0.5f);
+        dst[38 + l * 8].y = cosf(light->Phi * 0.5f);
+        dst[38 + l * 8].z = 1.0f / (dst[38 + l * 8].x - dst[38 + l * 8].y);
+        dst[39 + l * 8].w = (l + 1) == state->ff.num_lights_active;
     }
 }
 
 static void
-nine_ff_upload_point_and_fog_params(struct NineDevice9 *device)
+nine_ff_load_point_and_fog_params(struct NineDevice9 *device)
 {
-    struct pipe_context *pipe = device->pipe;
-    struct nine_state *state = &device->state;
-    struct pipe_box box;
-    float data[16];
-    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    const struct nine_state *state = &device->state;
+    struct fvec4 *dst = (struct fvec4 *)device->ff.vs_const;
 
     if (!(state->changed.group & NINE_STATE_FF_OTHER))
         return;
-
-    u_box_1d(26 * 4 * sizeof(float), 15 * sizeof(float), &box);
-
-    data[0] = asfloat(state->rs[D3DRS_POINTSIZE_MIN]);
-    data[1] = asfloat(state->rs[D3DRS_POINTSIZE_MAX]);
-    data[2] = asfloat(state->rs[D3DRS_POINTSIZE]);
-    data[3] = asfloat(state->rs[D3DRS_POINTSCALE_A]);
-    data[4] = asfloat(state->rs[D3DRS_POINTSCALE_B]);
-    data[5] = asfloat(state->rs[D3DRS_POINTSCALE_C]);
-    data[6] = 0;
-    data[7] = 0;
-    data[8] = asfloat(state->rs[D3DRS_FOGEND]);
-    data[9] = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
-    data[10] = asfloat(state->rs[D3DRS_FOGDENSITY]);
-    data[11] = 0.0f;
-    d3dcolor_to_rgba(&data[12], state->rs[D3DRS_FOGCOLOR]);
-
-    pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
-                                data, 0, 0);
-
-    DBG("VS Fog: end=%f 1/(end-start)=%f density=%f color=(%f %f %f)\n",
-        data[8],data[9],data[10],data[12],data[13],data[14]);
+    dst[26].x = asfloat(state->rs[D3DRS_POINTSIZE_MIN]);
+    dst[26].y = asfloat(state->rs[D3DRS_POINTSIZE_MAX]);
+    dst[26].z = asfloat(state->rs[D3DRS_POINTSIZE]);
+    dst[26].w = asfloat(state->rs[D3DRS_POINTSCALE_A]);
+    dst[27].x = asfloat(state->rs[D3DRS_POINTSCALE_B]);
+    dst[27].y = asfloat(state->rs[D3DRS_POINTSCALE_C]);
+    dst[28].x = asfloat(state->rs[D3DRS_FOGEND]);
+    dst[28].y = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
+    dst[28].z = asfloat(state->rs[D3DRS_FOGDENSITY]);
+    d3dcolor_to_rgba(&dst[29].x, state->rs[D3DRS_FOGCOLOR]);
 }
 
 static void
-nine_ff_upload_tex_matrices(struct NineDevice9 *device)
+nine_ff_load_tex_matrices(struct NineDevice9 *device)
 {
-    struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
-    struct pipe_box box;
-    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
+    D3DMATRIX *M = (D3DMATRIX *)device->ff.vs_const;
     unsigned s;
 
     if (!(state->ff.changed.transform[0] & 0xff0000))
         return;
-
-    u_box_1d(128 * 4 * sizeof(float), 16 * sizeof(float), &box);
-
-    for (s = 0; s < 8; ++s, box.x += 16 * sizeof(float)) {
-        if (!IS_D3DTS_DIRTY(state, TEXTURE0 + s))
-            continue;
-        pipe->transfer_inline_write(pipe, device->constbuf_vs, 0, usage, &box,
-                                    nine_state_access_transform(state, D3DTS_TEXTURE0 + s, FALSE),
-                                    0, 0);
+    for (s = 0; s < 8; ++s) {
+        if (IS_D3DTS_DIRTY(state, TEXTURE0 + s))
+            M[32 + s] = *nine_state_access_transform(state, D3DTS_TEXTURE0 + s, FALSE);
     }
 }
 
 static void
-nine_ff_upload_ps_params(struct NineDevice9 *device)
+nine_ff_load_ps_params(struct NineDevice9 *device)
 {
-    struct pipe_context *pipe = device->pipe;
-    struct nine_state *state = &device->state;
-    struct pipe_box box;
+    const struct nine_state *state = &device->state;
+    struct fvec4 *dst = (struct fvec4 *)device->ff.ps_const;
     unsigned s;
-    float data[12][4];
-    const unsigned usage = PIPE_TRANSFER_WRITE | PIPE_TRANSFER_DISCARD_RANGE;
 
     if (!(state->changed.group & (NINE_STATE_FF_PSSTAGES | NINE_STATE_FF_OTHER)))
         return;
 
-    u_box_1d(0, 8 * 4 * sizeof(float), &box);
-
     for (s = 0; s < 8; ++s)
-        d3dcolor_to_rgba(data[s], state->ff.tex_stage[s][D3DTSS_CONSTANT]);
-    pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
-                                data, 0, 0);
+        d3dcolor_to_rgba(&dst[s].x, state->ff.tex_stage[s][D3DTSS_CONSTANT]);
 
     for (s = 0; s < 8; ++s) {
-        data[s][0] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT00]);
-        data[s][1] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT01]);
-        data[s][2] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT10]);
-        data[s][3] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT11]);
-        data[8 + s/2][2*(s%2) + 0] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLSCALE]);
-        data[8 + s/2][2*(s%2) + 1] = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLOFFSET]);
+        dst[8 + s].x = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT00]);
+        dst[8 + s].y = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT01]);
+        dst[8 + s].z = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT10]);
+        dst[8 + s].w = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVMAT11]);
+        if (s & 1) {
+            dst[8 + s / 2].z = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLSCALE]);
+            dst[8 + s / 2].w = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLOFFSET]);
+        } else {
+            dst[8 + s / 2].x = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLSCALE]);
+            dst[8 + s / 2].y = asfloat(state->ff.tex_stage[s][D3DTSS_BUMPENVLOFFSET]);
+        }
     }
-    box.width = 12 * 4 * sizeof(float);
-    box.x = 8 * 4 * sizeof(float);
-    pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
-                                data, 0, 0);
-    
-    d3dcolor_to_rgba(data[0], state->rs[D3DRS_TEXTUREFACTOR]);
-    d3dcolor_to_rgba(data[1], state->rs[D3DRS_FOGCOLOR]);
-    data[2][0] = asfloat(state->rs[D3DRS_FOGEND]);
-    data[2][1] = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
-    data[2][2] = asfloat(state->rs[D3DRS_FOGDENSITY]);
-    data[2][3] = 0.0f;
-    box.width = 3 * 4 * sizeof(float);
-    box.x = 20 * 4 * sizeof(float);
-    pipe->transfer_inline_write(pipe, device->constbuf_ps, 0, usage, &box,
-                                data, 0, 0);
 
-    DBG("PS Fog: color=(%f %f %f %f) end=%f 1/(end-start)=%f density=%f\n",
-        data[1][0],data[1][1],data[1][2],data[1][3],
-        data[2][0],data[2][1],data[2][2]);
+    d3dcolor_to_rgba(&dst[20].x, state->rs[D3DRS_TEXTUREFACTOR]);
+    d3dcolor_to_rgba(&dst[21].x, state->rs[D3DRS_FOGCOLOR]);
+    dst[22].x = asfloat(state->rs[D3DRS_FOGEND]);
+    dst[22].y = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
+    dst[22].z = asfloat(state->rs[D3DRS_FOGDENSITY]);
 }
 
 void
 nine_ff_update(struct NineDevice9 *device)
 {
+    struct pipe_context *pipe = device->pipe;
     struct nine_state *state = &device->state;
 
     DBG("vs=%p ps=%p\n", device->state.vs, device->state.ps);
@@ -1689,17 +1611,33 @@ nine_ff_update(struct NineDevice9 *device)
             device->state.ff.changed.transform[0] |= 0xff000c;
             device->state.ff.changed.transform[8] |= 0xff;
         }
-        nine_ff_upload_vs_transforms(device);
-        nine_ff_upload_tex_matrices(device);
-        nine_ff_upload_lights(device);
-        nine_ff_upload_point_and_fog_params(device);
+        nine_ff_load_vs_transforms(device);
+        nine_ff_load_tex_matrices(device);
+        nine_ff_load_lights(device);
+        nine_ff_load_point_and_fog_params(device);
 
         memset(state->ff.changed.transform, 0, sizeof(state->ff.changed.transform));
 
         device->state.changed.group |= NINE_STATE_VS;
         device->state.changed.group |= NINE_STATE_VS_CONST;
-        nine_ranges_insert(&device->state.changed.vs_const_f, 0, 256,
-                           &device->range_pool);
+
+        if (device->prefer_user_constbuf) {
+            struct pipe_context *pipe = device->pipe;
+            struct pipe_constant_buffer cb;
+            cb.buffer_offset = 0;
+            cb.buffer = NULL;
+            cb.user_buffer = device->ff.vs_const;
+            cb.buffer_size = NINE_FF_NUM_VS_CONST * 4 * sizeof(float);
+            pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
+        } else {
+            struct pipe_box box;
+            u_box_1d(0, NINE_FF_NUM_VS_CONST * 4 * sizeof(float), &box);
+            pipe->transfer_inline_write(pipe, device->constbuf_vs, 0,
+                                        0, &box,
+                                        device->ff.vs_const, 0, 0);
+            nine_ranges_insert(&device->state.changed.vs_const_f, 0, NINE_FF_NUM_VS_CONST,
+                               &device->range_pool);
+        }
     }
 
     if (!device->state.ps) {
@@ -1709,12 +1647,28 @@ nine_ff_update(struct NineDevice9 *device)
                 NINE_STATE_FF_PSSTAGES |
                 NINE_STATE_FF_OTHER;
         }
-        nine_ff_upload_ps_params(device);
+        nine_ff_load_ps_params(device);
 
         device->state.changed.group |= NINE_STATE_PS;
         device->state.changed.group |= NINE_STATE_PS_CONST;
-        nine_ranges_insert(&device->state.changed.ps_const_f, 0, 24,
-                           &device->range_pool);
+
+        if (device->prefer_user_constbuf) {
+            struct pipe_context *pipe = device->pipe;
+            struct pipe_constant_buffer cb;
+            cb.buffer_offset = 0;
+            cb.buffer = NULL;
+            cb.user_buffer = device->ff.ps_const;
+            cb.buffer_size = NINE_FF_NUM_PS_CONST * 4 * sizeof(float);
+            pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
+        } else {
+            struct pipe_box box;
+            u_box_1d(0, NINE_FF_NUM_PS_CONST * 4 * sizeof(float), &box);
+            pipe->transfer_inline_write(pipe, device->constbuf_ps, 0,
+                                        0, &box,
+                                        device->ff.ps_const, 0, 0);
+            nine_ranges_insert(&device->state.changed.ps_const_f, 0, NINE_FF_NUM_PS_CONST,
+                               &device->range_pool);
+        }
     }
 
     device->state.changed.group &= ~NINE_STATE_FF;
@@ -1732,7 +1686,12 @@ nine_ff_init(struct NineDevice9 *device)
     device->ff.ht_fvf = util_hash_table_create(nine_ff_fvf_key_hash,
                                                nine_ff_fvf_key_comp);
 
-    return device->ff.ht_vs && device->ff.ht_ps && device->ff.ht_fvf;
+    device->ff.vs_const = CALLOC(NINE_FF_NUM_VS_CONST, 4 * sizeof(float));
+    device->ff.ps_const = CALLOC(NINE_FF_NUM_PS_CONST, 4 * sizeof(float));
+
+    return device->ff.ht_vs && device->ff.ht_ps &&
+        device->ff.ht_fvf &&
+        device->ff.vs_const && device->ff.ps_const;
 }
 
 static enum pipe_error nine_ff_ht_delete_cb(void *key, void *value, void *data)
@@ -1758,6 +1717,9 @@ nine_ff_fini(struct NineDevice9 *device)
     }
     device->ff.vs = NULL; /* destroyed by unbinding from hash table */
     device->ff.ps = NULL;
+
+    FREE(device->ff.vs_const);
+    FREE(device->ff.ps_const);
 }
 
 static void
