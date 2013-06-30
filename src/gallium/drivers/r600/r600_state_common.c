@@ -313,11 +313,10 @@ static void r600_bind_rs_state(struct pipe_context *ctx, void *state)
 {
 	struct r600_rasterizer_state *rs = (struct r600_rasterizer_state *)state;
 	struct r600_context *rctx = (struct r600_context *)ctx;
-	uint32_t clip_cntl;
+	uint32_t clip_cntl = rs->pa_cl_clip_cntl;
 
 	if (state == NULL)
 		return;
-	clip_cntl = rs->pa_cl_clip_cntl;
 
 	rctx->rasterizer = rs;
 
