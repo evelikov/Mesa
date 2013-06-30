@@ -73,42 +73,26 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
     NineUnknown_dtor(&This->base);
 }
 
-/* Fast path for all state. */
-static void
-nine_state_transfer_all(struct nine_state *dst,
-                        struct nine_state *src)
-{
-   /* TODO */
-}
-
 /* Copy state marked changed in @mask from @src to @dst.
  * If @apply is false, updating dst->changed can be omitted.
  * TODO: compare ?
  */
 static void
-nine_state_transfer(struct nine_state *dst,
-                    const struct nine_state *src,
-                    struct nine_state *mask,
-                    const boolean apply,
-                    struct nine_range_pool *pool)
+nine_state_copy_common(struct nine_state *dst,
+                       const struct nine_state *src,
+                       struct nine_state *mask, /* aliases either src or dst */
+                       const boolean apply,
+                       struct nine_range_pool *pool)
 {
     unsigned i, s;
+
+    if (apply)
+       dst->changed.group |= mask->changed.group;
 
     if (mask->changed.group & NINE_STATE_VIEWPORT)
         dst->viewport = src->viewport;
     if (mask->changed.group & NINE_STATE_SCISSOR)
         dst->scissor = src->scissor;
-    if (mask->changed.group & NINE_STATE_VS)
-        nine_reference(&dst->vs, src->vs);
-    if (mask->changed.group & NINE_STATE_PS)
-        nine_reference(&dst->ps, src->ps);
-    if ((mask->changed.group & NINE_STATE_VDECL) && (!apply || src->vdecl))
-        nine_reference(&dst->vdecl, src->vdecl);
-    if (mask->changed.group & NINE_STATE_IDXBUF)
-        nine_reference(&dst->idxbuf, src->idxbuf);
-
-    if (apply)
-       dst->changed.group |= mask->changed.group;
 
     /* Vertex constants.
      *
@@ -126,22 +110,22 @@ nine_state_transfer(struct nine_state *dst,
                 nine_ranges_insert(&dst->changed.vs_const_f, r->bgn, r->end,
                                    pool);
         }
-    }
-    if (mask->changed.vs_const_i) {
-       uint16_t m = mask->changed.vs_const_i;
-       for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
-          if (m & 1)
-             memcpy(dst->vs_const_i[i], src->vs_const_i[i], 4 * sizeof(int));
-       if (apply)
-          dst->changed.vs_const_i |= mask->changed.vs_const_i;
-    }
-    if (mask->changed.vs_const_b) {
-       uint16_t m = mask->changed.vs_const_b;
-       for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
-          if (m & 1)
-             dst->vs_const_b[i] = src->vs_const_b[i];
-       if (apply)
-          dst->changed.vs_const_b |= mask->changed.vs_const_b;
+        if (mask->changed.vs_const_i) {
+            uint16_t m = mask->changed.vs_const_i;
+            for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
+                if (m & 1)
+                    memcpy(dst->vs_const_i[i], src->vs_const_i[i], 4 * sizeof(int));
+            if (apply)
+                dst->changed.vs_const_i |= mask->changed.vs_const_i;
+        }
+        if (mask->changed.vs_const_b) {
+            uint16_t m = mask->changed.vs_const_b;
+            for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
+                if (m & 1)
+                    dst->vs_const_b[i] = src->vs_const_b[i];
+            if (apply)
+                dst->changed.vs_const_b |= mask->changed.vs_const_b;
+        }
     }
 
     /* Pixel constants. */
@@ -155,57 +139,38 @@ nine_state_transfer(struct nine_state *dst,
                 nine_ranges_insert(&dst->changed.ps_const_f, r->bgn, r->end,
                                    pool);
         }
-    }
-    if (mask->changed.ps_const_i) {
-       uint16_t m = mask->changed.ps_const_i;
-       for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
-          if (m & 1)
-             memcpy(dst->ps_const_i[i], src->ps_const_i[i], 4 * sizeof(int));
-       if (apply)
-          dst->changed.ps_const_i |= mask->changed.ps_const_i;
-    }
-    if (mask->changed.ps_const_b) {
-       uint16_t m = mask->changed.ps_const_b;
-       for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
-          if (m & 1)
-             dst->ps_const_b[i] = src->ps_const_b[i];
-       if (apply)
-          dst->changed.ps_const_b |= mask->changed.ps_const_b;
+        if (mask->changed.ps_const_i) {
+            uint16_t m = mask->changed.ps_const_i;
+            for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
+                if (m & 1)
+                    memcpy(dst->ps_const_i[i], src->ps_const_i[i], 4 * sizeof(int));
+            if (apply)
+                dst->changed.ps_const_i |= mask->changed.ps_const_i;
+        }
+        if (mask->changed.ps_const_b) {
+            uint16_t m = mask->changed.ps_const_b;
+            for (i = ffs(m) - 1, m >>= i; m; ++i, m >>= 1)
+                if (m & 1)
+                    dst->ps_const_b[i] = src->ps_const_b[i];
+            if (apply)
+                dst->changed.ps_const_b |= mask->changed.ps_const_b;
+        }
     }
 
-    /* Render states. */
-    /* TODO: speed this up */
-    for (i = 0; i <= NINED3DRS_LAST; ++i) {
-        if (!mask->changed.rs[i / 32]) {
-            i += 31;
-            continue;
+    /* Render states.
+     * TODO: Maybe build a list ?
+     */
+    for (i = 0; i < Elements(dst->changed.rs); ++i) {
+        uint32_t m = mask->changed.rs[i];
+        if (apply)
+            dst->changed.rs[i] |= m;
+        while (m) {
+            const int r = ffs(m) - 1;
+            m &= ~(1 << r);
+            dst->rs[i * 32 + r] = src->rs[i * 32 + r];
         }
-        if (i % 32 == 0)
-           i += ffs(mask->changed.rs[i / 32]) - 1;
-        if (mask->changed.rs[i / 32] & (1 << (i % 32)))
-            dst->rs[i] = src->rs[i];
-    }
-    if (apply) {
-       for (i = 0; i < Elements(dst->changed.rs); ++i)
-          dst->changed.rs[i] |= mask->changed.rs[i];
     }
 
-    /* Vertex streams. */
-    if (mask->changed.vtxbuf | mask->changed.stream_freq) {
-        for (i = 0; i < PIPE_MAX_ATTRIBS; ++i) {
-            if (mask->changed.vtxbuf & (1 << i))
-                nine_reference(&dst->stream[i], src->stream[i]);
-            if (mask->changed.stream_freq & (1 << i))
-                dst->stream_freq[i] = src->stream_freq[i];
-        }
-        dst->stream_instancedata_mask &= ~mask->changed.stream_freq;
-        dst->stream_instancedata_mask |=
-            src->stream_instancedata_mask & mask->changed.stream_freq;
-        if (apply) {
-           dst->changed.vtxbuf      |= mask->changed.vtxbuf;
-           dst->changed.stream_freq |= mask->changed.stream_freq;
-        }
-    }
 
     /* Clip planes. */
     if (mask->changed.ucp) {
@@ -217,22 +182,18 @@ nine_state_transfer(struct nine_state *dst,
            dst->changed.ucp |= mask->changed.ucp;
     }
 
-    /* Texture and sampler state. */
-    if (mask->changed.texture) {
-        for (s = 0; s < NINE_MAX_SAMPLERS; ++s)
-            if (mask->changed.texture & (1 << s))
-                nine_reference(&dst->texture[s], src->texture[s]);
-        if (apply)
-            dst->changed.texture |= mask->changed.texture;
-    }
+    /* Sampler state. */
     if (mask->changed.group & NINE_STATE_SAMPLER) {
         for (s = 0; s < NINE_MAX_SAMPLERS; ++s) {
             if (mask->changed.sampler[s] == 0x3ffe) {
                 memcpy(&dst->samp[s], &src->samp[s], sizeof(dst->samp[s]));
             } else {
-                for (i = 0; i <= NINED3DSAMP_LAST; ++i)
-                    if (mask->changed.sampler[s] & (1 << i))
-                        dst->samp[s][i] = src->samp[s][i];
+                uint32_t m = mask->changed.sampler[s];
+                while (m) {
+                    const int i = ffs(m) - 1;
+                    m &= ~(1 << i);
+                    dst->samp[s][i] = src->samp[s][i];
+                }
             }
             if (apply)
                 dst->changed.sampler[s] |= mask->changed.sampler[s];
@@ -241,13 +202,13 @@ nine_state_transfer(struct nine_state *dst,
 
     if (!(mask->changed.group & NINE_STATE_FF))
         return;
+    WARN("Fixed function state not handled properly by StateBlocks.\n");
 
     /* Fixed function state. */
-    if (mask->changed.group & NINE_STATE_FF_MATERIAL) {
+
+    if (mask->changed.group & NINE_STATE_FF_MATERIAL)
         dst->ff.material = src->ff.material;
-        if (apply)
-            dst->changed.group |= NINE_STATE_FF_MATERIAL;
-    }
+
     if (mask->changed.group & NINE_STATE_FF_PSSTAGES) {
         for (s = 0; s < NINE_MAX_SAMPLERS; ++s) {
             for (i = 0; i < NINED3DTSS_COUNT; ++i)
@@ -298,10 +259,45 @@ nine_state_transfer(struct nine_state *dst,
 HRESULT WINAPI
 NineStateBlock9_Capture( struct NineStateBlock9 *This )
 {
+    struct nine_state *dst = &This->state;
+    struct nine_state *src = &This->base.device->state;
+    unsigned s, i;
+
     DBG("This=%p\n", This);
 
-    nine_state_transfer(&This->state, &This->base.device->state, &This->state,
-                        FALSE, NULL);
+    nine_state_copy_common(dst, src, dst, FALSE, NULL);
+
+    if (dst->changed.group & NINE_STATE_VS)
+        nine_reference(&dst->vs, src->vs);
+    if (dst->changed.group & NINE_STATE_PS)
+        nine_reference(&dst->ps, src->ps);
+    if (dst->changed.group & NINE_STATE_VDECL)
+        nine_reference(&dst->vdecl, src->vdecl);
+    if (dst->changed.group & NINE_STATE_IDXBUF)
+        nine_reference(&dst->idxbuf, src->idxbuf);
+
+    /* Vertex streams. */
+    if (dst->changed.vtxbuf | dst->changed.stream_freq) {
+        uint32_t m = dst->changed.vtxbuf | dst->changed.stream_freq;
+        for (i = 0; m; ++i, m >>= 1) {
+            if (dst->changed.vtxbuf & (1 << i))
+                nine_reference(&dst->stream[i], src->stream[i]);
+            if (dst->changed.stream_freq & (1 << i))
+                dst->stream_freq[i] = src->stream_freq[i];
+        }
+        dst->stream_instancedata_mask &= ~dst->changed.stream_freq;
+        dst->stream_instancedata_mask |=
+            src->stream_instancedata_mask & dst->changed.stream_freq;
+    }
+
+    /* Textures */
+    if (dst->changed.texture) {
+        uint32_t m = dst->changed.texture;
+        for (s = 0; m; ++s, m >>= 1)
+            if (m & 1)
+                nine_reference(&dst->texture[s], src->texture[s]);
+    }
+
     return D3D_OK;
 }
 
@@ -309,12 +305,52 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
 HRESULT WINAPI
 NineStateBlock9_Apply( struct NineStateBlock9 *This )
 {
+    struct nine_state *dst = &This->base.device->state;
+    struct nine_state *src = &This->state;
+    unsigned s, i;
+
     DBG("This=%p\n", This);
 
-    if (This->type == NINESBT_ALL && 0) /* TODO */
-       nine_state_transfer_all(&This->base.device->state, &This->state);
-    nine_state_transfer(&This->base.device->state, &This->state, &This->state,
-                        TRUE, &This->base.device->range_pool);
+    /* TOOD: don't check mask on NINESBT_ALL */
+
+    nine_state_copy_common(dst, src, src, TRUE, &This->base.device->range_pool);
+
+    if (src->changed.group & NINE_STATE_VS)
+        nine_bind(&dst->vs, src->vs);
+    if (src->changed.group & NINE_STATE_PS)
+        nine_bind(&dst->ps, src->ps);
+    if ((src->changed.group & NINE_STATE_VDECL) && src->vdecl)
+        nine_bind(&dst->vdecl, src->vdecl);
+    if (src->changed.group & NINE_STATE_IDXBUF)
+        nine_bind(&dst->idxbuf, src->idxbuf);
+
+    /* Vertex streams. */
+    if (src->changed.vtxbuf | src->changed.stream_freq) {
+        uint32_t m = src->changed.vtxbuf | src->changed.stream_freq;
+        dst->changed.vtxbuf      |= src->changed.vtxbuf;
+        dst->changed.stream_freq |= src->changed.stream_freq;
+
+        for (i = 0; m; ++i, m >>= 1) {
+            if (src->changed.vtxbuf & (1 << i))
+                nine_bind(&dst->stream[i], src->stream[i]);
+            if (src->changed.stream_freq & (1 << i))
+                dst->stream_freq[i] = src->stream_freq[i];
+        }
+        dst->stream_instancedata_mask &= ~src->changed.stream_freq;
+        dst->stream_instancedata_mask |=
+            src->stream_instancedata_mask & src->changed.stream_freq;
+    }
+
+    /* Textures */
+    if (src->changed.texture) {
+        uint32_t m = src->changed.texture;
+        dst->changed.texture |= m;
+
+        for (s = 0; m; ++s, m >>= 1)
+            if (m & 1)
+                nine_bind(&dst->texture[s], src->texture[s]);
+    }
+
     return D3D_OK;
 }
 

@@ -63,8 +63,8 @@ NineUnknown_QueryInterface( struct NineUnknown *This,
     do {
         if (GUID_equal(This->guids[i], riid)) {
             *ppvObject = This;
-            This->refs++;
-            assert(This->refs > 1);
+            assert(This->refs);
+            NineUnknown_AddRef(This);
             return S_OK;
         }
     } while (This->guids[++i]);
