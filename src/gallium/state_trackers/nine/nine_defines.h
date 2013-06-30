@@ -34,19 +34,19 @@ unsigned nine_d3d9_to_nine_declusage(unsigned usage, unsigned index);
 
 #define NINE_DECLUSAGE_POSITION(i)     ( 0 + (i))
 #define NINE_DECLUSAGE_BLENDWEIGHT(i)  ( 2 + (i))
-#define NINE_DECLUSAGE_BLENDINDICES(i) ( 4 + (i))
-#define NINE_DECLUSAGE_NORMAL(i)       ( 6 + (i))
-#define NINE_DECLUSAGE_PSIZE             8
-#define NINE_DECLUSAGE_TEXCOORD(i)     ( 9 + (i))
-#define NINE_DECLUSAGE_TANGENT          25
-#define NINE_DECLUSAGE_BINORMAL         26
-#define NINE_DECLUSAGE_TESSFACTOR       27
-#define NINE_DECLUSAGE_POSITIONT        28
-#define NINE_DECLUSAGE_COLOR(i)        (29 + (i))
-#define NINE_DECLUSAGE_DEPTH            33
-#define NINE_DECLUSAGE_FOG              34
-#define NINE_DECLUSAGE_SAMPLE           35
-#define NINE_DECLUSAGE_NONE             36
+#define NINE_DECLUSAGE_BLENDINDICES(i) ( 6 + (i))
+#define NINE_DECLUSAGE_NORMAL(i)       (10 + (i))
+#define NINE_DECLUSAGE_PSIZE            12
+#define NINE_DECLUSAGE_TEXCOORD(i)     (13 + (i))
+#define NINE_DECLUSAGE_TANGENT          29
+#define NINE_DECLUSAGE_BINORMAL         30
+#define NINE_DECLUSAGE_TESSFACTOR       31
+#define NINE_DECLUSAGE_POSITIONT        32
+#define NINE_DECLUSAGE_COLOR(i)        (33 + (i))
+#define NINE_DECLUSAGE_DEPTH            37
+#define NINE_DECLUSAGE_FOG              38
+#define NINE_DECLUSAGE_SAMPLE           39
+#define NINE_DECLUSAGE_NONE             40
 #define NINE_DECLUSAGE_LAST             NINE_DECLUSAGE_NONE
 #define NINE_DECLUSAGE_COUNT           (NINE_DECLUSAGE_LAST + 1)
 
