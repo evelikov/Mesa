@@ -809,6 +809,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_LRP(ureg, ureg_writemask(oCol[1], TGSI_WRITEMASK_XYZ), _X(tmp), ureg_src(rCol[1]), _CONST(29));
     }
 
+    if (key->position_t)
+        ureg_property_vs_window_space_position(ureg, TRUE);
+
     ureg_END(ureg);
     nine_ureg_tgsi_dump(ureg);
     return ureg_create_shader_and_destroy(ureg, device->pipe);

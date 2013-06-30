@@ -2645,6 +2645,9 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         info->rt_mask |= 0x1;
     }
 
+    if (info->position_t)
+        ureg_property_vs_window_space_position(tx->ureg, TRUE);
+
     ureg_END(tx->ureg);
 
     if (debug_get_bool_option("NINE_TGSI_DUMP", FALSE)) {
