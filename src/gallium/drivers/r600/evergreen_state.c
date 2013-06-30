@@ -2842,7 +2842,6 @@ static void cayman_init_atom_start_cs(struct r600_context *rctx)
 	r600_store_value(cb, 0x3F800000); /* R_0282D4_PA_SC_VPORT_ZMAX_0 */
 
 	r600_store_context_reg(cb, R_028230_PA_SC_EDGERULE, 0xAAAAAAAA);
-	r600_store_context_reg(cb, R_028818_PA_CL_VTE_CNTL, 0x0000043F);
 	r600_store_context_reg(cb, R_028820_PA_CL_NANINF_CNTL, 0);
 
 	r600_store_context_reg_seq(cb, CM_R_028BE8_PA_CL_GB_VERT_CLIP_ADJ, 4);
@@ -3290,7 +3289,6 @@ void evergreen_init_atom_start_cs(struct r600_context *rctx)
 	r600_store_value(cb, 0x3F800000); /* R_0282D4_PA_SC_VPORT_ZMAX_0 */
 
 	r600_store_context_reg(cb, R_0286DC_SPI_FOG_CNTL, 0);
-	r600_store_context_reg(cb, R_028818_PA_CL_VTE_CNTL, 0x0000043F);
 	r600_store_context_reg(cb, R_028820_PA_CL_NANINF_CNTL, 0);
 
 	r600_store_context_reg_seq(cb, R_028AC0_DB_SRESULTS_COMPARE_STATE0, 3);
@@ -3553,6 +3551,8 @@ void evergreen_update_vs_state(struct pipe_context *ctx, struct r600_pipe_shader
 	r600_store_context_reg(cb, R_028860_SQ_PGM_RESOURCES_VS,
 			       S_028860_NUM_GPRS(rshader->bc.ngpr) |
 			       S_028860_STACK_SIZE(rshader->bc.nstack));
+	r600_store_context_reg(cb, R_028818_PA_CL_VTE_CNTL,
+	                       rshader->vs_position_window_space ? 0x00000300 : 0x0000043F);
 	r600_store_context_reg(cb, R_02885C_SQ_PGM_START_VS,
 			       r600_resource_va(ctx->screen, (void *)shader->bo) >> 8);
 	/* After that, the NOP relocation packet must be emitted (shader->bo, RADEON_USAGE_READ). */
