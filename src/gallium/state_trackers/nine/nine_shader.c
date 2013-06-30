@@ -451,6 +451,7 @@ struct shader_translator
     boolean inline_subroutines;
     boolean lower_preds;
     boolean want_texcoord;
+    boolean shift_wpos;
     unsigned texcoord_sn;
 
     struct sm1_instruction insn; /* current instruction */
@@ -856,7 +857,15 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
                tx->regs.vPos = ureg_DECL_fs_input(ureg,
                                                   TGSI_SEMANTIC_POSITION, 0,
                                                   TGSI_INTERPOLATE_LINEAR);
-           src = tx->regs.vPos;
+           if (tx->shift_wpos) {
+               /* TODO: do this only once */
+               struct ureg_dst wpos = tx_scratch(tx);
+               ureg_SUB(ureg, wpos, tx->regs.vPos,
+                        ureg_imm4f(ureg, 0.5f, 0.5f, 0.0f, 0.0f));
+               src = ureg_src(wpos);
+           } else {
+               src = tx->regs.vPos;
+           }
            break;
         case D3DSMO_FACE:
            if (ureg_src_is_undef(tx->regs.vFace)) {
@@ -2619,6 +2628,7 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     tx->inline_subroutines = !GET_SHADER_CAP(SUBROUTINES);
     tx->lower_preds = !GET_SHADER_CAP(MAX_PREDS);
     tx->want_texcoord = GET_CAP(TGSI_TEXCOORD);
+    tx->shift_wpos = !GET_CAP(TGSI_FS_COORD_PIXEL_CENTER_INTEGER);
     tx->texcoord_sn = tx->want_texcoord ?
         TGSI_SEMANTIC_TEXCOORD : TGSI_SEMANTIC_GENERIC;
 
@@ -2629,7 +2639,8 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         tx->regs.oPos = ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_POSITION, 0);
     } else {
         ureg_property_fs_coord_origin(tx->ureg, TGSI_FS_COORD_ORIGIN_UPPER_LEFT);
-        ureg_property_fs_coord_pixel_center(tx->ureg, TGSI_FS_COORD_PIXEL_CENTER_INTEGER);
+        if (!tx->shift_wpos)
+            ureg_property_fs_coord_pixel_center(tx->ureg, TGSI_FS_COORD_PIXEL_CENTER_INTEGER);
     }
 
     if (!ureg_dst_is_undef(tx->regs.oPts))
