@@ -514,10 +514,27 @@ update_vs_constants_userbuf(struct NineDevice9 *device)
         state->changed.vs_const_b = 0;
     }
 
+#ifdef DEBUG
     if (device->state.vs->lconstf.num) {
-        /* TODO: copy everything */
+        /* TODO: Can we make it so that we don't have to copy everything ? */
+        const struct nine_lconstf *lconstf =  &device->state.vs->lconstf;
+        float *dst = (float *)MALLOC(cb.buffer_size);
+        float *src = (float *)cb.user_buffer;
+        unsigned i;
+        memcpy(dst, src, cb.buffer_size);
+        for (i = 0; i < lconstf->num; ++i)
+            memcpy(&dst[lconstf->locations[i] * 4], &lconstf->data[i * 4],
+                   4 * sizeof(float));
+        cb.user_buffer = dst;
     }
+#endif
+
     pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
+
+#ifdef DEBUG
+    if (device->state.vs->lconstf.num)
+        FREE((void *)cb.user_buffer);
+#endif
 
     if (device->state.changed.vs_const_f) {
         struct nine_range *r = device->state.changed.vs_const_f;
@@ -555,10 +572,27 @@ update_ps_constants_userbuf(struct NineDevice9 *device)
         state->changed.ps_const_b = 0;
     }
 
+#ifdef DEBUG
     if (device->state.ps->lconstf.num) {
-        /* TODO: copy everything */
+        /* TODO: Can we make it so that we don't have to copy everything ? */
+        const struct nine_lconstf *lconstf =  &device->state.ps->lconstf;
+        float *dst = (float *)MALLOC(cb.buffer_size);
+        float *src = (float *)cb.user_buffer;
+        unsigned i;
+        memcpy(dst, src, cb.buffer_size);
+        for (i = 0; i < lconstf->num; ++i)
+            memcpy(&dst[lconstf->locations[i] * 4], &lconstf->data[i * 4],
+                   4 * sizeof(float));
+        cb.user_buffer = dst;
     }
+#endif
+
     pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
+
+#ifdef DEBUG
+    if (device->state.ps->lconstf.num)
+        FREE((void *)cb.user_buffer);
+#endif
 
     if (device->state.changed.ps_const_f) {
         struct nine_range *r = device->state.changed.ps_const_f;
