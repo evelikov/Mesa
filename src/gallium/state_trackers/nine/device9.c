@@ -2473,8 +2473,9 @@ NineDevice9_DrawIndexedPrimitive( struct NineDevice9 *This,
     info.indexed = TRUE;
     info.start = StartIndex;
     info.index_bias = BaseVertexIndex;
-    info.min_index = BaseVertexIndex + MinVertexIndex;
-    info.max_index = BaseVertexIndex + NumVertices;
+    /* These don't include index bias: */
+    info.min_index = MinVertexIndex;
+    info.max_index = MinVertexIndex + NumVertices - 1;
 
     This->pipe->draw_vbo(This->pipe, &info);
 
@@ -2580,15 +2581,16 @@ NineDevice9_DrawIndexedPrimitiveUP( struct NineDevice9 *This,
     ibuf.user_buffer = pIndexData;
 
     if (!This->driver_caps.user_vbufs) {
+        const unsigned base = info.min_index * VertexStreamZeroStride;
         u_upload_data(This->upload,
-                      info.min_index * VertexStreamZeroStride,
+                      base,
                       (info.max_index -
                        info.min_index + 1) * VertexStreamZeroStride, /* XXX */
-                      vbuf.user_buffer,
+                      (const uint8_t *)vbuf.user_buffer + base,
                       &vbuf.buffer_offset,
                       &vbuf.buffer);
         /* Won't be used: */
-        vbuf.buffer_offset -= info.min_index * VertexStreamZeroStride;
+        vbuf.buffer_offset -= base;
     }
     if (!This->driver_caps.user_ibufs)
         u_upload_data(This->upload,
