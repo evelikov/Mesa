@@ -2842,6 +2842,7 @@ static void cayman_init_atom_start_cs(struct r600_context *rctx)
 	r600_store_value(cb, 0x3F800000); /* R_0282D4_PA_SC_VPORT_ZMAX_0 */
 
 	r600_store_context_reg(cb, R_028230_PA_SC_EDGERULE, 0xAAAAAAAA);
+	r600_store_context_reg(cb, R_028818_PA_CL_VTE_CNTL, 0x0000043F);
 	r600_store_context_reg(cb, R_028820_PA_CL_NANINF_CNTL, 0);
 
 	r600_store_context_reg_seq(cb, CM_R_028BE8_PA_CL_GB_VERT_CLIP_ADJ, 4);
@@ -3289,6 +3290,7 @@ void evergreen_init_atom_start_cs(struct r600_context *rctx)
 	r600_store_value(cb, 0x3F800000); /* R_0282D4_PA_SC_VPORT_ZMAX_0 */
 
 	r600_store_context_reg(cb, R_0286DC_SPI_FOG_CNTL, 0);
+	r600_store_context_reg(cb, R_028818_PA_CL_VTE_CNTL, 0x0000043F);
 	r600_store_context_reg(cb, R_028820_PA_CL_NANINF_CNTL, 0);
 
 	r600_store_context_reg_seq(cb, R_028AC0_DB_SRESULTS_COMPARE_STATE0, 3);
@@ -3921,7 +3923,7 @@ void evergreen_init_state_functions(struct r600_context *rctx)
 	r600_init_atom(rctx, &rctx->rasterizer_state.atom, id++, r600_emit_cso_state, 0);
 	r600_init_atom(rctx, &rctx->scissor.atom, id++, evergreen_emit_scissor_state, 4);
 	r600_init_atom(rctx, &rctx->stencil_ref.atom, id++, r600_emit_stencil_ref, 4);
-	r600_init_atom(rctx, &rctx->viewport.atom, id++, r600_emit_viewport_state, 10);
+	r600_init_atom(rctx, &rctx->viewport.atom, id++, r600_emit_viewport_state, 8);
 	r600_init_atom(rctx, &rctx->vertex_fetch_shader.atom, id++, evergreen_emit_vertex_fetch_shader, 5);
 	rctx->atoms[id++] = &rctx->b.streamout.begin_atom;
 	r600_init_atom(rctx, &rctx->vertex_shader.atom, id++, r600_emit_shader, 23);
