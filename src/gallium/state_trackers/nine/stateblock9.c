@@ -22,6 +22,7 @@
 
 #include "stateblock9.h"
 #include "device9.h"
+#include "basetexture9.h"
 #include "nine_helpers.h"
 
 #define DBG_CHANNEL DBG_STATEBLOCK
@@ -346,9 +347,20 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
         uint32_t m = src->changed.texture;
         dst->changed.texture |= m;
 
-        for (s = 0; m; ++s, m >>= 1)
-            if (m & 1)
-                nine_bind(&dst->texture[s], src->texture[s]);
+        for (s = 0; m; ++s, m >>= 1) {
+            if (!(m & 1))
+                continue;
+            if (dst->texture[s] &&
+                dst->texture[s]->base.pool == D3DPOOL_MANAGED &&
+                dst->texture[s]->base.base.bind == 1)
+                list_delinit(&dst->texture[s]->list);
+            if (src->texture[s] &&
+                src->texture[s]->base.pool == D3DPOOL_MANAGED &&
+                src->texture[s]->base.base.bind == 0)
+                list_add(&src->texture[s]->list, &This->base.device->bound_textures);
+
+            nine_bind(&dst->texture[s], src->texture[s]);
+        }
     }
 
     return D3D_OK;
