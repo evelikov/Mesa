@@ -313,6 +313,7 @@ static void r600_bind_rs_state(struct pipe_context *ctx, void *state)
 {
 	struct r600_rasterizer_state *rs = (struct r600_rasterizer_state *)state;
 	struct r600_context *rctx = (struct r600_context *)ctx;
+	uint32_t clip_cntl = rs->pa_cl_clip_cntl;
 
 	if (state == NULL)
 		return;
@@ -330,9 +331,10 @@ static void r600_bind_rs_state(struct pipe_context *ctx, void *state)
 	}
 
 	/* Update clip_misc_state. */
-	if (rctx->clip_misc_state.pa_cl_clip_cntl != rs->pa_cl_clip_cntl ||
+	clip_cntl |= rctx->clip_misc_state.pa_cl_clip_cntl & (1 << 16);
+	if (rctx->clip_misc_state.pa_cl_clip_cntl != clip_cntl ||
 	    rctx->clip_misc_state.clip_plane_enable != rs->clip_plane_enable) {
-		rctx->clip_misc_state.pa_cl_clip_cntl = rs->pa_cl_clip_cntl;
+		rctx->clip_misc_state.pa_cl_clip_cntl = clip_cntl;
 		rctx->clip_misc_state.clip_plane_enable = rs->clip_plane_enable;
 		rctx->clip_misc_state.atom.dirty = true;
 	}
@@ -662,6 +664,12 @@ static void r600_set_viewport_states(struct pipe_context *ctx,
                                      const struct pipe_viewport_state *state)
 {
 	struct r600_context *rctx = (struct r600_context *)ctx;
+	const uint32_t clip = !!(state->scale[3] == 0.0f) << 16;
+
+	if ((rctx->clip_misc_state.pa_cl_clip_cntl & (1 << 16)) != clip) {
+		rctx->clip_misc_state.pa_cl_clip_cntl ^= 1 << 16;
+		rctx->clip_misc_state.atom.dirty = true;
+	}
 
 	rctx->viewport.state = *state;
 	rctx->viewport.atom.dirty = true;
@@ -672,6 +680,12 @@ void r600_emit_viewport_state(struct r600_context *rctx, struct r600_atom *atom)
 	struct radeon_winsys_cs *cs = rctx->b.rings.gfx.cs;
 	struct pipe_viewport_state *state = &rctx->viewport.state;
 
+	if (state->scale[3] == 0.0f) {
+		r600_write_context_reg(cs, R_028818_PA_CL_VTE_CNTL, 0x00000300);
+		return;
+	} else {
+		r600_write_context_reg(cs, R_028818_PA_CL_VTE_CNTL, 0x0000043F);
+	}
 	r600_write_context_reg_seq(cs, R_02843C_PA_CL_VPORT_XSCALE_0, 6);
 	radeon_emit(cs, fui(state->scale[0]));     /* R_02843C_PA_CL_VPORT_XSCALE_0  */
 	radeon_emit(cs, fui(state->translate[0])); /* R_028440_PA_CL_VPORT_XOFFSET_0 */
