@@ -1036,6 +1036,8 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
             tx->regs.oCol[param->idx] =
                ureg_DECL_output(tx->ureg, TGSI_SEMANTIC_COLOR, param->idx);
         dst = tx->regs.oCol[param->idx];
+        if (IS_VS && tx->version.major < 3)
+            dst = ureg_saturate(dst);
         break;
     case D3DSPR_DEPTHOUT:
         assert(!param->rel);
