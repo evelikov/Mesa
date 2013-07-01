@@ -177,7 +177,7 @@ update_viewport(struct NineDevice9 *device)
         pvport.translate[3] = 0.0f;
     }
 
-    pipe->set_viewport_state(pipe, &pvport);
+    pipe->set_viewport_states(pipe, 0, 1, &pvport);
 }
 
 static INLINE void
@@ -185,7 +185,7 @@ update_scissor(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
 
-    pipe->set_scissor_state(pipe, &device->state.scissor);
+    pipe->set_scissor_states(pipe, 0, 1, &device->state.scissor);
 }
 
 static INLINE void
