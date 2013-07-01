@@ -103,7 +103,7 @@ nine_convert_rasterizer_state(struct cso_context *ctx, const DWORD *rs)
  /* rast.lower_left_origin = 0; */
  /* rast.bottom_edge_rule = 0; */
  /* rast.rasterizer_discard = 0; */
-    rast.depth_clip = !!rs[D3DRS_CLIPPING]; /* XXX: xy ? wine: always 0 here */
+    rast.depth_clip = 1;
     rast.clip_halfz = 1;
     rast.clip_plane_enable = rs[D3DRS_CLIPPLANEENABLE];
  /* rast.line_stipple_factor = 0; */
