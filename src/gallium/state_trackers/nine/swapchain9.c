@@ -143,7 +143,9 @@ NineSwapChain9_Resize( struct NineSwapChain9 *This,
     tmplt.last_level = 0;
     tmplt.array_size = 1;
     tmplt.usage = PIPE_USAGE_DEFAULT;
-    tmplt.bind = PIPE_BIND_TRANSFER_READ | PIPE_BIND_TRANSFER_WRITE;
+    tmplt.bind =
+        PIPE_BIND_SAMPLER_VIEW |
+        PIPE_BIND_TRANSFER_READ | PIPE_BIND_TRANSFER_WRITE;
     tmplt.flags = 0;
 
     desc.Type = D3DRTYPE_SURFACE;
