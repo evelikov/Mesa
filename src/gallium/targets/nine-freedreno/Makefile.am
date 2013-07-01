@@ -56,6 +56,7 @@ if HAVE_MESA_LLVM
 AM_CFLAGS += -DGALLIUM_LLVMPIPE
 kgsl_nine_la_LDFLAGS += $(LLVM_LDFLAGS)
 kgsl_nine_la_LIBADD += $(LLVM_LIBS)
+kgsl_nine_la_LIBADD += $(top_builddir)/src/gallium/drivers/llvmpipe/libllvmpipe.la
 else
 AM_CFLAGS += -DGALLIUM_SOFTPIPE
 kgsl_nine_la_LIBADD += $(top_builddir)/src/gallium/drivers/softpipe/libsoftpipe.la

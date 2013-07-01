@@ -56,6 +56,7 @@ if HAVE_MESA_LLVM
 AM_CFLAGS += -DGALLIUM_LLVMPIPE
 radeonsi_nine_la_LDFLAGS += $(LLVM_LDFLAGS)
 radeonsi_nine_la_LIBADD += $(LLVM_LIBS)
+radeonsi_nine_la_LIBADD += $(top_builddir)/src/gallium/drivers/llvmpipe/libllvmpipe.la
 else
 AM_CFLAGS += -DGALLIUM_SOFTPIPE
 radeonsi_nine_la_LIBADD += $(top_builddir)/src/gallium/drivers/softpipe/libsoftpipe.la
