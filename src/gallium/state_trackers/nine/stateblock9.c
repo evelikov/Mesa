@@ -203,7 +203,7 @@ nine_state_copy_common(struct nine_state *dst,
 
     if (!(mask->changed.group & NINE_STATE_FF))
         return;
-    WARN("Fixed function state not handled properly by StateBlocks.\n");
+    WARN_ONCE("Fixed function state not handled properly by StateBlocks.\n");
 
     /* Fixed function state. */
 
