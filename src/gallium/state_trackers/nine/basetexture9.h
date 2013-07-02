@@ -34,7 +34,7 @@ struct NineBaseTexture9
 
     /* g3d */
     struct pipe_context *pipe;
-    struct pipe_sampler_view *view;
+    struct pipe_sampler_view *view[2]; /* linear and sRGB */
 
     D3DFORMAT format;
 
@@ -95,7 +95,7 @@ HRESULT
 NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This );
 
 HRESULT
-NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This );
+NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This, int sRGB );
 
 static INLINE void
 NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
@@ -110,11 +110,11 @@ NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
 }
 
 static INLINE struct pipe_sampler_view *
-NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This )
+NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This, int sRGB )
 {
-    if (!This->view)
-        NineBaseTexture9_UpdateSamplerView(This);
-    return This->view;
+    if (!This->view[sRGB])
+        NineBaseTexture9_UpdateSamplerView(This, sRGB);
+    return This->view[sRGB];
 }
 
 #ifdef DEBUG

@@ -660,6 +660,7 @@ update_sampler_derived(struct nine_state *state, unsigned s)
     return ret;
 }
 
+/* TODO: add sRGB override to pipe_sampler_state ? */
 static void
 update_textures_and_samplers(struct NineDevice9 *device)
 {
@@ -675,6 +676,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
     commit_samplers = FALSE;
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_PS; ++i) {
         const unsigned s = NINE_SAMPLER_PS(i);
+        int sRGB;
         if (!state->texture[s]) {
             view[i] = NULL;
 #ifdef DEBUG
@@ -683,11 +685,12 @@ update_textures_and_samplers(struct NineDevice9 *device)
 #endif
             continue;
         }
-        view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
+        sRGB = state->samp[s][D3DSAMP_SRGBTEXTURE] ? 1 : 0;
 
+        view[i] = NineBaseTexture9_GetSamplerView(state->texture[s], sRGB);
         num_textures = i + 1;
 
-        if (update_sampler_derived(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
+        if (update_sampler_derived(state, s) || (state->changed.sampler[s] & 0x05fe)) {
             state->changed.sampler[s] = 0;
             commit_samplers = TRUE;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);
@@ -702,6 +705,7 @@ update_textures_and_samplers(struct NineDevice9 *device)
     commit_samplers = FALSE;
     for (num_textures = 0, i = 0; i < NINE_MAX_SAMPLERS_VS; ++i) {
         const unsigned s = NINE_SAMPLER_VS(i);
+        int sRGB;
         if (!state->texture[s]) {
             view[i] = NULL;
 #ifdef DEBUG
@@ -710,11 +714,12 @@ update_textures_and_samplers(struct NineDevice9 *device)
 #endif
             continue;
         }
-        view[i] = NineBaseTexture9_GetSamplerView(state->texture[s]);
+        sRGB = state->samp[s][D3DSAMP_SRGBTEXTURE] ? 1 : 0;
 
+        view[i] = NineBaseTexture9_GetSamplerView(state->texture[s], sRGB);
         num_textures = i + 1;
 
-        if (update_sampler_derived(state, s) || (state->changed.sampler[s] & 0x0dfe)) {
+        if (update_sampler_derived(state, s) || (state->changed.sampler[s] & 0x05fe)) {
             state->changed.sampler[s] = 0;
             commit_samplers = TRUE;
             nine_convert_sampler_state(device->cso, s, state->samp[s]);

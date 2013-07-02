@@ -76,7 +76,8 @@ NineBaseTexture9_dtor( struct NineBaseTexture9 *This )
 {
     DBG("This=%p\n", This);
 
-    pipe_sampler_view_reference(&This->view, NULL);
+    pipe_sampler_view_reference(&This->view[0], NULL);
+    pipe_sampler_view_reference(&This->view[1], NULL);
 
     list_del(&This->list),
 
@@ -149,7 +150,8 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
 
         DBG("updating LOD from %u to %u ...\n", This->lod_resident, This->lod);
 
-        pipe_sampler_view_reference(&This->view, NULL);
+        pipe_sampler_view_reference(&This->view[0], NULL);
+        pipe_sampler_view_reference(&This->view[1], NULL);
 
         if (This->base.base.bind) {
             /* mark state dirty */
@@ -335,8 +337,8 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
         return;
     }
 
-    if (!This->view)
-        NineBaseTexture9_UpdateSamplerView(This);
+    if (!This->view[0])
+        NineBaseTexture9_UpdateSamplerView(This, 0);
 
     if (This->base.type == D3DRTYPE_CUBETEXTURE) {
         faces = 6;
@@ -347,7 +349,7 @@ NineBaseTexture9_GenerateMipSubLevels( struct NineBaseTexture9 *This )
 
     for (i = 0; i < faces; ++i)
         util_gen_mipmap(This->base.base.device->gen_mipmap,
-                        This->view,
+                        This->view[0],
                         i, base_level, last_level, filter);
 
     This->dirty_mip = FALSE;
@@ -421,7 +423,7 @@ NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This,
 }
 
 HRESULT
-NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
+NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This, int sRGB )
 {
     const struct util_format_description *desc;
     struct pipe_context *pipe = This->pipe;
@@ -433,7 +435,7 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
         NineBaseTexture9_Dump(This);
     assert(resource);
 
-    pipe_sampler_view_reference(&This->view, NULL);
+    pipe_sampler_view_reference(&This->view[sRGB], NULL);
 
     swizzle[0] = PIPE_SWIZZLE_RED;
     swizzle[1] = PIPE_SWIZZLE_GREEN;
@@ -456,7 +458,7 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     }
     /* but 000A remains unchanged */
 
-    templ.format = resource->format;
+    templ.format = sRGB ? util_format_srgb(resource->format) : resource->format;
     templ.u.tex.first_layer = 0;
     templ.u.tex.last_layer = (resource->target == PIPE_TEXTURE_CUBE) ?
         5 : (This->base.info.depth0 - 1);
@@ -467,9 +469,9 @@ NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This )
     templ.swizzle_b = swizzle[2];
     templ.swizzle_a = swizzle[3];
 
-    This->view = pipe->create_sampler_view(pipe, resource, &templ);
+    This->view[sRGB] = pipe->create_sampler_view(pipe, resource, &templ);
 
-    DBG("sampler view = %p(resource = %p)\n", This->view, resource);
+    DBG("sampler view = %p(resource = %p)\n", This->view[sRGB], resource);
 
     return This->view ? D3D_OK : D3DERR_DRIVERINTERNALERROR;
 }
