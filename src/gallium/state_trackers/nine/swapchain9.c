@@ -292,6 +292,7 @@ present( struct NineSwapChain9 *This,
         /* TODO */
         blit.dst.resource = NULL;
     } else {
+        struct pipe_surface *suf = NineSurface9_GetSurface(This->buffers[0], 0);
         blit.dst.resource = resource;
         blit.dst.level = 0;
         blit.dst.format = resource->format;
@@ -311,8 +312,7 @@ present( struct NineSwapChain9 *This,
             rect_to_pipe_box_xy_only(&blit.dst.box, &rect);
         }
 
-        assert(This->buffers[0]->surface);
-        blit.src.resource = This->buffers[0]->surface->texture;
+        blit.src.resource = suf->texture;
         blit.src.level = This->buffers[0]->level;
         blit.src.format = blit.src.resource->format;
         blit.src.box.z = 0;
@@ -320,13 +320,13 @@ present( struct NineSwapChain9 *This,
         if (pSourceRect) {
             rect_to_pipe_box_xy_only(&blit.src.box, pSourceRect);
             u_box_clip_2d(&blit.src.box, &blit.src.box,
-                          This->buffers[0]->surface->width,
-                          This->buffers[0]->surface->height);
+                          suf->width,
+                          suf->height);
         } else {
             blit.src.box.x = 0;
             blit.src.box.y = 0;
-            blit.src.box.width = This->buffers[0]->surface->width;
-            blit.src.box.height = This->buffers[0]->surface->height;
+            blit.src.box.width = suf->width;
+            blit.src.box.height = suf->height;
         }
 
         blit.mask = PIPE_MASK_RGBA;
@@ -395,19 +395,24 @@ NineSwapChain9_Present( struct NineSwapChain9 *This,
                         const RGNDATA *pDirtyRegion,
                         DWORD dwFlags )
 {
+    struct pipe_resource *res = NULL;
     int i;
-    struct pipe_surface *temp;
     HRESULT hr = present(This, pSourceRect, pDestRect,
                          hDestWindowOverride, pDirtyRegion, dwFlags);
 
     switch (This->params.SwapEffect) {
         case D3DSWAPEFFECT_DISCARD:
             /* rotate the queue */
-            temp = This->buffers[0]->surface;
+            if (This->params.BackBufferCount == 1)
+                break;
+            pipe_resource_reference(&res, This->buffers[0]->base.resource);
             for (i = 1; i < This->params.BackBufferCount; i++) {
-                This->buffers[i-1]->surface = This->buffers[i]->surface;
+                NineSurface9_SetResourceResize(This->buffers[i - 1],
+                                               This->buffers[i]->base.resource);
             }
-            This->buffers[This->params.BackBufferCount-1]->surface = temp;
+            NineSurface9_SetResourceResize(
+                This->buffers[This->params.BackBufferCount - 1], res);
+            pipe_resource_reference(&res, NULL);
             break;
 
         case D3DSWAPEFFECT_FLIP:

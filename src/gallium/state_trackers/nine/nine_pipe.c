@@ -180,8 +180,6 @@ nine_convert_blend_state(struct cso_context *ctx, const DWORD *rs)
     }
 
     /* blend.force_srgb = !!rs[D3DRS_SRGBWRITEENABLE]; */
-    if (rs[D3DRS_SRGBWRITEENABLE])
-        WARN_ONCE("D3DRS_SRGBWRITEENABLE=1 not yet supported.\n");
 
     cso_set_blend(ctx, &blend);
 }

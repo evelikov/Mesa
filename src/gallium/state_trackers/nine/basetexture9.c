@@ -423,7 +423,8 @@ NineBaseTexture9_CreatePipeResource( struct NineBaseTexture9 *This,
 }
 
 HRESULT
-NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This, int sRGB )
+NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This,
+                                    const int sRGB )
 {
     const struct util_format_description *desc;
     struct pipe_context *pipe = This->pipe;

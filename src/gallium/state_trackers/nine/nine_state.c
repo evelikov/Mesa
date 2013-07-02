@@ -46,6 +46,8 @@ update_framebuffer(struct NineDevice9 *device)
     unsigned i;
     unsigned w = 0, h = 0; /* no surface can have width or height 0 */
 
+    const int sRGB = state->rs[D3DRS_SRGBWRITEENABLE] ? 1 : 0;
+
     DBG("\n");
 
     state->rt_mask = 0x0;
@@ -54,7 +56,7 @@ update_framebuffer(struct NineDevice9 *device)
     for (i = 0; i < device->caps.NumSimultaneousRTs; ++i) {
         if (state->rt[i] && state->rt[i]->desc.Format != D3DFMT_NULL) {
             struct NineSurface9 *rt = state->rt[i];
-            fb->cbufs[i] = NineSurface9_GetSurface(rt);
+            fb->cbufs[i] = NineSurface9_GetSurface(rt, sRGB);
             state->rt_mask |= 1 << i;
             fb->nr_cbufs = i + 1;
             if (w) {
@@ -78,7 +80,7 @@ update_framebuffer(struct NineDevice9 *device)
     }
 
     if (state->ds) {
-        fb->zsbuf = NineSurface9_GetSurface(state->ds);
+        fb->zsbuf = NineSurface9_GetSurface(state->ds, 0);
         if (w) {
             w = MIN2(w, state->ds->desc.Width);
             h = MIN2(h, state->ds->desc.Height);
@@ -1300,7 +1302,7 @@ const uint32_t nine_render_state_group[NINED3DRS_LAST + 1] =
     [D3DRS_COLORWRITEENABLE2] = NINE_STATE_BLEND,
     [D3DRS_COLORWRITEENABLE3] = NINE_STATE_BLEND,
     [D3DRS_BLENDFACTOR] = NINE_STATE_BLEND_COLOR,
-    [D3DRS_SRGBWRITEENABLE] = NINE_STATE_TEXTURE, /* TODO */
+    [D3DRS_SRGBWRITEENABLE] = NINE_STATE_FB,
     [D3DRS_DEPTHBIAS] = NINE_STATE_RASTERIZER,
     [D3DRS_WRAP8] = NINE_STATE_UNHANDLED, /* cylwrap has to be done via GP */
     [D3DRS_WRAP9] = NINE_STATE_UNHANDLED,

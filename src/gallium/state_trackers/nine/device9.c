@@ -1396,7 +1396,7 @@ NineDevice9_ColorFill( struct NineDevice9 *This,
                                            surf->base.info.nr_samples,
                                            PIPE_BIND_RENDER_TARGET);
     if (!fallback) {
-        psurf = NineSurface9_GetSurface(surf);
+        psurf = NineSurface9_GetSurface(surf, 0);
         if (!psurf)
             fallback = TRUE;
     }

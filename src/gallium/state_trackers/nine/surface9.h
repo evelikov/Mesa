@@ -37,7 +37,7 @@ struct NineSurface9
     /* G3D state */
     struct pipe_context *pipe;
     struct pipe_transfer *transfer;
-    struct pipe_surface *surface; /* created on-demand */
+    struct pipe_surface *surface[2]; /* created on-demand (linear, sRGB) */
     int lock_count;
     uint8_t texture; /* rtype of container BaseTex or 0 */
 
@@ -84,14 +84,14 @@ NineSurface9_dtor( struct NineSurface9 *This );
 /*** Nine private ***/
 
 struct pipe_surface *
-NineSurface9_CreatePipeSurface( struct NineSurface9 *This );
+NineSurface9_CreatePipeSurface( struct NineSurface9 *This, const int sRGB );
 
 static INLINE struct pipe_surface *
-NineSurface9_GetSurface( struct NineSurface9 *This )
+NineSurface9_GetSurface( struct NineSurface9 *This, int sRGB )
 {
-    if (This->surface)
-        return This->surface;
-    return NineSurface9_CreatePipeSurface(This);
+    if (This->surface[sRGB])
+        return This->surface[sRGB];
+    return NineSurface9_CreatePipeSurface(This, sRGB);
 }
 
 static INLINE struct pipe_resource *
@@ -106,7 +106,8 @@ NineSurface9_SetResource( struct NineSurface9 *This,
 {
     This->level = level;
     pipe_resource_reference(&This->base.resource, resource);
-    pipe_surface_reference(&This->surface, NULL);
+    pipe_surface_reference(&This->surface[0], NULL);
+    pipe_surface_reference(&This->surface[1], NULL);
 }
 
 void

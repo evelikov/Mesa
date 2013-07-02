@@ -106,14 +106,6 @@ NineSurface9_ctor( struct NineSurface9 *This,
     This->layer = Layer;
     This->desc = *pDesc;
 
-    if ((pDesc->Usage & (D3DUSAGE_DEPTHSTENCIL | D3DUSAGE_RENDERTARGET)) &&
-        Level == 0 &&
-        pDesc->Format != D3DFMT_NULL) {
-        NineSurface9_CreatePipeSurface(This);
-        if (!This->surface)
-            return D3DERR_DRIVERINTERNALERROR;
-    }
-
     This->stride = util_format_get_stride(This->base.info.format, pDesc->Width);
     This->stride = align(This->stride, 4);
 
@@ -138,13 +130,14 @@ NineSurface9_dtor( struct NineSurface9 *This )
         NineSurface9_UnlockRect(This);
     NineSurface9_ClearDirtyRects(This);
 
-    pipe_surface_reference(&This->surface, NULL);
+    pipe_surface_reference(&This->surface[0], NULL);
+    pipe_surface_reference(&This->surface[1], NULL);
 
     NineResource9_dtor(&This->base);
 }
 
 struct pipe_surface *
-NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
+NineSurface9_CreatePipeSurface( struct NineSurface9 *This, const int sRGB )
 {
     struct pipe_context *pipe = This->pipe;
     struct pipe_resource *resource = This->base.resource;
@@ -154,14 +147,14 @@ NineSurface9_CreatePipeSurface( struct NineSurface9 *This )
            This->desc.Pool == D3DPOOL_MANAGED);
     assert(resource);
 
-    templ.format = resource->format;
+    templ.format = sRGB ? util_format_srgb(resource->format) : resource->format;
     templ.u.tex.level = This->level;
     templ.u.tex.first_layer = This->layer;
     templ.u.tex.last_layer = This->layer;
 
-    This->surface = pipe->create_surface(pipe, resource, &templ);
-    assert(This->surface);
-    return This->surface;
+    This->surface[sRGB] = pipe->create_surface(pipe, resource, &templ);
+    assert(This->surface[sRGB]);
+    return This->surface[sRGB];
 }
 
 #ifdef DEBUG
@@ -688,10 +681,8 @@ NineSurface9_SetResourceResize( struct NineSurface9 *This,
                                           This->desc.Width);
     This->stride = align(This->stride, 4);
 
-    if (This->surface) {
-        pipe_surface_reference(&This->surface, NULL);
-        NineSurface9_CreatePipeSurface(This);
-    }
+    pipe_surface_reference(&This->surface[0], NULL);
+    pipe_surface_reference(&This->surface[1], NULL);
 }
 
 

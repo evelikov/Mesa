@@ -95,7 +95,8 @@ HRESULT
 NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This );
 
 HRESULT
-NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This, int sRGB );
+NineBaseTexture9_UpdateSamplerView( struct NineBaseTexture9 *This,
+                                    const int sRGB );
 
 static INLINE void
 NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
@@ -110,7 +111,7 @@ NineBaseTexture9_Validate( struct NineBaseTexture9 *This )
 }
 
 static INLINE struct pipe_sampler_view *
-NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This, int sRGB )
+NineBaseTexture9_GetSamplerView( struct NineBaseTexture9 *This, const int sRGB )
 {
     if (!This->view[sRGB])
         NineBaseTexture9_UpdateSamplerView(This, sRGB);
