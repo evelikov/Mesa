@@ -38,30 +38,6 @@
 
 #define DBG_CHANNEL DBG_SURFACE
 
-/* Bloody resources:
- *
- * DEFAULT: device memory, can't be locked, no worries
- *  resource: driver pipe_resource
- *  dirty regions: ?
- *  mip generation: yes, when ?
- *
- * SYSTEMEM: non-device memory only, can be locked, just write stuff
- *  to the "storage" which is allocated via ...
- *  resource: driver staging resource or MALLOC pointer
- *  lock: write to driver staging or MALLOC area
- *  dirty regions: added when ? which level ? container ?
- *  mip generation: no
- *  levels:
- *
- * MANAGED: device and normal memory, just consider it a pair of
- *  DEFAULT and SYSTEMMEM resources with Update* called whenever the thing is
- *  "used". When is that ?
- *  resource: driver pipe_resource
- *  lock: let's simply treat it as DEFAULT for simplicity
- *  dirty regions: ?
- *  mip generation: yes, when ?
- */
-
 HRESULT
 NineSurface9_ctor( struct NineSurface9 *This,
                    struct NineUnknownParams *pParams,
@@ -246,6 +222,8 @@ NineSurface9_MarkContainerDirty( struct NineSurface9 *This )
         else
         if (This->base.usage & D3DUSAGE_AUTOGENMIPMAP)
             tex->dirty_mip = TRUE;
+
+        BASETEX_REGISTER_UPDATE(tex);
     }
 }
 

@@ -347,18 +347,17 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
         uint32_t m = src->changed.texture;
         dst->changed.texture |= m;
 
+        dst->samplers_shadow &= ~m;
+
         for (s = 0; m; ++s, m >>= 1) {
+            struct NineBaseTexture9 *tex = src->texture[s];
             if (!(m & 1))
                 continue;
-            if (dst->texture[s] &&
-                dst->texture[s]->base.pool == D3DPOOL_MANAGED &&
-                dst->texture[s]->base.base.bind == 1)
-                list_delinit(&dst->texture[s]->list);
-            if (src->texture[s] &&
-                src->texture[s]->base.pool == D3DPOOL_MANAGED &&
-                src->texture[s]->base.base.bind == 0)
-                list_add(&src->texture[s]->list, &This->base.device->bound_textures);
-
+            if (tex) {
+                if ((tex->dirty | tex->dirty_mip) && LIST_IS_EMPTY(&tex->list))
+                    list_add(&tex->list, &This->base.device->update_textures);
+                dst->samplers_shadow |= tex->shadow << s;
+            }
             nine_bind(&dst->texture[s], src->texture[s]);
         }
     }

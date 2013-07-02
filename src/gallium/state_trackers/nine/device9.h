@@ -70,7 +70,7 @@ struct NineDevice9
     struct {
         boolean vport_identity;
     } pipe_state;
-    struct list_head bound_textures; /* XXX: make this dirty_textures */
+    struct list_head update_textures;
 
     boolean is_recording;
     boolean in_scene;

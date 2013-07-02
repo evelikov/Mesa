@@ -160,6 +160,8 @@ NineVolume9_MarkContainerDirty( struct NineVolume9 *This )
     else
     if (This->desc.Usage & D3DUSAGE_AUTOGENMIPMAP)
         tex->dirty_mip = TRUE;
+
+    BASETEX_REGISTER_UPDATE(tex);
 }
 
 HRESULT WINAPI

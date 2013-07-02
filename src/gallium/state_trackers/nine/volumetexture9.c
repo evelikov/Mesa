@@ -186,6 +186,8 @@ NineVolumeTexture9_AddDirtyBox( struct NineVolumeTexture9 *This,
     }
     This->base.dirty = TRUE;
 
+    BASETEX_REGISTER_UPDATE(&This->base);
+
     if (!pDirtyBox) {
         This->dirty_box.x = 0;
         This->dirty_box.y = 0;

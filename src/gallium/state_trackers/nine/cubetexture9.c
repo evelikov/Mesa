@@ -210,6 +210,8 @@ NineCubeTexture9_AddDirtyRect( struct NineCubeTexture9 *This,
     }
     This->base.dirty = TRUE;
 
+    BASETEX_REGISTER_UPDATE(&This->base);
+
     if (!pDirtyRect) {
         u_box_origin_2d(This->base.base.info.width0,
                         This->base.base.info.height0,

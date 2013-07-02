@@ -125,4 +125,10 @@ static INLINE void
 NineBaseTexture9_Dump( struct NineBaseTexture9 *This ) { }
 #endif
 
+#define BASETEX_REGISTER_UPDATE(t) do { \
+    if (((t)->dirty | ((t)->dirty_mip)) && (t)->base.base.bind) \
+        if (LIST_IS_EMPTY(&(t)->list)) \
+            list_add(&(t)->list, &(t)->base.base.device->update_textures); \
+    } while(0)
+
 #endif /* _NINE_BASETEXTURE9_H_ */

@@ -53,15 +53,21 @@ update_framebuffer(struct NineDevice9 *device)
 
     for (i = 0; i < device->caps.NumSimultaneousRTs; ++i) {
         if (state->rt[i] && state->rt[i]->desc.Format != D3DFMT_NULL) {
-            fb->cbufs[i] = NineSurface9_GetSurface(state->rt[i]);
+            struct NineSurface9 *rt = state->rt[i];
+            fb->cbufs[i] = NineSurface9_GetSurface(rt);
             state->rt_mask |= 1 << i;
             fb->nr_cbufs = i + 1;
             if (w) {
-                w = MIN2(w, state->rt[i]->desc.Width);
-                h = MIN2(h, state->rt[i]->desc.Height);
+                w = MIN2(w, rt->desc.Width);
+                h = MIN2(h, rt->desc.Height);
             } else {
-                w = state->rt[i]->desc.Width;
-                h = state->rt[i]->desc.Height;
+                w = rt->desc.Width;
+                h = rt->desc.Height;
+            }
+            if (unlikely(rt->desc.Usage & D3DUSAGE_AUTOGENMIPMAP)) {
+                assert(rt->texture == D3DRTYPE_TEXTURE ||
+                       rt->texture == D3DRTYPE_CUBETEXTURE);
+                NineBaseTexture9(rt->base.base.container)->dirty_mip = TRUE;
             }
         } else {
             /* Color outputs must match RT slot,
@@ -114,6 +120,7 @@ update_framebuffer(struct NineDevice9 *device)
         WARN_ONCE("FIXME: writing undefined values to cbufs 0x%x\n",
                   state->rt_mask & ~state->ps->rt_mask);
 #endif
+
     return state->changed.group;
 }
 
@@ -625,9 +632,11 @@ update_index_buffer(struct NineDevice9 *device)
 static void
 validate_textures(struct NineDevice9 *device)
 {
-    struct NineBaseTexture9 *tex;
-    LIST_FOR_EACH_ENTRY(tex, &device->bound_textures, list)
+    struct NineBaseTexture9 *tex, *ptr;
+    LIST_FOR_EACH_ENTRY_SAFE(tex, ptr, &device->update_textures, list) {
+        list_delinit(&tex->list);
         NineBaseTexture9_Validate(tex);
+    }
 }
 
 static INLINE boolean

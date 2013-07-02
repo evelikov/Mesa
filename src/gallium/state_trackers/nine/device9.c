@@ -144,7 +144,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr)) { return hr; }
 
-    list_inithead(&This->bound_textures);
+    list_inithead(&This->update_textures);
 
     This->screen = pScreen;
     This->caps = *pCaps;
@@ -2178,13 +2178,8 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
         if (old == tex)
             return D3D_OK;
 
-        /* NOTE: bind count is only reliable (hope it is) for non-RT textures */
-        if (old && old->base.pool == D3DPOOL_MANAGED)
-            if (old->base.base.bind == 1)
-                list_delinit(&old->list);
-        if (tex && tex->base.pool == D3DPOOL_MANAGED)
-            if (tex->base.base.bind == 0)
-                list_add(&tex->list, &This->bound_textures);
+        if (tex && (tex->dirty | tex->dirty_mip) && LIST_IS_EMPTY(&tex->list))
+            list_add(&tex->list, &This->update_textures);
 
         /* %(($)!P)="=&% */
         state->samplers_shadow &= ~(1 << Stage);
