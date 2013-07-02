@@ -524,7 +524,7 @@ static boolean
 tx_lconstf(struct shader_translator *tx, struct ureg_src *src, INT index)
 {
    INT i;
-   assert(index >= 0 && index < NINE_MAX_CONST_F);
+   assert(index >= 0 && index < (NINE_MAX_CONST_F * 2));
    for (i = 0; i < tx->num_lconstf; ++i) {
       if (tx->lconstf[i].idx == index) {
          *src = tx->lconstf[i].reg;
@@ -555,7 +555,10 @@ tx_set_lconstf(struct shader_translator *tx, INT index, float f[4])
 {
     unsigned n;
 
-    assert(index >= 0 && index < NINE_MAX_CONST_F);
+    /* Anno1404 sets out of range constants. */
+    assert(index >= 0 && index < (NINE_MAX_CONST_F * 2));
+    if (index >= NINE_MAX_CONST_F)
+        WARN("lconstf index %i too high, indirect access won't work\n", index);
 
     for (n = 0; n < tx->num_lconstf; ++n)
         if (tx->lconstf[n].idx == index)
@@ -2680,14 +2683,17 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
             hr = E_OUTOFMEMORY;
             goto out;
         }
-        for (i = 0; i < tx->num_lconstf; ++i) {
-            info->lconstf.locations[i] = tx->lconstf[i].idx;
-            info->lconstf.data[i * 4 + 0] = tx->lconstf[i].imm.f[0];
-            info->lconstf.data[i * 4 + 1] = tx->lconstf[i].imm.f[1];
-            info->lconstf.data[i * 4 + 2] = tx->lconstf[i].imm.f[2];
-            info->lconstf.data[i * 4 + 3] = tx->lconstf[i].imm.f[3];
+        for (info->lconstf.num = 0, i = 0; i < tx->num_lconstf; ++i) {
+            unsigned n;
+            if (tx->lconstf[i].idx >= NINE_MAX_CONST_F)
+                continue;
+            n = info->lconstf.num++;
+            info->lconstf.locations[n] = tx->lconstf[i].idx;
+            info->lconstf.data[n * 4 + 0] = tx->lconstf[i].imm.f[0];
+            info->lconstf.data[n * 4 + 1] = tx->lconstf[i].imm.f[1];
+            info->lconstf.data[n * 4 + 2] = tx->lconstf[i].imm.f[2];
+            info->lconstf.data[n * 4 + 3] = tx->lconstf[i].imm.f[3];
         }
-        info->lconstf.num = tx->num_lconstf;
     } else {
         info->lconstf.num = 0;
         info->lconstf.locations = NULL;
