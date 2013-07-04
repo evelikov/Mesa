@@ -1315,27 +1315,14 @@ DECL_SPECIAL(CALLNZ)
     return D3D_OK;
 }
 
-DECL_SPECIAL(MOVA)
-{
-    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
-    struct ureg_src src = tx_src_param(tx, &tx->insn.src[0]);
-    struct ureg_dst tmp = tx_scratch(tx);
-
-    tmp.WriteMask = dst.WriteMask;
-    if (tx->version.major > 1) {
-        ureg_ROUND(tx->ureg, tmp, src);
-        ureg_ARL(tx->ureg, dst, ureg_src(tmp));
-    } else {
-        ureg_ARL(tx->ureg, dst, src);
-    }
-
-    return D3D_OK;
-}
-
 DECL_SPECIAL(MOV_vs1x)
 {
-    if (tx->insn.dst[0].file == D3DSPR_ADDR)
-        return NineTranslateInstruction_MOVA(tx);
+    if (tx->insn.dst[0].file == D3DSPR_ADDR) {
+        ureg_ARL(tx->ureg,
+                 tx_dst_param(tx, &tx->insn.dst[0]),
+                 tx_src_param(tx, &tx->insn.src[0]));
+        return D3D_OK;
+    }
     return NineTranslateInstruction_Generic(tx);
 }
 
@@ -2128,7 +2115,7 @@ struct sm1_op_info inst_table[] =
     _OPI(BREAK,  BRK,    V(2,1), V(3,0), V(2,1), V(3,0), 0, 0, NULL),
     _OPI(BREAKC, BREAKC, V(2,1), V(3,0), V(2,1), V(3,0), 0, 2, SPECIAL(BREAKC)),
 
-    _OPI(MOVA, ARL, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, SPECIAL(MOVA)),
+    _OPI(MOVA, ARR, V(2,0), V(3,0), V(0,0), V(0,0), 1, 1, NULL),
 
     _OPI(DEFB, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFB)),
     _OPI(DEFI, NOP, V(0,0), V(3,0) , V(0,0), V(3,0) , 1, 0, SPECIAL(DEFI)),
