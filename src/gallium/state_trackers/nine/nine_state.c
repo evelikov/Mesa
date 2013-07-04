@@ -644,22 +644,26 @@ validate_textures(struct NineDevice9 *device)
 static INLINE boolean
 update_sampler_derived(struct nine_state *state, unsigned s)
 {
-    boolean ret = FALSE;
-
-    int lod = state->samp[s][D3DSAMP_MAXMIPLEVEL] - state->texture[s]->lod;
-    if (lod < 0 || state->samp[s][D3DSAMP_MIPFILTER] == D3DTEXF_NONE)
-        lod = 0;
-    if (state->samp[s][NINED3DSAMP_MINLOD] != lod) {
-        ret = TRUE;
-        state->samp[s][NINED3DSAMP_MINLOD] = lod;
-    }
+    boolean changed = FALSE;
 
     if (state->samp[s][NINED3DSAMP_SHADOW] != state->texture[s]->shadow) {
-        ret = TRUE;
+        changed = TRUE;
         state->samp[s][NINED3DSAMP_SHADOW] = state->texture[s]->shadow;
     }
 
-    return ret;
+    if (state->samp[s][D3DSAMP_MIPFILTER] != D3DTEXF_NONE) {
+        int lod = state->samp[s][D3DSAMP_MAXMIPLEVEL] - state->texture[s]->lod;
+        if (lod < 0)
+            lod = 0;
+        if (state->samp[s][NINED3DSAMP_MINLOD] != lod) {
+            changed = TRUE;
+            state->samp[s][NINED3DSAMP_MINLOD] = lod;
+        }
+    } else {
+        state->changed.sampler[s] &= ~0x300; /* lod changes irrelevant */
+    }
+
+    return changed;
 }
 
 /* TODO: add sRGB override to pipe_sampler_state ? */
