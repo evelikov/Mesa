@@ -130,37 +130,22 @@ static void
 update_viewport(struct NineDevice9 *device)
 {
     struct pipe_context *pipe = device->pipe;
-    const boolean disable = device->state.vs ?
-        device->state.vs->position_t : device->ff.vs->position_t;
     const D3DVIEWPORT9 *vport = &device->state.viewport;
     struct pipe_viewport_state pvport;
 
-    if (!(device->state.changed.group & NINE_STATE_VIEWPORT)) {
-        if (disable == device->pipe_state.vport_identity)
-            return;
-    } else {
-        if (disable && disable == device->pipe_state.vport_identity)
-            return;
-    }
-    device->pipe_state.vport_identity = disable;
-
-    if (unlikely(disable)) {
-        memset(&pvport, 0, sizeof(pvport)); /* driver cheat */
-    } else {
-        /* XXX:
-         * I hope D3D clip coordinates are still
-         * -1 .. +1 for X,Y and
-         *  0 .. +1 for Z (use pipe_rasterizer_state.clip_halfz)
-         */
-        pvport.scale[0] = (float)vport->Width * 0.5f;
-        pvport.scale[1] = (float)vport->Height * -0.5f;
-        pvport.scale[2] = vport->MaxZ - vport->MinZ;
-        pvport.scale[3] = 1.0f;
-        pvport.translate[0] = (float)vport->Width * 0.5f + (float)vport->X;
-        pvport.translate[1] = (float)vport->Height * 0.5f + (float)vport->Y;
-        pvport.translate[2] = vport->MinZ;
-        pvport.translate[3] = 0.0f;
-    }
+    /* XXX:
+     * I hope D3D clip coordinates are still
+     * -1 .. +1 for X,Y and
+     *  0 .. +1 for Z (use pipe_rasterizer_state.clip_halfz)
+     */
+    pvport.scale[0] = (float)vport->Width * 0.5f;
+    pvport.scale[1] = (float)vport->Height * -0.5f;
+    pvport.scale[2] = vport->MaxZ - vport->MinZ;
+    pvport.scale[3] = 1.0f;
+    pvport.translate[0] = (float)vport->Width * 0.5f + (float)vport->X;
+    pvport.translate[1] = (float)vport->Height * 0.5f + (float)vport->Y;
+    pvport.translate[2] = vport->MinZ;
+    pvport.translate[3] = 0.0f;
 
     pipe->set_viewport_states(pipe, 0, 1, &pvport);
 }
@@ -791,7 +776,7 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
     if (group & NINE_STATE_FREQ_GROUP_0) {
         if (group & NINE_STATE_FB)
             group = update_framebuffer(device) & mask;
-        if (group & (NINE_STATE_VIEWPORT | NINE_STATE_VS))
+        if (group & NINE_STATE_VIEWPORT)
             update_viewport(device);
         if (group & NINE_STATE_SCISSOR)
             update_scissor(device);
