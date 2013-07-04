@@ -1104,6 +1104,7 @@ NineDevice9_UpdateTexture( struct NineDevice9 *This,
                 NineSurface9_CopySurface(dst->surfaces[l * 6 + z],
                                          src->surfaces[m * 6 + z], NULL, NULL);
             }
+            m -= l;
         }
     } else
     if (dstb->base.type == D3DRTYPE_VOLUMETEXTURE) {
