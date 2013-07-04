@@ -1944,7 +1944,7 @@ AM_CONDITIONAL(NEED_GALLIUM_LLVMPIPE_DRIVER, test "x$HAVE_GALLIUM_I915" = xyes -
                                                   && test "x$MESA_LLVM" = x1)
 
 if test "x$enable_gallium_loader" = xyes; then
-    GALLIUM_WINSYS_DIRS="$GALLIUM_WINSYS_DIRS sw/null"
+    GALLIUM_WINSYS_DIRS="$GALLIUM_WINSYS_DIRS sw/null sw/wrapper"
 
     if test "x$enable_gallium_drm_loader" = xyes; then
         GALLIUM_PIPE_LOADER_DEFINES="$GALLIUM_PIPE_LOADER_DEFINES -DHAVE_PIPE_LOADER_DRM"
