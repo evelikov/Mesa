@@ -976,7 +976,7 @@ nvc0_blit_3d(struct nvc0_context *nvc0, const struct pipe_blit_info *info)
    BEGIN_NVC0(push, NVC0_3D(VIEWPORT_HORIZ(0)), 2);
    PUSH_DATA (push, nvc0->vport_int[0]);
    PUSH_DATA (push, nvc0->vport_int[1]);
-   if (nvc0->state.vport_enable)
+   if (!nvc0->state.vport_bypass)
       IMMED_NVC0(push, NVC0_3D(VIEWPORT_TRANSFORM_EN), 1);
 }
 

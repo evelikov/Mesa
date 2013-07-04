@@ -121,7 +121,7 @@ struct nvc0_context {
       boolean rasterizer_discard;
       boolean early_z_forced;
       boolean prim_restart;
-      boolean vport_enable;
+      boolean vport_bypass;
       uint32_t instance_elts; /* bitmask of per-instance elements */
       uint32_t instance_base;
       uint32_t constant_vbos;
@@ -275,6 +275,7 @@ void nvc0_tfb_validate(struct nvc0_context *);
 extern void nvc0_init_state_functions(struct nvc0_context *);
 
 /* nvc0_state_validate.c */
+void nvc0_update_vport_clip(struct nvc0_context *);
 void nvc0_validate_global_residents(struct nvc0_context *,
                                     struct nouveau_bufctx *, int bin);
 extern boolean nvc0_state_validate(struct nvc0_context *, uint32_t state_mask,

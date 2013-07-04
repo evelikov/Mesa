@@ -177,7 +177,7 @@ nv50_validate_stipple(struct nv50_context *nv50)
       PUSH_DATA(push, util_bswap32(nv50->stipple.stipple[i]));
 }
 
-static void
+void
 nv50_validate_scissor(struct nv50_context *nv50)
 {
    struct nouveau_pushbuf *push = nv50->base.pushbuf;
@@ -220,18 +220,13 @@ nv50_validate_scissor(struct nv50_context *nv50)
 #endif
 }
 
-static void
+void
 nv50_validate_viewport(struct nv50_context *nv50)
 {
    struct nouveau_pushbuf *push = nv50->base.pushbuf;
    float zmin, zmax;
 
-   if (nv50->viewport.scale[3] != 0.0f) {
-      if (nv50->state.vport_bypass) {
-         BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSFORM_EN), 1);
-         PUSH_DATA (push, 1);
-         nv50->state.vport_bypass = FALSE;
-      }
+   if (likely(!nv50->state.vport_bypass)) {
       BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSLATE_X(0)), 3);
       PUSH_DATAf(push, nv50->viewport.translate[0]);
       PUSH_DATAf(push, nv50->viewport.translate[1]);
@@ -244,11 +239,6 @@ nv50_validate_viewport(struct nv50_context *nv50)
       zmin = nv50->viewport.translate[2] - fabsf(nv50->viewport.scale[2]);
       zmax = nv50->viewport.translate[2] + fabsf(nv50->viewport.scale[2]);
    } else {
-      if (!nv50->state.vport_bypass) {
-         BEGIN_NV04(push, NV50_3D(VIEWPORT_TRANSFORM_EN), 1);
-         PUSH_DATA (push, 0);
-         nv50->state.vport_bypass = TRUE;
-      }
       zmin = 0.0f;
       zmax = 1.0f;
    }
