@@ -667,6 +667,7 @@ esac
 if test "x$enable_opengl" = xno -a \
         "x$enable_gles1" = xno -a \
         "x$enable_gles2" = xno -a \
+        "x$enable_nine" = xno -a \
         "x$enable_openvg" = xno -a \
         "x$enable_xa" = xno -a \
         "x$enable_xvmc" = xno -a \
