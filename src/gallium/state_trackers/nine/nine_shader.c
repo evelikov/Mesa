@@ -35,7 +35,9 @@
 
 #define DBG_CHANNEL DBG_SHADER
 
+#if 0
 #define NINE_TGSI_LAZY_DEVS /* don't use TGSI_OPCODE_BREAKC */
+#endif
 #define NINE_TGSI_LAZY_R600 /* don't use TGSI_OPCODE_DP2A */
 
 #define DUMP(args...) _nine_debug_printf(DBG_CHANNEL, NULL, args)
@@ -1346,16 +1348,24 @@ DECL_SPECIAL(LOOP)
         /* we'll let the backend pull up that MAD ... */
         ureg_UMAD(ureg, tmp, iter, step, init);
         ureg_USEQ(ureg, tmp, ureg_src(ctr), tx_src_scalar(tmp));
+#ifdef NINE_TGSI_LAZY_DEVS
         ureg_UIF(ureg, tx_src_scalar(tmp), tx_cond(tx));
+#endif
     } else {
         /* can't simply use SGE for precision because step might be negative */
         ureg_MAD(ureg, tmp, iter, step, init);
         ureg_SEQ(ureg, tmp, ureg_src(ctr), tx_src_scalar(tmp));
+#ifdef NINE_TGSI_LAZY_DEVS
         ureg_IF(ureg, tx_src_scalar(tmp), tx_cond(tx));
+#endif
     }
+#ifdef NINE_TGSI_LAZY_DEVS
     ureg_BRK(ureg);
     tx_endcond(tx);
     ureg_ENDIF(ureg);
+#else
+    ureg_BREAKC(ureg, tx_src_scalar(tmp));
+#endif
     if (tx->native_integers) {
         ureg_UARL(ureg, tx_get_aL(tx), tx_src_scalar(ctr));
         ureg_UADD(ureg, ctr, tx_src_scalar(ctr), step);
@@ -1433,7 +1443,6 @@ DECL_SPECIAL(REP)
     if (tx->native_integers)
     {
         ureg_USGE(ureg, tmp, tx_src_scalar(ctr), rep);
-        ureg_UADD(ureg, ctr, tx_src_scalar(ctr), ureg_imm1u(ureg, 1));
 #ifdef NINE_TGSI_LAZY_DEVS
         ureg_UIF(ureg, tx_src_scalar(tmp), tx_cond(tx));
 #endif
@@ -1441,7 +1450,6 @@ DECL_SPECIAL(REP)
     else
     {
         ureg_SGE(ureg, tmp, tx_src_scalar(ctr), rep);
-        ureg_ADD(ureg, ctr, tx_src_scalar(ctr), ureg_imm1f(ureg, 1.0f));
 #ifdef NINE_TGSI_LAZY_DEVS
         ureg_IF(ureg, tx_src_scalar(tmp), tx_cond(tx));
 #endif
@@ -1453,6 +1461,12 @@ DECL_SPECIAL(REP)
 #else
     ureg_BREAKC(ureg, tx_src_scalar(tmp));
 #endif
+
+    if (tx->native_integers) {
+        ureg_UADD(ureg, ctr, tx_src_scalar(ctr), ureg_imm1u(ureg, 1));
+    } else {
+        ureg_ADD(ureg, ctr, tx_src_scalar(ctr), ureg_imm1f(ureg, 1.0f));
+    }
 
     return D3D_OK;
 }
