@@ -94,6 +94,9 @@ NineBaseTexture9_SetLOD( struct NineBaseTexture9 *This,
 
     This->lod = MIN2(LODNew, This->base.info.last_level);
 
+    if (This->lod != old && This->base.base.bind && LIST_IS_EMPTY(&This->list))
+       list_add(&This->list, &This->base.base.device->update_textures);
+
     return old;
 }
 
