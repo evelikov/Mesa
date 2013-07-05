@@ -21,7 +21,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "d3d9.h"
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter/d3dadapter9.h"
 
 #include "debug.h"
 #include "driver.h"

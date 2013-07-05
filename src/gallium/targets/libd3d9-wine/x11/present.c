@@ -36,7 +36,7 @@
 #include <xcb/xfixes.h>
 #define _WIN32
 
-#include <d3dadapter9/drm.h>
+#include <d3dadapter/drm.h>
 
 struct NineWinePresentX11
 {

@@ -1,5 +1,5 @@
 #include "d3d9.h"
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter/d3dadapter9.h"
 
 typedef struct ID3DWineDriver ID3DWineDriver;
 

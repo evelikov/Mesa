@@ -24,7 +24,7 @@
 #define _NINE_LOCK_H_
 
 #include "d3d9.h"
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter/d3dadapter9.h"
 
 extern IDirect3DAuthenticatedChannel9Vtbl LockAuthenticatedChannel9_vtable;
 extern IDirect3DCryptoSession9Vtbl LockCryptoSession9_vtable;

@@ -24,7 +24,7 @@
 #define _LIBD3D9_WINE_PRESENT_H_
 
 #include "d3d9.h"
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter/d3dadapter9.h"
 
 #undef _WIN32
 #include <xcb/xcb.h>

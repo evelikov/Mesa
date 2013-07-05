@@ -23,7 +23,7 @@
 #ifndef _NINE_DEVICE9_H_
 #define _NINE_DEVICE9_H_
 
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter/d3dadapter9.h"
 
 #include "iunknown.h"
 #include "adapter9.h"

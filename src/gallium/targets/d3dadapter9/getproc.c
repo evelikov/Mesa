@@ -25,7 +25,7 @@
 #include "util/u_memory.h"
 
 #ifdef HAVE_PIPE_LOADER_DRM
-#include "d3dadapter9/drm.h"
+#include "d3dadapter/drm.h"
 extern const struct D3DAdapter9DRM drm9_desc;
 #endif /* HAVE_PIPE_LOADER_DRM */
 

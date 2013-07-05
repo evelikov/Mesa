@@ -29,8 +29,8 @@
 
 #include "state_tracker/drm_driver.h"
 
-#include "d3dadapter9/d3dadapter9.h"
-#include "d3dadapter9/drm.h"
+#include "d3dadapter/d3dadapter9.h"
+#include "d3dadapter/drm.h"
 
 #include <libdrm/drm.h>
 #include <sys/ioctl.h>

@@ -25,7 +25,7 @@
 
 #include "iunknown.h"
 
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter/d3dadapter9.h"
 
 struct pipe_screen;
 struct pipe_resource;
