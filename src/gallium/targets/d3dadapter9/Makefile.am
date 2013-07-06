@@ -43,8 +43,7 @@ libd3dadapter9_la_LIBADD = \
 	$(top_builddir)/src/gallium/winsys/sw/wrapper/libwsw.la \
 	$(top_builddir)/src/gallium/winsys/sw/null/libws_null.la \
 	$(GALLIUM_PIPE_LOADER_LIBS) \
-	$(LIBUDEV_LIBS) \
-	$(NINE_LIBS)
+	$(LIBUDEV_LIBS)
 
 if HAVE_MESA_LLVM
 libd3dadapter9_la_SOURCES += dummy.cpp
