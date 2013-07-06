@@ -425,8 +425,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
      */
     if (key->vertexblend) {
         struct ureg_src cWM[4];
-        struct ureg_src aInd;
-        struct ureg_src aWgt;
 
         for (i = 224; i <= 255; ++i)
             ureg_DECL_constant(ureg, i);
@@ -435,7 +433,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 
         /* translate world matrix index to constant file index */
         if (key->vertexblend_indexed)
-            ureg_MAD(ureg, tmp, aInd, ureg_imm1f(ureg, 4.0f), ureg_imm1f(ureg, 224.0f));
+            ureg_MAD(ureg, tmp, vs->aInd, ureg_imm1f(ureg, 4.0f), ureg_imm1f(ureg, 224.0f));
         else
             ureg_MOV(ureg, tmp, ureg_imm4f(ureg, 224.0f, 228.0f, 232.0f, 236.0f));
         for (i = 0; i < key->vertexblend; ++i) {
@@ -448,7 +446,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             ureg_MAD(ureg, r[0], _WWWW(vs->aVtx), cWM[3], ureg_src(r[0]));
 
             /* accumulate weighted position value */
-            ureg_MAD(ureg, r[1], ureg_src(r[0]), ureg_scalar(aWgt, i), ureg_src(r[1]));
+            ureg_MAD(ureg, r[1], ureg_src(r[0]), ureg_scalar(vs->aWgt, i), ureg_src(r[1]));
         }
         /* multiply by VIEW_PROJ */
         ureg_MUL(ureg, r[0], _X(r[1]), _CONST(8));
