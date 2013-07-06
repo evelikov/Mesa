@@ -23,6 +23,8 @@
 #include "util/u_box.h"
 #include "util/u_hash_table.h"
 
+#define NINE_TGSI_LAZY_DEVS 1
+
 #define DBG_CHANNEL DBG_FF
 
 #define NINE_FF_NUM_VS_CONST 256
@@ -301,6 +303,23 @@ build_vs_add_input(struct vs_build_ctx *vs, unsigned ndecl)
     return ureg_DECL_vs_input(vs->ureg, i);
 }
 
+/* NOTE: dst may alias src */
+static INLINE void
+ureg_normalize3(struct ureg_program *ureg,
+                struct ureg_dst dst, struct ureg_src src,
+                struct ureg_dst tmp)
+{
+#ifdef NINE_TGSI_LAZY_DEVS
+    struct ureg_dst tmp_x = ureg_writemask(tmp, TGSI_WRITEMASK_X);
+
+    ureg_DP3(ureg, tmp_x, src, src);
+    ureg_RSQ(ureg, tmp_x, _X(tmp));
+    ureg_MUL(ureg, dst, src, _X(tmp));
+#else
+    ureg_NRM(ureg, dst, src);
+#endif
+}
+
 static void *
 nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 {
@@ -474,7 +493,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MUL(ureg, rNrm, _XXXX(vs->aNrm), _CONST(16));
         ureg_MAD(ureg, rNrm, _YYYY(vs->aNrm), _CONST(17), ureg_src(rNrm));
         ureg_MAD(ureg, rNrm, _ZZZZ(vs->aNrm), _CONST(18), ureg_src(rNrm));
-        ureg_NRM(ureg, rNrm, ureg_src(rNrm));
+        ureg_normalize3(ureg, rNrm, ureg_src(rNrm), r[0]);
     }
 
     /* === Process point size:
@@ -704,12 +723,12 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         {
             /* midVec = normalize(hitDir + eyeDir) */
             if (key->localviewer) {
-                ureg_NRM(ureg, rMid, ureg_src(rVtx));
+                ureg_normalize3(ureg, rMid, ureg_src(rVtx), tmp);
                 ureg_ADD(ureg, rMid, ureg_src(rHit), ureg_negate(ureg_src(rMid)));
             } else {
                 ureg_ADD(ureg, rMid, ureg_src(rHit), ureg_imm3f(ureg, 0.0f, 0.0f, 1.0f));
             }
-            ureg_NRM(ureg, rMid, ureg_src(rMid));
+            ureg_normalize3(ureg, rMid, ureg_src(rMid), tmp);
             ureg_DP3(ureg, ureg_saturate(tmp_y), ureg_src(rNrm), ureg_src(rMid));
             ureg_POW(ureg, tmp_y, _Y(tmp), mtlP);
 
