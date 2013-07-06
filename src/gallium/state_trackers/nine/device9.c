@@ -2053,11 +2053,12 @@ NineDevice9_CreateStateBlock( struct NineDevice9 *This,
           NINE_STATE_MATERIAL |
           NINE_STATE_BLEND_COLOR |
           NINE_STATE_SAMPLE_MASK;
+       memset(dst->changed.rs, ~0, (D3DRS_COUNT / 32) * sizeof(uint32_t));
+       dst->changed.rs[D3DRS_LAST / 32] |= (1 << (D3DRS_COUNT % 32)) - 1;
        dst->changed.vtxbuf = (1ULL << This->caps.MaxStreams) - 1;
        dst->changed.stream_freq = dst->changed.vtxbuf;
        dst->changed.ucp = (1 << PIPE_MAX_CLIP_PLANES) - 1;
        dst->changed.texture = (1 << NINE_MAX_SAMPLERS) - 1;
-       memset(dst->changed.rs, ~0, sizeof(dst->changed.rs));
     }
     NineStateBlock9_Capture(NineStateBlock9(*ppSB));
 
