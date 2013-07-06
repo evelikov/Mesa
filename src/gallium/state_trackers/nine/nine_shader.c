@@ -1283,10 +1283,22 @@ DECL_SPECIAL(CMP)
 
 DECL_SPECIAL(CND)
 {
-    ureg_CND(tx->ureg, tx_dst_param(tx, &tx->insn.dst[0]),
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_src cnd;
+
+    if (tx->insn.coissue && tx->version.major == 1 && tx->version.minor < 4) {
+        ureg_MOV(tx->ureg,
+                 dst, tx_src_param(tx, &tx->insn.src[1]));
+        return D3D_OK;
+    }
+
+    cnd = tx_src_param(tx, &tx->insn.src[0]);
+    if (tx->version.major == 1 && tx->version.minor < 4)
+        cnd = ureg_scalar(cnd, TGSI_SWIZZLE_W);
+
+    ureg_CND(tx->ureg, dst,
              tx_src_param(tx, &tx->insn.src[1]),
-             tx_src_param(tx, &tx->insn.src[2]),
-             tx_src_param(tx, &tx->insn.src[0]));
+             tx_src_param(tx, &tx->insn.src[2]), cnd);
     return D3D_OK;
 }
 
@@ -2479,7 +2491,6 @@ sm1_parse_instruction(struct shader_translator *tx)
     insn->nsrc = info->nsrc;
 
     assert(!insn->predicated && "TODO: predicated instructions");
-    assert(!insn->coissue && "TODO: coissue");
 
     /* check version */
     {
