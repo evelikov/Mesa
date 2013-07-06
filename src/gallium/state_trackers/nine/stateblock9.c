@@ -206,6 +206,8 @@ nine_state_copy_common(struct nine_state *dst,
     WARN_ONCE("Fixed function state not handled properly by StateBlocks.\n");
 
     /* Fixed function state. */
+    if (apply)
+        dst->ff.changed.group |= src->ff.changed.group;
 
     if (mask->changed.group & NINE_STATE_FF_MATERIAL)
         dst->ff.material = src->ff.material;
@@ -254,6 +256,118 @@ nine_state_copy_common(struct nine_state *dst,
     }
 }
 
+static void
+nine_state_copy_common_all(struct nine_state *dst,
+                           const struct nine_state *src,
+                           struct nine_state *help,
+                           const boolean apply,
+                           struct nine_range_pool *pool)
+{
+    if (apply)
+       dst->changed.group |= src->changed.group;
+
+    dst->viewport = src->viewport;
+    dst->scissor = src->scissor;
+
+    /* Vertex constants.
+     *
+     * Various possibilities for optimization here, like creating a per-SB
+     * constant buffer, or memcmp'ing for changes.
+     * Will do that later depending on what works best for specific apps.
+     */
+    if (1) {
+        struct nine_range *r = help->changed.vs_const_f;
+        memcpy(&dst->vs_const_f[0],
+               &src->vs_const_f[0], (r->end - r->bgn) * 4 * sizeof(float));
+        if (apply)
+            nine_ranges_insert(&dst->changed.vs_const_f, r->bgn, r->end, pool);
+
+        memcpy(dst->vs_const_i, src->vs_const_i, sizeof(dst->vs_const_i));
+        memcpy(dst->vs_const_b, src->vs_const_b, sizeof(dst->vs_const_b));
+        if (apply) {
+            dst->changed.vs_const_i |= src->changed.vs_const_i;
+            dst->changed.vs_const_b |= src->changed.vs_const_b;
+        }
+    }
+
+    /* Pixel constants. */
+    if (1) {
+        struct nine_range *r = help->changed.ps_const_f;
+        memcpy(&dst->ps_const_f[0],
+               &src->ps_const_f[0], (r->end - r->bgn) * 4 * sizeof(float));
+        if (apply)
+            nine_ranges_insert(&dst->changed.ps_const_f, r->bgn, r->end, pool);
+
+        memcpy(dst->ps_const_i, src->ps_const_i, sizeof(dst->ps_const_i));
+        memcpy(dst->ps_const_b, src->ps_const_b, sizeof(dst->ps_const_b));
+        if (apply) {
+            dst->changed.ps_const_i |= src->changed.ps_const_i;
+            dst->changed.ps_const_b |= src->changed.ps_const_b;
+        }
+    }
+
+    /* Render states. */
+    memcpy(dst->rs, src->rs, sizeof(dst->rs));
+    if (apply)
+        memcpy(dst->changed.rs, src->changed.rs, sizeof(dst->changed.rs));
+
+
+    /* Clip planes. */
+    memcpy(&dst->clip, &src->clip, sizeof(dst->clip));
+    if (apply)
+        dst->changed.ucp = src->changed.ucp;
+
+    /* Sampler state. */
+    memcpy(dst->samp, src->samp, sizeof(dst->samp));
+    if (apply)
+        memcpy(dst->changed.sampler,
+               src->changed.sampler, sizeof(dst->changed.sampler));
+
+    if (!(src->changed.group & NINE_STATE_FF))
+        return;
+    WARN_ONCE("Fixed function state not handled properly by StateBlocks.\n");
+
+    /* Fixed function state. */
+    if (apply)
+        dst->ff.changed.group = src->ff.changed.group;
+
+    dst->ff.material = src->ff.material;
+
+    memcpy(dst->ff.tex_stage, src->ff.tex_stage, sizeof(dst->ff.tex_stage));
+    if (apply) /* TODO: memset */
+        memcpy(dst->ff.changed.tex_stage,
+               src->ff.changed.tex_stage, sizeof(dst->ff.changed.tex_stage));
+
+    /* Lights. */
+    if (1) {
+        if (dst->ff.num_lights < src->ff.num_lights) {
+            dst->ff.light = REALLOC(dst->ff.light,
+                                    dst->ff.num_lights * sizeof(D3DLIGHT9),
+                                    src->ff.num_lights * sizeof(D3DLIGHT9));
+            dst->ff.num_lights = src->ff.num_lights;
+        }
+        memcpy(dst->ff.light,
+               src->ff.light, src->ff.num_lights * sizeof(dst->ff.light[0]));
+
+        DBG("TODO: active lights\n");
+    }
+
+    /* Transforms. */
+    if (1) {
+        if (dst->ff.num_transforms < src->ff.num_transforms) {
+            dst->ff.transform = REALLOC(dst->ff.transform,
+                dst->ff.num_transforms * sizeof(dst->ff.transform[0]),
+                src->ff.num_transforms * sizeof(src->ff.transform[0]));
+            dst->ff.num_transforms = src->ff.num_transforms;
+        }
+        memcpy(dst->ff.transform,
+               src->ff.transform, src->ff.num_transforms * sizeof(D3DMATRIX));
+        if (apply) /* TODO: memset */
+            memcpy(dst->ff.changed.transform,
+                   src->ff.changed.transform, sizeof(dst->ff.changed.transform));
+    }
+}
+
 /* Capture those bits of current device state that have been changed between
  * BeginStateBlock and EndStateBlock.
  */
@@ -266,7 +380,10 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
 
     DBG("This=%p\n", This);
 
-    nine_state_copy_common(dst, src, dst, FALSE, NULL);
+    if (This->type == NINESBT_ALL)
+        nine_state_copy_common_all(dst, src, dst, FALSE, NULL);
+    else
+        nine_state_copy_common(dst, src, dst, FALSE, NULL);
 
     if (dst->changed.group & NINE_STATE_VS)
         nine_reference(&dst->vs, src->vs);
@@ -308,13 +425,17 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
 {
     struct nine_state *dst = &This->base.device->state;
     struct nine_state *src = &This->state;
+    struct nine_range_pool *pool = &This->base.device->range_pool;
     unsigned s, i;
 
     DBG("This=%p\n", This);
 
-    /* TOOD: don't check mask on NINESBT_ALL */
+    if (This->type == NINESBT_ALL)
+        nine_state_copy_common_all(dst, src, src, TRUE, pool);
+    else
+        nine_state_copy_common(dst, src, src, TRUE, pool);
 
-    nine_state_copy_common(dst, src, src, TRUE, &This->base.device->range_pool);
+    /* TOOD: don't check mask on NINESBT_ALL */
 
     if (src->changed.group & NINE_STATE_VS)
         nine_bind(&dst->vs, src->vs);
