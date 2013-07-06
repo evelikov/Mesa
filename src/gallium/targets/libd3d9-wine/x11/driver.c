@@ -31,10 +31,8 @@
 
 #undef _WIN32
 #include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
-#include <xcb/dri2.h>
-#include <xcb/xfixes.h>
+#include <X11/extensions/Xfixes.h>
+#include "dri2.h"
 #define _WIN32
 
 #include <libdrm/drm.h>
@@ -48,7 +46,7 @@ struct NineWineDriverX11
     UINT refs;
 
     /* connection */
-    xcb_connection_t *c;
+    Display *dpy;
     unsigned dri2_major, dri2_minor;
 };
 
@@ -78,7 +76,7 @@ static ULONG WINAPI
 NineWineDriverX11_Release( struct NineWineDriverX11 *This )
 {
     if (--This->refs == 0) {
-        xcb_disconnect(This->c);
+        if (This->dpy) { XCloseDisplay(This->dpy); }
         HeapFree(GetProcessHeap(), 0, This);
         return 0;
     }
@@ -92,23 +90,9 @@ NineWineDriverX11_CreatePresentGroup( struct NineWineDriverX11 *This,
                                       unsigned nParams,
                                       ID3DPresentGroup **ppPresentGroup )
 {
-    return NineWinePresentGroupX11_new(This->c, hFocusWnd, pParams, nParams,
+    return NineWinePresentGroupX11_new(This->dpy, hFocusWnd, pParams, nParams,
                                        This->dri2_major, This->dri2_minor,
                                        ppPresentGroup);
-}
-
-/* this function does NOT check if the string length is shorter than len */
-static INLINE char *
-_strndup( const char *str,
-          unsigned len )
-{
-    char *buf = malloc(len+1);
-    if (!buf) { return NULL; }
-
-    memcpy(buf, str, len);
-    buf[len] = '\0';
-
-    return buf;
 }
 
 static HRESULT WINAPI
@@ -117,9 +101,8 @@ NineWineDriverX11_CreateAdapter9( struct NineWineDriverX11 *This,
                                   ID3DAdapter9 **ppAdapter )
 {
     const struct D3DAdapter9DRM *drm = D3DAdapter9GetProc(D3DADAPTER9DRM_NAME);
-    xcb_generic_error_t *err = NULL;
-    xcb_drawable_t drawable = 0;
-    xcb_window_t root;
+    Drawable drawable = 0;
+    Window root;
     drm_auth_t auth;
     int fd;
     HRESULT hr;
@@ -138,88 +121,56 @@ NineWineDriverX11_CreateAdapter9( struct NineWineDriverX11 *This,
     drawable = X11DRV_ExtEscape_GET_DRAWABLE(hdc);
 
     { /* XGetGeometry */
-        xcb_get_geometry_cookie_t cookie;
-        xcb_get_geometry_reply_t *reply;
+        unsigned udummy;
+        int dummy;
 
-        cookie = xcb_get_geometry(This->c, drawable);
-        reply = xcb_get_geometry_reply(This->c, cookie, &err);
-        if (err) {
-            _WARNING("XGetGeometry failed with error %hhu (major=%hhu, "
-                     "minor=%hu): Unable to get root window of drawable %u\n",
-                     err->error_code, err->major_code, err->minor_code,
-                     drawable);
-            if (reply) { free(reply); }
+        if (!XGetGeometry(This->dpy, drawable, &root, &dummy, &dummy,
+                          &udummy, &udummy, &udummy, &udummy)) {
+            _WARNING("XGetGeometry failed: Unable to get root window of "
+                     "drawable %u\n", drawable);
             return D3DERR_DRIVERINTERNALERROR;
         }
-        root = reply->root;
-        free(reply);
     }
 
     { /* DRI2Connect */
-        xcb_dri2_connect_cookie_t cookie;
-        xcb_dri2_connect_reply_t *reply;
-        char *path;
+        char *driver, *device;
 
-        cookie = xcb_dri2_connect(This->c, root, XCB_DRI2_DRIVER_TYPE_DRI);
-        reply = xcb_dri2_connect_reply(This->c, cookie, &err);
-        if (err) {
-            _WARNING("DRI2Connect failed with error %hhu (major=%hhu, "
-                     "minor=%hu): Unable to connect DRI2 on root %u\n",
-                     err->error_code, err->major_code, err->minor_code, root);
-            if (reply) { free(reply); }
+        if (!DRI2Connect(This->dpy, root, DRI2DriverDRI, &driver, &device)) {
+            _WARNING("DRI2Connect failed: Unable to connect DRI2 on"
+                     "window %u\n", root);
             return D3DERR_DRIVERINTERNALERROR;
         }
 
-        path = _strndup(xcb_dri2_connect_device_name(reply),
-                        xcb_dri2_connect_device_name_length(reply));
-
-        fd = open(path, O_RDWR);
+        fd = open(device, O_RDWR);
         if (fd < 0) {
             _WARNING("Failed to open drm fd: %s (%s)\n",
-                      strerror(errno), path);
-            free(path);
-            free(reply);
+                      strerror(errno), device);
+            free(driver);
+            free(device);
             return D3DERR_DRIVERINTERNALERROR;
         }
 
         /* authenticate */
         if (ioctl(fd, DRM_IOCTL_GET_MAGIC, &auth) != 0) {
             _WARNING("DRM_IOCTL_GET_MAGIC failed: %s (%s)\n",
-                     strerror(errno), path);
-            free(path);
-            free(reply);
+                     strerror(errno), device);
+            free(driver);
+            free(device);
             return D3DERR_DRIVERINTERNALERROR;
         }
 
-        _MESSAGE("Associated `%.*s' with fd %d opened from `%s'\n",
-                 xcb_dri2_connect_driver_name_length(reply),
-                 xcb_dri2_connect_driver_name(reply), fd, path);
+        _MESSAGE("Associated `%s' with fd %d opened from `%s'\n",
+                 driver, fd, device);
 
-        free(path);
-        free(reply);
+        free(driver);
+        free(device);
     }
 
     { /* DRI2Authenticate */
-        xcb_dri2_authenticate_cookie_t cookie;
-        xcb_dri2_authenticate_reply_t *reply;
-
-        cookie = xcb_dri2_authenticate(This->c, root, auth.magic);
-        reply = xcb_dri2_authenticate_reply(This->c, cookie, &err);
-
-        if (err) {
-            _WARNING("DRI2Authenticate failed with error %hhu (major=%hhu, "
-                     "minor=%hu): Error authenticating fd %d\n",
-                     err->error_code, err->major_code, err->minor_code, fd);
-            if (reply) { free(reply); }
+        if (!DRI2Authenticate(This->dpy, root, auth.magic)) {
+            _WARNING("DRI2Authenticate failed on fd %d\n", fd);
             return D3DERR_DRIVERINTERNALERROR;
         }
-
-        if (!reply->authenticated) {
-            _WARNING("Unable to authenticate fd %d\n", fd);
-            free(reply);
-            return D3DERR_DRIVERINTERNALERROR;
-        }
-        free(reply);
     }
 
     hr = drm->create_adapter(fd, ppAdapter);
@@ -236,38 +187,29 @@ NineWineDriverX11_CreateAdapter9( struct NineWineDriverX11 *This,
 static INLINE HRESULT
 check_x11_proto( struct NineWineDriverX11 *This )
 {
-    xcb_dri2_query_version_cookie_t dri2cookie;
-    xcb_dri2_query_version_reply_t *dri2reply;
-    xcb_xfixes_query_version_cookie_t fixcookie;
-    xcb_xfixes_query_version_reply_t *fixreply;
-    xcb_generic_error_t *err = NULL;
+    int xfmaj, xfmin, dummy;
 
     /* query DRI2 */
-    dri2cookie = xcb_dri2_query_version(This->c, 1, 3);
-    dri2reply = xcb_dri2_query_version_reply(This->c, dri2cookie, &err);
-    if (err) {
-        _ERROR("Unable to query DRI2 extension.\nThis library requires DRI2. "
-               "Please ensure your Xserver supports this extension.\n");
+    if (!DRI2QueryExtension(This->dpy)) {
+        _ERROR("Xserver doesn't support DRI2.\n");
         return D3DERR_DRIVERINTERNALERROR;
     }
-    _MESSAGE("Got DRI2 version %u.%u\n",
-            dri2reply->major_version, dri2reply->minor_version);
-    /* save version for feature checking */
-    This->dri2_major = dri2reply->major_version;
-    This->dri2_minor = dri2reply->minor_version;
-    free(dri2reply);
+    if (!DRI2QueryVersion(This->dpy, &This->dri2_major, &This->dri2_minor)) {
+        _ERROR("Unable to query DRI2 extension.\n");
+        return D3DERR_DRIVERINTERNALERROR;
+    }
+    _MESSAGE("Got DRI2 version %u.%u\n", This->dri2_major, This->dri2_minor);
 
-    /* query XFixes for regions in blitting */
-    fixcookie = xcb_xfixes_query_version(This->c, 2, 0);
-    fixreply = xcb_xfixes_query_version_reply(This->c, fixcookie, &err);
-    if (err) {
-        _ERROR("Unable to query XFixes extension.\nThis library requires "
-               "XFixes. Please ensure your Xserver supports this extension.\n");
+    /* query XFixes */
+    if (!XFixesQueryExtension(This->dpy, &dummy, &dummy)) {
+        _ERROR("Xserver doesn't support XFixes.\n");
         return D3DERR_DRIVERINTERNALERROR;
     }
-    _MESSAGE("Got XFixes version %u.%u\n",
-            fixreply->major_version, fixreply->minor_version);
-    free(fixreply);
+    if (!XFixesQueryVersion(This->dpy, &xfmaj, &xfmin)) {
+        _ERROR("Unable to query XFixes extension.\n");
+        return D3DERR_DRIVERINTERNALERROR;
+    }
+    _MESSAGE("Got XFixes version %u.%u\n", xfmaj, xfmin);
 
     return D3D_OK;
 }
@@ -296,9 +238,9 @@ D3DWineDriverCreate( ID3DWineDriver **ppDriver )
     This->vtable = &NineWineDriverX11_vtable;
     This->refs = 1;
 
-    This->c = xcb_connect(NULL, NULL); /* This is (almost) what Wine does */
-    if (xcb_connection_has_error(This->c)) {
-        _ERROR("Unable to get XCB connection from Xlib Display.\n");
+    This->dpy = XOpenDisplay(NULL); /* This is what Wine does */
+    if (!This->dpy) {
+        _ERROR("Unable to connect to X11.\n");
         HeapFree(GetProcessHeap(), 0, This);
         return D3DERR_DRIVERINTERNALERROR;
     }

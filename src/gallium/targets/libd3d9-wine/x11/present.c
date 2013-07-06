@@ -25,15 +25,12 @@
 #include "../debug.h"
 #include "../guid.h"
 #include "present.h"
-
-#include <wine/server.h>
+#include "adjust.h"
 
 #undef _WIN32
 #include <X11/Xlib.h>
-#include <X11/Xlib-xcb.h>
-#include <xcb/xcb.h>
-#include <xcb/dri2.h>
-#include <xcb/xfixes.h>
+#include <X11/extensions/Xfixes.h>
+#include "dri2.h"
 #define _WIN32
 
 #include <d3dadapter/drm.h>
@@ -45,20 +42,19 @@ struct NineWinePresentX11
     /* IUnknown reference count */
     UINT refs;
 
-    xcb_connection_t *c;
+    Display *dpy;
 
-    xcb_xfixes_region_t region;
-    xcb_void_cookie_t region_cookie;
+    XserverRegion region;
     RGNDATA *rgndata;
 
     struct {
-        xcb_drawable_t drawable;
+        Drawable drawable;
         HWND ancestor;
         HWND real;
     } device_window;
 
     struct {
-        xcb_drawable_t drawable;
+        Drawable drawable;
         HWND ancestor;
         HWND real;
     } current_window;
@@ -89,7 +85,7 @@ struct x11drv_escape_get_drawable
     int                      pixel_format; /* internal GL pixel format */
 };
 
-xcb_drawable_t
+Drawable
 X11DRV_ExtEscape_GET_DRAWABLE( HDC hdc )
 {
     struct x11drv_escape_get_drawable extesc = { X11DRV_GET_DRAWABLE };
@@ -104,10 +100,10 @@ X11DRV_ExtEscape_GET_DRAWABLE( HDC hdc )
     return extesc.drawable;
 }
 
-static xcb_drawable_t
+static Drawable
 get_drawable( HWND hwnd )
 {
-    xcb_drawable_t drawable;
+    Drawable drawable;
     HDC hdc;
 
     hdc = GetDC(hwnd);
@@ -119,33 +115,18 @@ get_drawable( HWND hwnd )
 
 static boolean
 create_drawable( struct NineWinePresentX11 *This,
-                 xcb_drawable_t wnd )
+                 Drawable wnd )
 {
-    xcb_generic_error_t *err;
-    xcb_void_cookie_t cookie = xcb_dri2_create_drawable_checked(This->c, wnd);
-    err = xcb_request_check(This->c, cookie);
-    if (err) {
-        _ERROR("DRI2CreateDrawable failed with error %hhu (major=%hhu, "
-               "minor=%hu, drawable = %u)\n", err->error_code,
-               err->major_code, err->minor_code, wnd);
-        return FALSE;
-    }
+    DRI2CreateDrawable(This->dpy, wnd);
     _MESSAGE("Created DRI2 drawable for drawable %u.\n", wnd);
     return TRUE;
 }
 
 static void
 destroy_drawable( struct NineWinePresentX11 *This,
-                  xcb_drawable_t wnd )
+                  Drawable wnd )
 {
-    xcb_generic_error_t *err;
-    xcb_void_cookie_t cookie = xcb_dri2_destroy_drawable_checked(This->c, wnd);
-    err = xcb_request_check(This->c, cookie);
-    if (err) {
-        _ERROR("DRI2DestroyDrawable failed with error %hhu (major=%hhu, "
-               "minor=%hu, drawable = %u)\n", err->error_code,
-               err->major_code, err->minor_code, wnd);
-    }
+    DRI2DestroyDrawable(This->dpy, wnd);
     _MESSAGE("Destroyed DRI2 drawable for drawable %u.\n", wnd);
 }
 
@@ -181,7 +162,7 @@ NineWinePresentX11_Release( struct NineWinePresentX11 *This )
     if (--This->refs == 0) {
         /* dtor */
         if (This->region) {
-            xcb_xfixes_destroy_region(This->c, This->region);
+            XFixesDestroyRegion(This->dpy, This->region);
         }
         if (This->rgndata) {
             HeapFree(GetProcessHeap(), 0, This->rgndata);
@@ -207,53 +188,6 @@ NineWinePresentX11_GetPresentParameters( struct NineWinePresentX11 *This,
     return D3D_OK;
 }
 
-static INLINE boolean
-get_winex11_hwnd_offset( HWND real,
-                         HWND anc,
-                         RECT *rect )
-{
-    int x = 0, y = 0;
-
-    /* get size of the HWND we want to draw to */
-    if (!GetClientRect(real, rect)) {
-        _ERROR("Unable to get window size.\n");
-        return FALSE;
-    }
-
-    /* Get the offset caused by non-client area into the real X drawable */
-    SERVER_START_REQ(get_window_rectangles)
-    {
-        req->handle = wine_server_user_handle(anc);
-        req->relative = COORDS_CLIENT;
-        wine_server_call(req);
-
-        x += reply->visible.left;
-        y += reply->visible.top;
-    }
-    SERVER_END_REQ;
-
-    /* Get the offset caused by client area into the real X drawable */
-    if (anc != real) {
-        POINT off = {0, 0};
-        if (!MapWindowPoints(anc, real, &off, 1)) {
-            _ERROR("Unable to get coordinates for fake subwindow.\n");
-            return FALSE;
-        }
-        x += off.x;
-        y += off.y;
-    }
-
-    _MESSAGE("Adjusting RECT (%u..%u)x(%u..%u) to winex11 system (%+d,%+d)\n",
-             rect->left, rect->right, rect->top, rect->bottom, -x, -y);
-
-    rect->left -= x;
-    rect->top -= y;
-    rect->right -= x;
-    rect->bottom -= y;
-
-    return TRUE;
-}
-
 static HRESULT WINAPI
 NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
                               HWND hWndOverride,
@@ -262,18 +196,15 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
                               RECT *pRect,
                               RGNDATA **ppRegion )
 {
-    xcb_dri2_get_buffers_cookie_t cookie;
-    xcb_dri2_get_buffers_reply_t *reply;
-    xcb_dri2_dri2_buffer_t *buffers;
-    xcb_generic_error_t *err = NULL;
-    xcb_drawable_t drawable;
-    xcb_rectangle_t xrect;
+    static const unsigned attachments[] = { DRI2BufferBackLeft };
+
+    DRI2Buffer *buffers;
+    Drawable drawable;
+    XRectangle xrect;
     D3DDRM_BUFFER *drmbuf = pBuffer;
     HWND ancestor;
     RECT dest;
-    static const uint32_t attachments[] = {
-        XCB_DRI2_ATTACHMENT_BUFFER_BACK_LEFT
-    };
+    unsigned width, height, n;
 
     _MESSAGE("%s(This=%p hWndOverride=%p pBuffer=%p pRect=%p ppRegion=%p)\n",
              __FUNCTION__, This, hWndOverride, pBuffer, pRect, ppRegion);
@@ -336,26 +267,22 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
              pRect->left, pRect->right, pRect->top, pRect->bottom);
 
     /* XXX base this on events instead of calling every single frame */
-    cookie = xcb_dri2_get_buffers(This->c, This->current_window.drawable,
-                                  1, 1, attachments);
-    reply = xcb_dri2_get_buffers_reply(This->c, cookie, &err);
-    if (err) {
-        _ERROR("DRI2GetBuffers failed with error %hhu (major=%hhu, "
-               "minor=%hu)\n", err->error_code,
-               err->major_code, err->minor_code);
+    if ((n = DRI2GetBuffers(This->dpy, This->current_window.drawable,
+                            attachments, 1, &width, &height, &buffers)) < 1) {
+        _ERROR("DRI2GetBuffers failed (drawable = %u, n = %u)\n",
+               This->current_window.drawable, n);
         return D3DERR_DRIVERINTERNALERROR;
     }
-    buffers = xcb_dri2_get_buffers_buffers(reply);
 
     drmbuf->iName = buffers[0].name;
-    drmbuf->dwWidth = reply->width;
-    drmbuf->dwHeight = reply->height;
+    drmbuf->dwWidth = width;
+    drmbuf->dwHeight = height;
     drmbuf->dwStride = buffers[0].pitch;
     drmbuf->dwCPP = buffers[0].cpp;
-    free(reply);
+    free(buffers);
 
     if (This->region) {
-        xcb_xfixes_destroy_region(This->c, This->region);
+        XFixesDestroyRegion(This->dpy, This->region);
         This->region = 0;
     }
 
@@ -377,9 +304,7 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
     _MESSAGE("XFixes rect (x=%u, y=%u, w=%u, h=%u)\n",
              xrect.x, xrect.y, xrect.width, xrect.height);
 
-    This->region = xcb_generate_id(This->c);
-    This->region_cookie =
-        xcb_xfixes_create_region_checked(This->c, This->region, 1, &xrect);
+    This->region = XFixesCreateRegion(This->dpy, &xrect, 1);
 
     _MESSAGE("%s: OK, *ppRegion=%p\n", __FUNCTION__, ppRegion ? *ppRegion : NULL);
     return D3D_OK;
@@ -396,38 +321,17 @@ static HRESULT WINAPI
 NineWinePresentX11_Present( struct NineWinePresentX11 *This,
                             DWORD Flags )
 {
-    xcb_generic_error_t *err = NULL;
-
     _MESSAGE("%s(This=%p, Flags=%x)\n", __FUNCTION__, This, Flags);
 
     if (1/*This->dri2_minor < 3*/) {
-        xcb_dri2_copy_region_cookie_t cookie;
-        xcb_dri2_copy_region_reply_t *reply;
-
-        err = xcb_request_check(This->c, This->region_cookie);
-        if (err) {
-            _ERROR("XXFixesCreateRegion failed with error %hhu (major=%hhu, "
-                   "minor=%hu)\n", err->error_code,
-                   err->major_code, err->minor_code);
-            This->region = 0;
+        if (!DRI2CopyRegion(This->dpy, This->current_window.drawable,
+                            This->region, DRI2BufferFrontLeft,
+                            DRI2BufferBackLeft)) {
+            _ERROR("DRI2CopyRegion failed (drawable = %u, region = %u)\n",
+                   This->current_window.drawable, This->region);
             return D3DERR_DRIVERINTERNALERROR;
         }
-
-        cookie = xcb_dri2_copy_region(This->c,
-                                      This->current_window.drawable,
-                                      This->region,
-                                      XCB_DRI2_ATTACHMENT_BUFFER_FRONT_LEFT,
-                                      XCB_DRI2_ATTACHMENT_BUFFER_BACK_LEFT);
-        if (!(Flags & D3DPRESENT_DONOTWAIT)) {
-            reply = xcb_dri2_copy_region_reply(This->c, cookie, &err);
-            if (err) {
-                _ERROR("DRI2CopyRegion failed with error %hhu (major=%hhu, "
-                       "minor=%hu)\n", err->error_code,
-                       err->major_code, err->minor_code);
-                return D3DERR_DRIVERINTERNALERROR;
-            }
-            free(reply);
-        }
+        /* XXX if (!(Flags & D3DPRESENT_DONOTWAIT)) { */
     }
 
     return D3D_OK;
@@ -553,7 +457,7 @@ static ID3DPresentVtbl NineWinePresentX11_vtable = {
 };
 
 static HRESULT
-NineWinePresentX11_new( xcb_connection_t *c,
+NineWinePresentX11_new( Display *dpy,
                         D3DPRESENT_PARAMETERS *params,
                         HWND focus_wnd,
                         unsigned dri2_minor,
@@ -576,7 +480,7 @@ NineWinePresentX11_new( xcb_connection_t *c,
 
     This->vtable = &NineWinePresentX11_vtable;
     This->refs = 1;
-    This->c = c;
+    This->dpy = dpy;
     This->dri2_minor = dri2_minor;
 
     /* sanitize presentation parameters */
@@ -644,7 +548,7 @@ struct NineWinePresentGroupX11
     unsigned npresent_backends;
 
     /* X11 info */
-    xcb_connection_t *c;
+    Display *dpy;
     unsigned dri2_minor;
 };
 
@@ -733,7 +637,7 @@ static ID3DPresentGroupVtbl NineWinePresentGroupX11_vtable = {
 };
 
 HRESULT
-NineWinePresentGroupX11_new( xcb_connection_t *c,
+NineWinePresentGroupX11_new( Display *dpy,
                              HWND focus_wnd,
                              D3DPRESENT_PARAMETERS *params,
                              unsigned nparams,
@@ -753,7 +657,7 @@ NineWinePresentGroupX11_new( xcb_connection_t *c,
 
     This->vtable = &NineWinePresentGroupX11_vtable;
     This->refs = 1;
-    This->c = c;
+    This->dpy = dpy;
     This->dri2_minor = dri2_minor;
     This->npresent_backends = nparams;
     This->present_backends = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
@@ -765,7 +669,7 @@ NineWinePresentGroupX11_new( xcb_connection_t *c,
     }
 
     for (i = 0; i < This->npresent_backends; ++i) {
-        hr = NineWinePresentX11_new(c, &params[i], focus_wnd,
+        hr = NineWinePresentX11_new(dpy, &params[i], focus_wnd,
                                     dri2_minor, &This->present_backends[i]);
         if (FAILED(hr)) {
             _ERROR("NineWinePresentX11_new failed.\n");

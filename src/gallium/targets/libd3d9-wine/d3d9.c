@@ -805,7 +805,7 @@ Nine9Ex_new( boolean ex,
     return D3D_OK;
 }
 
-IDirect3D9 *WINAPI
+PUBLIC IDirect3D9 *WINAPI
 Direct3DCreate9( UINT SDKVersion )
 {
     IDirect3D9Ex *d3d = NULL;
@@ -815,7 +815,7 @@ Direct3DCreate9( UINT SDKVersion )
     return FAILED(hr) ? NULL : (IDirect3D9 *)d3d;
 }
 
-HRESULT WINAPI
+PUBLIC HRESULT WINAPI
 Direct3DCreate9Ex( UINT SDKVersion,
                    IDirect3D9Ex **ppD3D9 )
 {
@@ -824,7 +824,7 @@ Direct3DCreate9Ex( UINT SDKVersion,
 
 static int D3DPERF_event_level = 0;
 
-void *WINAPI
+PUBLIC void *WINAPI
 Direct3DShaderValidatorCreate9( void )
 {
     static boolean first = TRUE;
@@ -837,49 +837,49 @@ Direct3DShaderValidatorCreate9( void )
     return NULL;
 }
 
-int WINAPI
+PUBLIC int WINAPI
 D3DPERF_BeginEvent( D3DCOLOR color,
                     LPCWSTR name )
 {
     return D3DPERF_event_level++;
 }
 
-int WINAPI
+PUBLIC int WINAPI
 D3DPERF_EndEvent( void )
 {
     return --D3DPERF_event_level;
 }
 
-DWORD WINAPI
+PUBLIC DWORD WINAPI
 D3DPERF_GetStatus( void )
 {
     return 0;
 }
 
-void WINAPI
+PUBLIC void WINAPI
 D3DPERF_SetOptions( DWORD options )
 {
 }
 
-BOOL WINAPI
+PUBLIC BOOL WINAPI
 D3DPERF_QueryRepeatFrame( void )
 {
     return FALSE;
 }
 
-void WINAPI
+PUBLIC void WINAPI
 D3DPERF_SetMarker( D3DCOLOR color,
                    LPCWSTR name )
 {
 }
 
-void WINAPI
+PUBLIC void WINAPI
 D3DPERF_SetRegion( D3DCOLOR color,
                    LPCWSTR name )
 {
 }
 
-void WINAPI
+PUBLIC void WINAPI
 DebugSetMute( void )
 {
 }

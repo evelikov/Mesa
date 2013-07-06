@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Joakim Sindholt <opensource@zhasha.com>
+ * Copyright 2013 Joakim Sindholt <opensource@zhasha.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,26 +20,14 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
-#ifndef _LIBD3D9_WINE_PRESENT_H_
-#define _LIBD3D9_WINE_PRESENT_H_
+#ifndef __ADJUST_H__
+#define __ADJUST_H__
 
-#include "d3d9.h"
-#include "d3dadapter/d3dadapter9.h"
+#include <windows.h>
 
-#undef _WIN32
-#include <X11/Xlib.h>
-#define _WIN32
+int
+get_winex11_hwnd_offset( HWND real,
+                         HWND anc,
+                         RECT *rect );
 
-HRESULT
-NineWinePresentGroupX11_new( Display *dpy,
-                             HWND focus_wnd,
-                             D3DPRESENT_PARAMETERS *params,
-                             unsigned nparams,
-                             unsigned dri2_major,
-                             unsigned dri2_minor,
-                             ID3DPresentGroup **out );
-
-Drawable
-X11DRV_ExtEscape_GET_DRAWABLE( HDC hdc );
-
-#endif /* _LIBD3D9_WINE_PRESENT_H_ */
+#endif

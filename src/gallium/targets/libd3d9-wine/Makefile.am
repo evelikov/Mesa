@@ -36,14 +36,22 @@ LIBTOOL = $(SHELL) $(srcdir)/autoconf/libtool
 
 lib_LTLIBRARIES = d3d9.dll.la
 
-d3d9_dll_la_SOURCES = d3d9.c debug.c guid.c x11/driver.c x11/present.c
+d3d9_dll_la_SOURCES = \
+	d3d9.c \
+	debug.c \
+	guid.c \
+	x11/adjust.c \
+	x11/dri2.c \
+	x11/driver.c \
+	x11/present.c
+
 d3d9_dll_la_LDFLAGS = \
-    -module \
-    -avoid-version \
-    -shared \
-    -L$(top_srcdir)/lib/gallium \
-    -XCClinker d3d9.spec
-d3d9_dll_la_LIBADD = -lgdi32 $(NINE_LIBS) -ldl -ld3dadapter9
+	-module \
+	-avoid-version \
+	-shared \
+	-L$(top_srcdir)/lib/gallium \
+	-XCClinker d3d9.spec
+d3d9_dll_la_LIBADD = -lgdi32 -ld3dadapter9 $(WINED3D9_LIBS)
 
 # Provide compatibility with scripts for the old Mesa build system for
 # a while by putting a link to the driver into /lib of the build tree.

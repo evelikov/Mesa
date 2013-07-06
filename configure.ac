@@ -1279,7 +1279,7 @@ dnl
 dnl Nine Direct3D9 configuration
 dnl
 if test "x$enable_nine" = xyes; then
-    PKG_CHECK_MODULES([NINE], [x11-xcb xcb-dri2 >= 1.8 xcb-randr xcb-xfixes])
+    PKG_CHECK_MODULES([WINED3D9], [x11 xfixes xext dri2proto])
     if test "x$with_gallium_drivers" = x; then
         AC_MSG_ERROR([cannot enable nine without Gallium])
     fi
