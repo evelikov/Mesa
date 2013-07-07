@@ -1063,6 +1063,7 @@ nine_state_clear(struct NineDevice9 *device)
     nine_bind(&state->vdecl, NULL);
     for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
         nine_bind(&state->stream[i], NULL);
+    nine_bind(&state->idxbuf, NULL);
     for (i = 0; i < NINE_MAX_SAMPLERS; ++i) {
         if (state->texture[i] &&
             state->texture[i]->base.pool == D3DPOOL_MANAGED)
