@@ -57,8 +57,13 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
     nine_reference(&state->idxbuf, NULL);
 
     if (state->changed.vtxbuf) {
-        for (i = 0; i < PIPE_MAX_ATTRIBS; ++i)
+        for (i = 0; i < Elements(state->stream); ++i)
             nine_reference(&state->stream[i], NULL);
+    }
+
+    if (state->changed.texture) {
+        for (i = 0; i < Elements(state->texture); ++i)
+            nine_reference(&state->texture[i], NULL);
     }
 
     nine_reference(&state->vs, NULL);
@@ -70,6 +75,11 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
         FREE(state->vs_const_f);
     if (state->ps_const_f)
         FREE(state->ps_const_f);
+
+    if (state->ff.light)
+        FREE(state->ff.light);
+    if (state->ff.transform)
+        FREE(state->ff.transform);
 
     NineUnknown_dtor(&This->base);
 }
