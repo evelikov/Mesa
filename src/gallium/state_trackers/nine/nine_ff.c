@@ -550,12 +550,20 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             ureg_MOV(ureg, dst[4], vs->aTex[idx]);
             break;
         case NINED3DTSS_TCI_CAMERASPACENORMAL:
+            assert(dim <= 3);
             ureg_MOV(ureg, dst[4], ureg_src(rNrm));
             break;
         case NINED3DTSS_TCI_CAMERASPACEPOSITION:
             ureg_MOV(ureg, dst[4], ureg_src(rVtx));
             break;
         case NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
+            tmp.WriteMask &= ~TGSI_WRITEMASK_W;
+            ureg_DP3(ureg, tmp_x, ureg_src(rVtx), ureg_src(rNrm));
+            ureg_MUL(ureg, tmp, ureg_src(rNrm), _X(tmp));
+            ureg_ADD(ureg, tmp, ureg_src(tmp), ureg_src(tmp));
+            ureg_SUB(ureg, dst[4], ureg_src(rVtx), ureg_src(tmp));
+            tmp.WriteMask |= TGSI_WRITEMASK_W;
+            break;
         case NINED3DTSS_TCI_SPHEREMAP:
             assert(!"TODO");
             break;
@@ -564,13 +572,14 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         }
         if (!dim)
             continue;
+        dst[c].WriteMask = ~dst[c].WriteMask;
+        if (dst[c].WriteMask)
+            ureg_MOV(ureg, dst[c], src); /* store untransformed components */
+        dst[c].WriteMask = ~dst[c].WriteMask;
         if (dim > 0) ureg_MUL(ureg, dst[0], _XXXX(src), _CONST(128 + i * 4));
         if (dim > 1) ureg_MAD(ureg, dst[1], _YYYY(src), _CONST(129 + i * 4), src);
         if (dim > 2) ureg_MAD(ureg, dst[2], _ZZZZ(src), _CONST(130 + i * 4), src);
         if (dim > 3) ureg_MAD(ureg, dst[3], _WWWW(src), _CONST(131 + i * 4), src);
-        dst[c].WriteMask = ~dst[c].WriteMask;
-        if (dst[c].WriteMask)
-            ureg_MOV(ureg, dst[c], src);
     }
 
     /* === Lighting:
