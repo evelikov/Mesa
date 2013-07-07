@@ -63,6 +63,7 @@ struct NineWinePresentX11
 
     D3DPRESENT_PARAMETERS params;
 
+    WCHAR devname[32];
     HCURSOR hCursor;
 };
 
@@ -346,9 +347,43 @@ NineWinePresentX11_GetRasterStatus( struct NineWinePresentX11 *This,
 
 static HRESULT WINAPI
 NineWinePresentX11_GetDisplayMode( struct NineWinePresentX11 *This,
-                                   D3DDISPLAYMODEEX *pMode )
+                                   D3DDISPLAYMODEEX *pMode,
+                                   D3DDISPLAYROTATION *pRotation )
 {
-    STUB(D3DERR_INVALIDCALL); /* TODO: implement */
+    DEVMODEW dm;
+
+    ZeroMemory(&dm, sizeof(dm));
+    dm.dmSize = sizeof(dm);
+
+    EnumDisplaySettingsExW(This->devname, ENUM_CURRENT_SETTINGS, &dm, 0);
+    pMode->Width = dm.dmPelsWidth;
+    pMode->Height = dm.dmPelsHeight;
+    pMode->RefreshRate = dm.dmDisplayFrequency;
+    pMode->ScanLineOrdering = (dm.dmDisplayFlags & DM_INTERLACED) ?
+                                  D3DSCANLINEORDERING_INTERLACED :
+                                  D3DSCANLINEORDERING_PROGRESSIVE;
+
+    /* XXX This is called "guessing" */
+    switch (dm.dmBitsPerPel) {
+        case 32: pMode->Format = D3DFMT_X8R8G8B8; break;
+        case 24: pMode->Format = D3DFMT_R8G8B8; break;
+        case 16: pMode->Format = D3DFMT_R5G6B5; break;
+        default:
+            _WARNING("Unknown display format with %u bpp.\n", dm.dmBitsPerPel);
+            pMode->Format = D3DFMT_UNKNOWN;
+    }
+
+    switch (dm.dmDisplayOrientation) {
+        case DMDO_DEFAULT: *pRotation = D3DDISPLAYROTATION_IDENTITY; break;
+        case DMDO_90:      *pRotation = D3DDISPLAYROTATION_90; break;
+        case DMDO_180:     *pRotation = D3DDISPLAYROTATION_180; break;
+        case DMDO_270:     *pRotation = D3DDISPLAYROTATION_270; break;
+        default:
+            _WARNING("Unknown display rotation %u.\n", dm.dmDisplayOrientation);
+            *pRotation = D3DDISPLAYROTATION_IDENTITY;
+    }
+
+    return D3D_OK;
 }
 
 static HRESULT WINAPI
@@ -458,6 +493,8 @@ static ID3DPresentVtbl NineWinePresentX11_vtable = {
 
 static HRESULT
 NineWinePresentX11_new( Display *dpy,
+                        const WCHAR *devname,
+                        unsigned ordinal,
                         D3DPRESENT_PARAMETERS *params,
                         HWND focus_wnd,
                         unsigned dri2_minor,
@@ -465,6 +502,7 @@ NineWinePresentX11_new( Display *dpy,
 {
     struct NineWinePresentX11 *This;
     RECT rect;
+    int i;
 
     _MESSAGE("%s(params=%p)\n", __FUNCTION__, params);
 
@@ -526,6 +564,11 @@ NineWinePresentX11_new( Display *dpy,
         params->BackBufferHeight = rect.bottom;
     }
     This->params = *params;
+    /* XXX strcpyW(This->devname, devname); */
+    for (i = 0; i < sizeof(This->devname)-1 && devname[i]; ++i) {
+        This->devname[i] = devname[i];
+    }
+    This->devname[i] = '\0';
 
     if (!create_drawable(This, This->device_window.drawable)) {
         _ERROR("Unable to create DRI2 drawable.\n");
@@ -638,6 +681,8 @@ static ID3DPresentGroupVtbl NineWinePresentGroupX11_vtable = {
 
 HRESULT
 NineWinePresentGroupX11_new( Display *dpy,
+                             const WCHAR *devname,
+                             UINT adapter,
                              HWND focus_wnd,
                              D3DPRESENT_PARAMETERS *params,
                              unsigned nparams,
@@ -668,9 +713,11 @@ NineWinePresentGroupX11_new( Display *dpy,
         OOM();
     }
 
+    if (nparams != 1) { adapter = 0; }
     for (i = 0; i < This->npresent_backends; ++i) {
-        hr = NineWinePresentX11_new(dpy, &params[i], focus_wnd,
-                                    dri2_minor, &This->present_backends[i]);
+        hr = NineWinePresentX11_new(dpy, devname, i+adapter, &params[i],
+                                    focus_wnd, dri2_minor,
+                                    &This->present_backends[i]);
         if (FAILED(hr)) {
             _ERROR("NineWinePresentX11_new failed.\n");
             NineWinePresentGroupX11_Release(This);

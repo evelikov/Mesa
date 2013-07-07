@@ -383,7 +383,6 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
 {
     ID3DPresentGroup *present;
     HRESULT hr;
-    unsigned nparams;
 
     _MESSAGE("%s(This=%p, Adapter=%u, pPresentationParameters=%p, "
              "..., Ex=%i)\n", __FUNCTION__, This, Adapter,
@@ -394,11 +393,24 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
         return D3DERR_INVALIDCALL;
     }
 
-    nparams = (BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) ?
-              This->groups[This->map[Adapter].group].noutputs : 1;
-    hr = ID3DWineDriver_CreatePresentGroup(This->driver, hFocusWindow,
-                                           pPresentationParameters, nparams,
-                                           &present);
+    {
+        struct adapter_group *group = &This->groups[This->map[Adapter].group];
+        unsigned nparams, ordinal;
+
+        if (BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) {
+            nparams = group->noutputs;
+            ordinal = 0;
+        } else {
+            nparams = 1;
+            ordinal = Adapter - This->map[Adapter].master;
+        }
+
+        hr = ID3DWineDriver_CreatePresentGroup(This->driver, group->devname,
+                                               ordinal, hFocusWindow,
+                                               pPresentationParameters,
+                                               nparams, &present);
+    }
+
     if (FAILED(hr)) {
         _WARNING("%s: Failed to create PresentGroup.\n", __FUNCTION__);
         return hr;

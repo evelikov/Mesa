@@ -85,12 +85,15 @@ NineWineDriverX11_Release( struct NineWineDriverX11 *This )
 
 static HRESULT WINAPI
 NineWineDriverX11_CreatePresentGroup( struct NineWineDriverX11 *This,
+                                      const WCHAR *lpDeviceName,
+                                      UINT Adapter,
                                       HWND hFocusWnd,
                                       D3DPRESENT_PARAMETERS *pParams,
                                       unsigned nParams,
                                       ID3DPresentGroup **ppPresentGroup )
 {
-    return NineWinePresentGroupX11_new(This->dpy, hFocusWnd, pParams, nParams,
+    return NineWinePresentGroupX11_new(This->dpy, lpDeviceName, Adapter,
+                                       hFocusWnd, pParams, nParams,
                                        This->dri2_major, This->dri2_minor,
                                        ppPresentGroup);
 }

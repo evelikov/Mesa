@@ -32,6 +32,8 @@
 
 HRESULT
 NineWinePresentGroupX11_new( Display *dpy,
+                             const WCHAR *devname,
+                             UINT adapter,
                              HWND focus_wnd,
                              D3DPRESENT_PARAMETERS *params,
                              unsigned nparams,

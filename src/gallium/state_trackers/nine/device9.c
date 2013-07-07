@@ -440,25 +440,11 @@ NineDevice9_GetDisplayMode( struct NineDevice9 *This,
                             UINT iSwapChain,
                             D3DDISPLAYMODE *pMode )
 {
-    struct NineSwapChain9 *nsc;
-
     DBG("This=%p iSwapChain=%u pMode=%p\n", This, iSwapChain, pMode);
 
     user_assert(iSwapChain < This->nswapchains, D3DERR_INVALIDCALL);
-    user_assert(pMode, E_POINTER);
 
-    nsc = This->swapchains[iSwapChain];
-
-    pMode->Width = nsc->params.BackBufferWidth;
-    pMode->Height = nsc->params.BackBufferHeight;
-    pMode->RefreshRate = nsc->params.FullScreen_RefreshRateInHz;
-    pMode->Format = D3DFMT_X8R8G8B8;
-
-    DBG("pMode(%p) =\nWidth: %u\nHeight: %u\nRefreshRate: %u\nFormat: %s\n",
-        pMode, pMode->Width, pMode->Height, pMode->RefreshRate,
-        d3dformat_to_string(pMode->Format));
-
-    STUB(D3D_OK);
+    return NineSwapChain9_GetDisplayMode(This->swapchains[iSwapChain], pMode);
 }
 
 HRESULT WINAPI

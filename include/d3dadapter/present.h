@@ -56,7 +56,7 @@ typedef struct ID3DPresentVtbl
     HRESULT (WINAPI *GetFrontBuffer)(ID3DPresent *This, void *pBuffer);
     HRESULT (WINAPI *Present)(ID3DPresent *This, DWORD Flags);
     HRESULT (WINAPI *GetRasterStatus)(ID3DPresent *This, D3DRASTER_STATUS *pRasterStatus);
-    HRESULT (WINAPI *GetDisplayMode)(ID3DPresent *This, D3DDISPLAYMODEEX *pMode);
+    HRESULT (WINAPI *GetDisplayMode)(ID3DPresent *This, D3DDISPLAYMODEEX *pMode, D3DDISPLAYROTATION *pRotation);
     HRESULT (WINAPI *GetPresentStats)(ID3DPresent *This, D3DPRESENTSTATS *pStats);
     HRESULT (WINAPI *GetCursorPos)(ID3DPresent *This, POINT *pPoint);
     HRESULT (WINAPI *SetCursorPos)(ID3DPresent *This, POINT *pPoint);
@@ -81,7 +81,7 @@ struct ID3DPresent
 #define ID3DPresent_GetFrontBuffer(p,a) (p)->lpVtbl->GetFrontBuffer(p,a)
 #define ID3DPresent_Present(p,a) (p)->lpVtbl->Present(p,a)
 #define ID3DPresent_GetRasterStatus(p,a) (p)->lpVtbl->GetRasterStatus(p,a)
-#define ID3DPresent_GetDisplayMode(p,a) (p)->lpVtbl->GetDisplayMode(p,a)
+#define ID3DPresent_GetDisplayMode(p,a,b) (p)->lpVtbl->GetDisplayMode(p,a,b)
 #define ID3DPresent_GetPresentStats(p,a) (p)->lpVtbl->GetPresentStats(p,a)
 #define ID3DPresent_GetCursorPos(p,a) (p)->lpVtbl->GetCursorPos(p,a)
 #define ID3DPresent_SetCursorPos(p,a) (p)->lpVtbl->SetCursorPos(p,a)

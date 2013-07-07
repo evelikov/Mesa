@@ -474,11 +474,12 @@ NineSwapChain9_GetDisplayMode( struct NineSwapChain9 *This,
                                D3DDISPLAYMODE *pMode )
 {
     D3DDISPLAYMODEEX mode;
+    D3DDISPLAYROTATION rot;
     HRESULT hr;
 
     user_assert(pMode != NULL, E_POINTER);
 
-    hr = ID3DPresent_GetDisplayMode(This->present, &mode);
+    hr = ID3DPresent_GetDisplayMode(This->present, &mode, &rot);
     if (SUCCEEDED(hr)) {
         pMode->Width = mode.Width;
         pMode->Height = mode.Height;
