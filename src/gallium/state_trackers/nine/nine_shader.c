@@ -1284,6 +1284,7 @@ DECL_SPECIAL(CMP)
 DECL_SPECIAL(CND)
 {
     struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_dst cgt;
     struct ureg_src cnd;
 
     if (tx->insn.coissue && tx->version.major == 1 && tx->version.minor < 4) {
@@ -1293,12 +1294,26 @@ DECL_SPECIAL(CND)
     }
 
     cnd = tx_src_param(tx, &tx->insn.src[0]);
+#ifdef NINE_TGSI_LAZY_R600
+    cgt = tx_scratch(tx);
+
+    if (tx->version.major == 1 && tx->version.minor < 4) {
+        cgt.WriteMask = TGSI_WRITEMASK_W;
+        ureg_SGT(tx->ureg, cgt, cnd, ureg_imm1f(tx->ureg, 0.5f));
+        cnd = ureg_scalar(cnd, TGSI_SWIZZLE_W);
+    } else {
+        ureg_SGT(tx->ureg, cgt, cnd, ureg_imm1f(tx->ureg, 0.5f));
+    }
+    ureg_CMP(tx->ureg, dst,
+             tx_src_param(tx, &tx->insn.src[1]),
+             tx_src_param(tx, &tx->insn.src[2]), ureg_negate(cnd));
+#else
     if (tx->version.major == 1 && tx->version.minor < 4)
         cnd = ureg_scalar(cnd, TGSI_SWIZZLE_W);
-
     ureg_CND(tx->ureg, dst,
              tx_src_param(tx, &tx->insn.src[1]),
              tx_src_param(tx, &tx->insn.src[2]), cnd);
+#endif
     return D3D_OK;
 }
 
