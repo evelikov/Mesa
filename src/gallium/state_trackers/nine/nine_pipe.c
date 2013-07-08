@@ -206,12 +206,14 @@ nine_convert_sampler_state(struct cso_context *ctx, int idx, const DWORD *ss)
     samp.wrap_s = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSU]);
     samp.wrap_t = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSV]);
     samp.wrap_r = d3dtextureaddress_to_pipe_tex_wrap(ss[D3DSAMP_ADDRESSW]);
-    samp.min_img_filter = d3dtexturefiltertype_to_pipe_tex_filter(ss[D3DSAMP_MINFILTER]);
-    samp.mag_img_filter = d3dtexturefiltertype_to_pipe_tex_filter(ss[D3DSAMP_MAGFILTER]);
+    samp.min_img_filter = ss[D3DSAMP_MINFILTER] == D3DTEXF_POINT ? PIPE_TEX_FILTER_NEAREST : PIPE_TEX_FILTER_LINEAR;
+    samp.mag_img_filter = ss[D3DSAMP_MAGFILTER] == D3DTEXF_POINT ? PIPE_TEX_FILTER_NEAREST : PIPE_TEX_FILTER_LINEAR;
+    if (ss[D3DSAMP_MINFILTER] == D3DTEXF_ANISOTROPIC ||
+        ss[D3DSAMP_MAGFILTER] == D3DTEXF_ANISOTROPIC)
+        samp.max_anisotropy = ss[D3DSAMP_MAXANISOTROPY];
     samp.compare_mode = ss[NINED3DSAMP_SHADOW] ? PIPE_TEX_COMPARE_R_TO_TEXTURE : PIPE_TEX_COMPARE_NONE;
     samp.compare_func = PIPE_FUNC_LEQUAL;
     samp.normalized_coords = 1;
-    samp.max_anisotropy = ss[D3DSAMP_MAXANISOTROPY];
     samp.seamless_cube_map = 1;
     d3dcolor_to_pipe_color_union(&samp.border_color, ss[D3DSAMP_BORDERCOLOR]);
 
