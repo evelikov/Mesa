@@ -38,6 +38,8 @@ struct NinePixelShader9
         DWORD size;
     } byte_code;
 
+    unsigned const_used_size; /* in bytes */
+
     struct nine_lconstf lconstf;
 
     uint16_t sampler_mask;

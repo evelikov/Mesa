@@ -35,6 +35,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
                         struct NineUnknownParams *pParams,
                         const DWORD *pFunction, void *cso )
 {
+    struct NineDevice9 *device;
     struct nine_shader_info info;
     HRESULT hr;
     unsigned i;
@@ -47,11 +48,14 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
         This->variant.cso = cso;
         return D3D_OK;
     }
+    device = This->base.device;
 
     info.type = PIPE_SHADER_VERTEX;
     info.byte_code = pFunction;
+    info.const_i_base = NINE_CONST_I_BASE(device->max_vs_const_f) / 16;
+    info.const_b_base = NINE_CONST_B_BASE(device->max_vs_const_f) / 16;
 
-    hr = nine_translate_shader(This->base.device, &info);
+    hr = nine_translate_shader(device, &info);
     if (FAILED(hr))
         return hr;
 
@@ -61,6 +65,9 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     This->byte_code.size = info.byte_size;
 
     This->variant.cso = info.cso;
+    This->const_used_size = info.const_used_size;
+    if (info.const_used_size == ~0)
+        This->const_used_size = NINE_CONSTBUF_SIZE(device->max_vs_const_f);
     This->lconstf = info.lconstf;
     This->sampler_mask = info.sampler_mask;
     This->position_t = info.position_t;

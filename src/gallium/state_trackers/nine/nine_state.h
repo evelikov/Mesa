@@ -85,14 +85,22 @@
 #define NINE_MAX_CONST_B   16
 #define NINE_MAX_CONST_ALL 276 /* B consts count only 1/4 th */
 
+#define NINE_CONST_I_BASE(nconstf) \
+    ((nconstf)        * 4 * sizeof(float))
+#define NINE_CONST_B_BASE(nconstf) \
+    ((nconstf)        * 4 * sizeof(float) + \
+     NINE_MAX_CONST_I * 4 * sizeof(int))
+
+#define NINE_CONSTBUF_SIZE(nconstf)         \
+    ((nconstf)        * 4 * sizeof(float) + \
+     NINE_MAX_CONST_I * 4 * sizeof(int) + \
+     NINE_MAX_CONST_B * 1 * sizeof(float))
+
+
 #define NINE_MAX_LIGHTS        65536
 #define NINE_MAX_LIGHTS_ACTIVE 8
 
 #define NINED3DLIGHT_INVALID (D3DLIGHT_DIRECTIONAL + 1)
-
-#define NINE_CONST_F_BASE_IDX  0
-#define NINE_CONST_I_BASE_IDX  NINE_MAX_CONST_F
-#define NINE_CONST_B_BASE_IDX (NINE_MAX_CONST_F + NINE_MAX_CONST_I)
 
 #define NINE_MAX_SAMPLERS_PS 16
 #define NINE_MAX_SAMPLERS_VS  4

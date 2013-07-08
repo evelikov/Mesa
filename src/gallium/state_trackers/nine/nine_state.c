@@ -467,8 +467,11 @@ update_vs_constants_userbuf(struct NineDevice9 *device)
     struct pipe_constant_buffer cb;
     cb.buffer = NULL;
     cb.buffer_offset = 0;
-    cb.buffer_size = device->constbuf_vs->width0;
+    cb.buffer_size = device->state.vs->const_used_size;
     cb.user_buffer = device->state.vs_const_f;
+
+    if (!cb.buffer_size)
+        return;
 
     if (state->changed.vs_const_i) {
         int *idst = (int *)&state->vs_const_f[4 * device->max_vs_const_f];
@@ -525,8 +528,11 @@ update_ps_constants_userbuf(struct NineDevice9 *device)
     struct pipe_constant_buffer cb;
     cb.buffer = NULL;
     cb.buffer_offset = 0;
-    cb.buffer_size = device->constbuf_ps->width0;
+    cb.buffer_size = device->state.ps->const_used_size;
     cb.user_buffer = device->state.ps_const_f;
+
+    if (!cb.buffer_size)
+        return;
 
     if (state->changed.ps_const_i) {
         int *idst = (int *)&state->ps_const_f[4 * device->max_ps_const_f];
@@ -826,9 +832,9 @@ nine_update_state(struct NineDevice9 *device, uint32_t mask)
             update_vertex_elements(device);
 
         if (device->prefer_user_constbuf) {
-            if ((group & NINE_STATE_VS_CONST) && state->vs)
+            if ((group & (NINE_STATE_VS_CONST | NINE_STATE_VS)) && state->vs)
                 update_vs_constants_userbuf(device);
-            if ((group & NINE_STATE_PS_CONST) && state->ps)
+            if ((group & (NINE_STATE_PS_CONST | NINE_STATE_PS)) && state->ps)
                 update_ps_constants_userbuf(device);
         } else {
             if ((group & NINE_STATE_VS_CONST) && state->vs)

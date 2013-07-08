@@ -47,6 +47,8 @@ struct NineVertexShader9
     boolean position_t; /* if true, disable vport transform */
     boolean point_size; /* if true, set rasterizer.point_size_per_vertex to 1 */
 
+    unsigned const_used_size; /* in bytes */
+
     struct nine_lconstf lconstf;
 
     const struct pipe_stream_output_info *so;

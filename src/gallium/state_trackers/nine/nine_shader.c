@@ -828,8 +828,11 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
     case D3DSPR_CONST:
         if (param->rel)
             tx->indirect_const_access = TRUE;
-        if (param->rel || !tx_lconstf(tx, &src, param->idx))
+        if (param->rel || !tx_lconstf(tx, &src, param->idx)) {
+            if (!param->rel)
+                nine_info_mark_const_f_used(tx->info, param->idx);
             src = ureg_src_register(TGSI_FILE_CONSTANT, param->idx);
+        }
         break;
     case D3DSPR_CONST2:
     case D3DSPR_CONST3:
@@ -839,16 +842,21 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
         src = ureg_imm1f(ureg, 0.0f);
         break;
     case D3DSPR_CONSTINT:
-        if (param->rel || !tx_lconsti(tx, &src, param->idx))
+        if (param->rel || !tx_lconsti(tx, &src, param->idx)) {
+            if (!param->rel)
+                nine_info_mark_const_i_used(tx->info, param->idx);
             src = ureg_src_register(TGSI_FILE_CONSTANT,
-                                    NINE_CONST_I_BASE_IDX + param->idx);
+                                    tx->info->const_i_base + param->idx);
+        }
         break;
     case D3DSPR_CONSTBOOL:
         if (param->rel || !tx_lconstb(tx, &src, param->idx)) {
            char r = param->idx / 4;
            char s = param->idx & 3;
+           if (!param->rel)
+               nine_info_mark_const_b_used(tx->info, param->idx);
            src = ureg_src_register(TGSI_FILE_CONSTANT,
-                                   NINE_CONST_B_BASE_IDX + r);
+                                   tx->info->const_b_base + r);
            src = ureg_swizzle(src, s, s, s, s);
         }
         break;
@@ -2561,6 +2569,8 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
     info->position_t = FALSE;
     info->point_size = FALSE;
 
+    tx->info->const_used_size = 0;
+
     info->sampler_mask = 0x0;
     info->rt_mask = 0x0;
 
@@ -2726,6 +2736,9 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
         info->lconstf.locations = NULL;
         info->lconstf.data = NULL;
     }
+
+    if (tx->indirect_const_access)
+        info->const_used_size = ~0;
 
     info->cso = ureg_create_shader_and_destroy(tx->ureg, device->pipe);
     if (!info->cso) {

@@ -35,6 +35,7 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
                        struct NineUnknownParams *pParams,
                        const DWORD *pFunction, void *cso )
 {
+    struct NineDevice9 *device;
     struct nine_shader_info info;
     HRESULT hr;
 
@@ -46,12 +47,15 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
         This->variant.cso = cso;
         return D3D_OK;
     }
+    device = This->base.device;
 
     info.type = PIPE_SHADER_FRAGMENT;
     info.byte_code = pFunction;
+    info.const_i_base = NINE_CONST_I_BASE(device->max_ps_const_f) / 16;
+    info.const_b_base = NINE_CONST_B_BASE(device->max_ps_const_f) / 16;
     info.sampler_mask_shadow = 0x0;
 
-    hr = nine_translate_shader(This->base.device, &info);
+    hr = nine_translate_shader(device, &info);
     if (FAILED(hr))
         return hr;
 
@@ -63,6 +67,9 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
     This->variant.cso = info.cso;
     This->sampler_mask = info.sampler_mask;
     This->rt_mask = info.rt_mask;
+    This->const_used_size = info.const_used_size;
+    if (info.const_used_size == ~0)
+        This->const_used_size = NINE_CONSTBUF_SIZE(device->max_ps_const_f);
     This->lconstf = info.lconstf;
 
     return D3D_OK;

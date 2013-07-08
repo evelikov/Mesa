@@ -57,8 +57,37 @@ struct nine_shader_info
     uint16_t sampler_mask_shadow; /* in, which samplers use depth compare */
     uint8_t rt_mask; /* out, which render targets are being written */
 
+    unsigned const_i_base; /* in vec4 (16 byte) units */
+    unsigned const_b_base; /* in vec4 (16 byte) units */
+    unsigned const_used_size;
+
     struct nine_lconstf lconstf; /* out, NOTE: members to be free'd by user */
 };
+
+static INLINE void
+nine_info_mark_const_f_used(struct nine_shader_info *info, int idx)
+{
+    unsigned size = (idx + 1) * 16;
+
+    if (info->const_used_size < size)
+        info->const_used_size = size;
+}
+static INLINE void
+nine_info_mark_const_i_used(struct nine_shader_info *info, int idx)
+{
+    unsigned size = (info->const_i_base + (idx + 1)) * 16;
+
+    if (info->const_used_size < size)
+        info->const_used_size = size;
+}
+static INLINE void
+nine_info_mark_const_b_used(struct nine_shader_info *info, int idx)
+{
+    unsigned size = (info->const_b_base + ((idx + 4) / 4)) * 16;
+
+    if (info->const_used_size < size)
+        info->const_used_size = size;
+}
 
 HRESULT
 nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *);
