@@ -1607,50 +1607,84 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
                       boolean tc,
                       struct sm1_semantic *dcl)
 {
-    const unsigned generic_base = tc ? 8 : 0;
+    const unsigned generic_base = tc ? 0 : 8; /* TEXCOORD[0..7] */
 
     sem->Name = TGSI_SEMANTIC_GENERIC;
     sem->Index = 0;
+
+    /* TGSI_SEMANTIC_GENERIC assignments (+8 if !PIPE_CAP_TGSI_TEXCOORD):
+     * Try to put frequently used semantics at low GENERIC indices.
+     *
+     * COLOR[2..3]: 14, 15
+     * TEXCOORD[8..15]: 10, 11, 17, 18, 19, 20, 21, 22
+     * BLENDWEIGHT[0..3]: 0, 4, 8, 12
+     * BLENDINDICES[0..3]: 1, 5, 9, 13
+     * NORMAL[0..1]: 2, 6
+     * TANGENT[0]: 3
+     * BINORMAL[0]: 7
+     * TESSFACTOR[0]: 16
+     */
 
     switch (dcl->usage) {
     case D3DDECLUSAGE_POSITION:
     case D3DDECLUSAGE_POSITIONT:
     case D3DDECLUSAGE_DEPTH:
         sem->Name = TGSI_SEMANTIC_POSITION;
+        assert(dcl->usage_idx == 0);
         break;
     case D3DDECLUSAGE_COLOR:
-        sem->Name = TGSI_SEMANTIC_COLOR;
-        sem->Index = dcl->usage_idx;
+        assert(dcl->usage_idx < 4);
+        if (dcl->usage_idx < 2) {
+            sem->Name = TGSI_SEMANTIC_COLOR;
+            sem->Index = dcl->usage_idx;
+        } else { /* 10, 11 */
+            sem->Index = generic_base + 14 + (dcl->usage_idx - 2);
+        }
         break;
     case D3DDECLUSAGE_FOG:
         sem->Name = TGSI_SEMANTIC_FOG;
+        assert(dcl->usage_idx == 0);
         break;
     case D3DDECLUSAGE_PSIZE:
         sem->Name = TGSI_SEMANTIC_PSIZE;
+        assert(dcl->usage_idx == 0);
         break;
     case D3DDECLUSAGE_TEXCOORD:
-        if (tc && dcl->usage_idx < 8)
-           sem->Name = TGSI_SEMANTIC_TEXCOORD;
-        sem->Index = (!tc || dcl->usage_idx < 8) ?
-            dcl->usage_idx : dcl->usage_idx - 8;
+        assert(dcl->usage_idx < 16);
+        if (dcl->usage_idx < 8) {
+            if (tc)
+                sem->Name = TGSI_SEMANTIC_TEXCOORD;
+            sem->Index = dcl->usage_idx;
+        } else
+        if (dcl->usage_idx < 10) {
+            sem->Index = generic_base + 10 + (dcl->usage_idx - 8);
+        } else {
+            sem->Index = generic_base + 17 + (dcl->usage_idx - 10);
+        }
         break;
-    case D3DDECLUSAGE_BLENDWEIGHT:
-        sem->Index = generic_base + 2;
+    case D3DDECLUSAGE_BLENDWEIGHT: /* 0, 4, 8, 12 */
+        assert(dcl->usage_idx < 4);
+        sem->Index = generic_base + dcl->usage_idx * 4;
         break;
-    case D3DDECLUSAGE_BLENDINDICES:
-        sem->Index = generic_base + 3;
+    case D3DDECLUSAGE_BLENDINDICES: /* 1, 5, 9, 13 */
+        assert(dcl->usage_idx < 4);
+        sem->Index = generic_base + dcl->usage_idx * 4 + 1;
         break;
-    case D3DDECLUSAGE_NORMAL:
-        sem->Index = generic_base + 4;
+    case D3DDECLUSAGE_NORMAL: /* 2, 3 */
+        assert(dcl->usage_idx < 2);
+        sem->Index = generic_base + 2 + dcl->usage_idx * 4;
         break;
     case D3DDECLUSAGE_TANGENT:
-        sem->Index = generic_base + 5;
+        assert(dcl->usage_idx == 0);
+        sem->Index = generic_base + 3;
         break;
     case D3DDECLUSAGE_BINORMAL:
-        sem->Index = generic_base + 6;
+        assert(dcl->usage_idx == 0);
+        sem->Index = generic_base + 7;
         break;
     case D3DDECLUSAGE_TESSFACTOR:
-        sem->Index = generic_base + 7;
+        assert(dcl->usage_idx == 0);
+        sem->Index = generic_base + 16;
         break;
     case D3DDECLUSAGE_SAMPLE:
         sem->Name = TGSI_SEMANTIC_COUNT;
