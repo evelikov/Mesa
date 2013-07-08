@@ -1066,8 +1066,7 @@ nine_state_clear(struct nine_state *state, const boolean device)
     for (i = 0; i < NINE_MAX_SAMPLERS; ++i) {
         if (device &&
             state->texture[i] &&
-          --state->texture[i]->bind_count == 0 &&
-            state->texture[i]->base.pool == D3DPOOL_MANAGED)
+          --state->texture[i]->bind_count == 0)
             list_delinit(&state->texture[i]->list);
         nine_bind(&state->texture[i], NULL);
     }
