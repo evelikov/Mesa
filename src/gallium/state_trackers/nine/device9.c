@@ -318,7 +318,7 @@ NineDevice9_dtor( struct NineDevice9 *This )
     if (This->pipe && This->cso)
         nine_pipe_context_clear(This->cso, This->pipe);
     nine_ff_fini(This);
-    nine_state_clear(This);
+    nine_state_clear(&This->state, TRUE);
 
     util_destroy_gen_mipmap(This->gen_mipmap);
 
@@ -607,7 +607,7 @@ NineDevice9_Reset( struct NineDevice9 *This,
         return (hr == D3DERR_OUTOFVIDEOMEMORY) ? hr : D3DERR_DEVICELOST;
 
     nine_pipe_context_clear(This->cso, This->pipe);
-    nine_state_clear(This);
+    nine_state_clear(&This->state, TRUE);
 
     NineDevice9_SetDefaultState(This, TRUE);
     NineDevice9_SetRenderTarget(
@@ -2158,24 +2158,26 @@ NineDevice9_SetTexture( struct NineDevice9 *This,
     if (Stage >= D3DDMAPSAMPLER)
         Stage = Stage - D3DDMAPSAMPLER + NINE_MAX_SAMPLERS_PS;
 
-    if (This->is_recording) {
-        nine_reference(&state->texture[Stage], pTexture);
-    } else {
+    if (!This->is_recording) {
         struct NineBaseTexture9 *tex = NineBaseTexture9(pTexture);
         struct NineBaseTexture9 *old = state->texture[Stage];
         if (old == tex)
             return D3D_OK;
 
-        if (tex && (tex->dirty | tex->dirty_mip) && LIST_IS_EMPTY(&tex->list))
-            list_add(&tex->list, &This->update_textures);
-
-        /* %(($)!P)="=&% */
         state->samplers_shadow &= ~(1 << Stage);
-        if (tex)
+        if (tex) {
             state->samplers_shadow |= tex->shadow << Stage;
 
-        nine_bind(&state->texture[Stage], pTexture);
+            if ((tex->dirty | tex->dirty_mip) && LIST_IS_EMPTY(&tex->list))
+                list_add(&tex->list, &This->update_textures);
+
+            tex->bind_count++;
+        }
+        if (old)
+            old->bind_count--;
     }
+    nine_bind(&state->texture[Stage], pTexture);
+
     state->changed.texture |= 1 << Stage;
     state->changed.group |= NINE_STATE_TEXTURE;
 
@@ -2711,16 +2713,12 @@ NineDevice9_SetVertexDeclaration( struct NineDevice9 *This,
 
     DBG("This=%p pDecl=%p\n", This, pDecl);
 
-    if (unlikely(This->is_recording)) {
-        nine_reference(&state->vdecl, pDecl);
-        state->changed.group |= NINE_STATE_VDECL;
-    } else
-    if (state->vdecl != NineVertexDeclaration9(pDecl)) {
-        nine_bind(&state->vdecl, pDecl);
-        state->changed.group |= NINE_STATE_VDECL;
-    }
+    if (likely(!This->is_recording) && state->vdecl == NineVertexDeclaration9(pDecl))
+        return D3D_OK;
+    nine_bind(&state->vdecl, pDecl);
 
-    /* XXX: should this really change the result of GetFVF ? */
+    state->changed.group |= NINE_STATE_VDECL;
+
     return D3D_OK;
 }
 
@@ -2791,10 +2789,8 @@ NineDevice9_SetVertexShader( struct NineDevice9 *This,
 
     DBG("This=%p pShader=%p\n", This, pShader);
 
-    if (This->is_recording)
-        nine_reference(&state->vs, pShader);
-    else
-        nine_bind(&state->vs, pShader);
+    nine_bind(&state->vs, pShader);
+
     state->changed.group |= NINE_STATE_VS;
 
     return D3D_OK;
@@ -2966,10 +2962,9 @@ NineDevice9_SetStreamSource( struct NineDevice9 *This,
             state->vtxbuf[i].stride == Stride &&
             state->vtxbuf[i].buffer_offset == OffsetInBytes)
             return D3D_OK;
-        nine_bind(&state->stream[i], pStreamData);
-    } else {
-        nine_reference(&state->stream[i], pStreamData);
     }
+    nine_bind(&state->stream[i], pStreamData);
+
     state->changed.vtxbuf |= 1 << StreamNumber;
 
     if (pStreamData) {
@@ -3046,13 +3041,11 @@ NineDevice9_SetIndices( struct NineDevice9 *This,
 {
     struct nine_state *state = This->update;
 
-    if (likely(!This->is_recording)) {
+    if (likely(!This->is_recording))
         if (state->idxbuf == NineIndexBuffer9(pIndexData))
             return D3D_OK;
-        nine_bind(&state->idxbuf, pIndexData);
-    } else {
-        nine_reference(&state->idxbuf, pIndexData);
-    }
+    nine_bind(&state->idxbuf, pIndexData);
+
     state->changed.group |= NINE_STATE_IDXBUF;
 
     return D3D_OK;
@@ -3094,10 +3087,8 @@ NineDevice9_SetPixelShader( struct NineDevice9 *This,
 
     DBG("This=%p pShader=%p\n", This, pShader);
 
-    if (likely(!This->is_recording))
-        nine_bind(&state->ps, pShader);
-    else
-        nine_reference(&state->ps, pShader);
+    nine_bind(&state->ps, pShader);
+
     state->changed.group |= NINE_STATE_PS;
 
     return D3D_OK;

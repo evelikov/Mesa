@@ -94,7 +94,7 @@ NineBaseTexture9_SetLOD( struct NineBaseTexture9 *This,
 
     This->lod = MIN2(LODNew, This->base.info.last_level);
 
-    if (This->lod != old && This->base.base.bind && LIST_IS_EMPTY(&This->list))
+    if (This->lod != old && This->bind_count && LIST_IS_EMPTY(&This->list))
        list_add(&This->list, &This->base.base.device->update_textures);
 
     return old;
@@ -156,7 +156,7 @@ NineBaseTexture9_UploadSelf( struct NineBaseTexture9 *This )
         pipe_sampler_view_reference(&This->view[0], NULL);
         pipe_sampler_view_reference(&This->view[1], NULL);
 
-        if (This->base.base.bind) {
+        if (This->bind_count) {
             /* mark state dirty */
             struct nine_state *state = &This->base.base.device->state;
             unsigned s;

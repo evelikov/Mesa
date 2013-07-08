@@ -42,6 +42,8 @@ struct NineBaseTexture9
     DWORD lod;
     DWORD lod_resident;
 
+    int16_t bind_count; /* to Device9->state.texture */
+
     boolean shadow;
 
     boolean dirty;

@@ -42,7 +42,7 @@ struct NineUnknown
     void *vtable;
 
     int32_t refs; /* external reference count */
-    uint16_t bind; /* internal bind count */
+    int32_t bind; /* internal bind count */
     boolean forward; /* whether to forward references to the container */
 
     struct NineUnknown *container; /* referenced if (refs | bind) */

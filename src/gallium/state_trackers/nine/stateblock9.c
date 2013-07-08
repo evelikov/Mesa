@@ -52,34 +52,15 @@ void
 NineStateBlock9_dtor( struct NineStateBlock9 *This )
 {
     struct nine_state *state = &This->state;
-    unsigned i;
 
-    nine_reference(&state->idxbuf, NULL);
+    nine_state_clear(state, FALSE);
 
-    if (state->changed.vtxbuf) {
-        for (i = 0; i < Elements(state->stream); ++i)
-            nine_reference(&state->stream[i], NULL);
-    }
+    if (state->vs_const_f) FREE(state->vs_const_f);
+    if (state->ps_const_f) FREE(state->ps_const_f);
 
-    if (state->changed.texture) {
-        for (i = 0; i < Elements(state->texture); ++i)
-            nine_reference(&state->texture[i], NULL);
-    }
+    if (state->ff.light) FREE(state->ff.light);
 
-    nine_reference(&state->vs, NULL);
-    nine_reference(&state->ps, NULL);
-
-    nine_reference(&state->vdecl, NULL);
-
-    if (state->vs_const_f)
-        FREE(state->vs_const_f);
-    if (state->ps_const_f)
-        FREE(state->ps_const_f);
-
-    if (state->ff.light)
-        FREE(state->ff.light);
-    if (state->ff.transform)
-        FREE(state->ff.transform);
+    if (state->ff.transform) FREE(state->ff.transform);
 
     NineUnknown_dtor(&This->base);
 }
@@ -104,6 +85,11 @@ nine_state_copy_common(struct nine_state *dst,
         dst->viewport = src->viewport;
     if (mask->changed.group & NINE_STATE_SCISSOR)
         dst->scissor = src->scissor;
+
+    if (mask->changed.group & NINE_STATE_VS)
+        nine_bind(&dst->vs, src->vs);
+    if (mask->changed.group & NINE_STATE_PS)
+        nine_bind(&dst->ps, src->ps);
 
     /* Vertex constants.
      *
@@ -211,6 +197,34 @@ nine_state_copy_common(struct nine_state *dst,
         }
     }
 
+    /* Index buffer. */
+    if (mask->changed.group & NINE_STATE_IDXBUF)
+        nine_bind(&dst->idxbuf, src->idxbuf);
+
+    /* Vertex streams. */
+    if (mask->changed.vtxbuf | mask->changed.stream_freq) {
+        uint32_t m = mask->changed.vtxbuf | mask->changed.stream_freq;
+        for (i = 0; m; ++i, m >>= 1) {
+            if (mask->changed.vtxbuf & (1 << i)) {
+                nine_bind(&dst->stream[i], src->stream[i]);
+                if (src->stream[i]) {
+                    dst->vtxbuf[i].buffer_offset = src->vtxbuf[i].buffer_offset;
+                    dst->vtxbuf[i].buffer = src->vtxbuf[i].buffer;
+                    dst->vtxbuf[i].stride = src->vtxbuf[i].stride;
+                }
+            }
+            if (mask->changed.stream_freq & (1 << i))
+                dst->stream_freq[i] = src->stream_freq[i];
+        }
+        dst->stream_instancedata_mask &= ~mask->changed.stream_freq;
+        dst->stream_instancedata_mask |=
+            src->stream_instancedata_mask & mask->changed.stream_freq;
+        if (apply) {
+            dst->changed.vtxbuf |= mask->changed.vtxbuf;
+            dst->changed.stream_freq |= mask->changed.stream_freq;
+        }
+    }
+
     if (!(mask->changed.group & NINE_STATE_FF))
         return;
     WARN_ONCE("Fixed function state not handled properly by StateBlocks.\n");
@@ -273,11 +287,16 @@ nine_state_copy_common_all(struct nine_state *dst,
                            const boolean apply,
                            struct nine_range_pool *pool)
 {
+    unsigned i;
+
     if (apply)
        dst->changed.group |= src->changed.group;
 
     dst->viewport = src->viewport;
     dst->scissor = src->scissor;
+
+    nine_bind(&dst->vs, src->vs);
+    nine_bind(&dst->ps, src->ps);
 
     /* Vertex constants.
      *
@@ -333,6 +352,27 @@ nine_state_copy_common_all(struct nine_state *dst,
         memcpy(dst->changed.sampler,
                src->changed.sampler, sizeof(dst->changed.sampler));
 
+    /* Index buffer. */
+    nine_bind(&dst->idxbuf, src->idxbuf);
+
+    /* Vertex streams. */
+    if (1) {
+        for (i = 0; i < Elements(dst->stream); ++i) {
+            nine_bind(&dst->stream[i], src->stream[i]);
+            if (src->stream[i]) {
+                dst->vtxbuf[i].buffer_offset = src->vtxbuf[i].buffer_offset;
+                dst->vtxbuf[i].buffer = src->vtxbuf[i].buffer;
+                dst->vtxbuf[i].stride = src->vtxbuf[i].stride;
+            }
+            dst->stream_freq[i] = src->stream_freq[i];
+        }
+        dst->stream_instancedata_mask = src->stream_instancedata_mask;
+        if (apply) {
+            dst->changed.vtxbuf = (1ULL << PIPE_MAX_ATTRIBS) - 1;
+            dst->changed.stream_freq = (1ULL << PIPE_MAX_ATTRIBS) - 1;
+        }
+    }
+
     if (!(src->changed.group & NINE_STATE_FF))
         return;
     WARN_ONCE("Fixed function state not handled properly by StateBlocks.\n");
@@ -386,7 +426,7 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
 {
     struct nine_state *dst = &This->state;
     struct nine_state *src = &This->base.device->state;
-    unsigned s, i;
+    unsigned s;
 
     DBG("This=%p\n", This);
 
@@ -395,35 +435,15 @@ NineStateBlock9_Capture( struct NineStateBlock9 *This )
     else
         nine_state_copy_common(dst, src, dst, FALSE, NULL);
 
-    if (dst->changed.group & NINE_STATE_VS)
-        nine_reference(&dst->vs, src->vs);
-    if (dst->changed.group & NINE_STATE_PS)
-        nine_reference(&dst->ps, src->ps);
     if (dst->changed.group & NINE_STATE_VDECL)
-        nine_reference(&dst->vdecl, src->vdecl);
-    if (dst->changed.group & NINE_STATE_IDXBUF)
-        nine_reference(&dst->idxbuf, src->idxbuf);
-
-    /* Vertex streams. */
-    if (dst->changed.vtxbuf | dst->changed.stream_freq) {
-        uint32_t m = dst->changed.vtxbuf | dst->changed.stream_freq;
-        for (i = 0; m; ++i, m >>= 1) {
-            if (dst->changed.vtxbuf & (1 << i))
-                nine_reference(&dst->stream[i], src->stream[i]);
-            if (dst->changed.stream_freq & (1 << i))
-                dst->stream_freq[i] = src->stream_freq[i];
-        }
-        dst->stream_instancedata_mask &= ~dst->changed.stream_freq;
-        dst->stream_instancedata_mask |=
-            src->stream_instancedata_mask & dst->changed.stream_freq;
-    }
+        nine_bind(&dst->vdecl, src->vdecl);
 
     /* Textures */
     if (dst->changed.texture) {
         uint32_t m = dst->changed.texture;
         for (s = 0; m; ++s, m >>= 1)
             if (m & 1)
-                nine_reference(&dst->texture[s], src->texture[s]);
+                nine_bind(&dst->texture[s], src->texture[s]);
     }
 
     return D3D_OK;
@@ -436,7 +456,7 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
     struct nine_state *dst = &This->base.device->state;
     struct nine_state *src = &This->state;
     struct nine_range_pool *pool = &This->base.device->range_pool;
-    unsigned s, i;
+    unsigned s;
 
     DBG("This=%p\n", This);
 
@@ -445,33 +465,8 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
     else
         nine_state_copy_common(dst, src, src, TRUE, pool);
 
-    /* TOOD: don't check mask on NINESBT_ALL */
-
-    if (src->changed.group & NINE_STATE_VS)
-        nine_bind(&dst->vs, src->vs);
-    if (src->changed.group & NINE_STATE_PS)
-        nine_bind(&dst->ps, src->ps);
     if ((src->changed.group & NINE_STATE_VDECL) && src->vdecl)
         nine_bind(&dst->vdecl, src->vdecl);
-    if (src->changed.group & NINE_STATE_IDXBUF)
-        nine_bind(&dst->idxbuf, src->idxbuf);
-
-    /* Vertex streams. */
-    if (src->changed.vtxbuf | src->changed.stream_freq) {
-        uint32_t m = src->changed.vtxbuf | src->changed.stream_freq;
-        dst->changed.vtxbuf      |= src->changed.vtxbuf;
-        dst->changed.stream_freq |= src->changed.stream_freq;
-
-        for (i = 0; m; ++i, m >>= 1) {
-            if (src->changed.vtxbuf & (1 << i))
-                nine_bind(&dst->stream[i], src->stream[i]);
-            if (src->changed.stream_freq & (1 << i))
-                dst->stream_freq[i] = src->stream_freq[i];
-        }
-        dst->stream_instancedata_mask &= ~src->changed.stream_freq;
-        dst->stream_instancedata_mask |=
-            src->stream_instancedata_mask & src->changed.stream_freq;
-    }
 
     /* Textures */
     if (src->changed.texture) {
@@ -485,10 +480,13 @@ NineStateBlock9_Apply( struct NineStateBlock9 *This )
             if (!(m & 1))
                 continue;
             if (tex) {
+                tex->bind_count++;
                 if ((tex->dirty | tex->dirty_mip) && LIST_IS_EMPTY(&tex->list))
                     list_add(&tex->list, &This->base.device->update_textures);
                 dst->samplers_shadow |= tex->shadow << s;
             }
+            if (src->texture[s])
+                src->texture[s]->bind_count--;
             nine_bind(&dst->texture[s], src->texture[s]);
         }
     }
