@@ -1615,8 +1615,9 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
     /* TGSI_SEMANTIC_GENERIC assignments (+8 if !PIPE_CAP_TGSI_TEXCOORD):
      * Try to put frequently used semantics at low GENERIC indices.
      *
+     * POSITION[1]: 17
      * COLOR[2..3]: 14, 15
-     * TEXCOORD[8..15]: 10, 11, 17, 18, 19, 20, 21, 22
+     * TEXCOORD[8..15]: 10, 11, 18, 19, 20, 21, 22, 23
      * BLENDWEIGHT[0..3]: 0, 4, 8, 12
      * BLENDINDICES[0..3]: 1, 5, 9, 13
      * NORMAL[0..1]: 2, 6
@@ -1630,7 +1631,11 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
     case D3DDECLUSAGE_POSITIONT:
     case D3DDECLUSAGE_DEPTH:
         sem->Name = TGSI_SEMANTIC_POSITION;
-        assert(dcl->usage_idx == 0);
+        assert(dcl->usage_idx <= 1);
+        if (dcl->usage_idx == 1) {
+            sem->Name = TGSI_SEMANTIC_GENERIC;
+            sem->Index = generic_base + 17;
+        }
         break;
     case D3DDECLUSAGE_COLOR:
         assert(dcl->usage_idx < 4);
@@ -1659,7 +1664,7 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
         if (dcl->usage_idx < 10) {
             sem->Index = generic_base + 10 + (dcl->usage_idx - 8);
         } else {
-            sem->Index = generic_base + 17 + (dcl->usage_idx - 10);
+            sem->Index = generic_base + 18 + (dcl->usage_idx - 10);
         }
         break;
     case D3DDECLUSAGE_BLENDWEIGHT: /* 0, 4, 8, 12 */
