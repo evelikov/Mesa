@@ -789,7 +789,7 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
             tx_addr_alloc(tx, param->idx);
             src = ureg_src(tx->regs.a);
         } else {
-            if (tx->version.major < 2) {
+            if (tx->version.major < 2 && tx->version.minor < 4) {
                 /* no subroutines, so should be defined */
                 src = ureg_src(tx->regs.tS[param->idx]);
             } else {
@@ -1946,87 +1946,87 @@ DECL_SPECIAL(TEXKILL)
 
 DECL_SPECIAL(TEXBEM)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXBEML)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXREG2AR)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXREG2GB)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x2PAD)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x2TEX)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x3PAD)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x3TEX)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x3SPEC)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x3VSPEC)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXREG2RGB)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXDP3TEX)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x2DEPTH)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXDP3)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXM3x3)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXDEPTH)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(BEM)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(TEXLD)
@@ -2061,7 +2061,16 @@ DECL_SPECIAL(TEXLD)
 
 DECL_SPECIAL(TEXLD_14)
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct ureg_program *ureg = tx->ureg;
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_src src = tx_src_param(tx, &tx->insn.src[0]);
+    const unsigned s = tx->insn.dst[0].idx;
+
+    tx->info->sampler_mask |= 1 << s;
+    ureg_TEX(ureg, dst, TGSI_TEXTURE_2D, src, ureg_DECL_sampler(ureg, s));
+
+    WARN("FIXME: < PS 2.0 TEX only works for 2D textures\n");
+    return D3D_OK;
 }
 
 DECL_SPECIAL(TEX)
@@ -2123,12 +2132,12 @@ DECL_SPECIAL(TEXLDL)
 
 DECL_SPECIAL(SETP)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(BREAKP)
 {
-    return D3DERR_INVALIDCALL;
+    STUB(D3DERR_INVALIDCALL);
 }
 
 DECL_SPECIAL(PHASE)
