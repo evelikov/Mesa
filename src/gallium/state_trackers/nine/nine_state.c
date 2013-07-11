@@ -438,24 +438,17 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
     }
 
     /* TODO: only upload these when shader itself changes */
-    if (lconstf->num) {
-        box.x = lconstf->locations[0] * 4 * sizeof(float);
-        box.width = 4 * sizeof(float);
-        x = 0;
-        for (i = 1; i < lconstf->num; ++i) {
-            if (lconstf->locations[i] == (lconstf->locations[i - 1] + 1)) {
-                box.width += 4 * sizeof(float);
-            } else {
-                data = &lconstf->data[x * 4];
-                pipe->transfer_inline_write(pipe,
-                                            buf, 0, usage, &box, data, 0, 0);
-                box.x = lconstf->locations[i] * 4 * sizeof(float);
-                box.width = 4 * sizeof(float);
-                x = i;
-            }
+    if (lconstf->ranges) {
+        unsigned n = 0;
+        struct nine_range *r = lconstf->ranges;
+        while (r) {
+            box.x = r->bgn * 4 * sizeof(float);
+            n += r->end - r->bgn;
+            box.width = (r->end - r->bgn) * 4 * sizeof(float);
+            data = &lconstf->data[4 * n];
+            pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
+            r = r->next;
         }
-        data = &lconstf->data[x * 4];
-        pipe->transfer_inline_write(pipe, buf, 0, usage, &box, data, 0, 0);
     }
 }
 
@@ -488,16 +481,21 @@ update_vs_constants_userbuf(struct NineDevice9 *device)
     }
 
 #ifdef DEBUG
-    if (device->state.vs->lconstf.num) {
+    if (device->state.vs->lconstf.ranges) {
         /* TODO: Can we make it so that we don't have to copy everything ? */
         const struct nine_lconstf *lconstf =  &device->state.vs->lconstf;
+        const struct nine_range *r = lconstf->ranges;
+        unsigned n = 0;
         float *dst = (float *)MALLOC(cb.buffer_size);
         float *src = (float *)cb.user_buffer;
-        unsigned i;
         memcpy(dst, src, cb.buffer_size);
-        for (i = 0; i < lconstf->num; ++i)
-            memcpy(&dst[lconstf->locations[i] * 4], &lconstf->data[i * 4],
-                   4 * sizeof(float));
+        while (r) {
+            unsigned p = r->bgn;
+            unsigned c = r->end - r->bgn;
+            memcpy(&dst[p * 4], &lconstf->data[n * 4], c * 4 * sizeof(float));
+            n += c;
+            r = r->next;
+        }
         cb.user_buffer = dst;
     }
 #endif
@@ -505,7 +503,7 @@ update_vs_constants_userbuf(struct NineDevice9 *device)
     pipe->set_constant_buffer(pipe, PIPE_SHADER_VERTEX, 0, &cb);
 
 #ifdef DEBUG
-    if (device->state.vs->lconstf.num)
+    if (device->state.vs->lconstf.ranges)
         FREE((void *)cb.user_buffer);
 #endif
 
@@ -549,16 +547,21 @@ update_ps_constants_userbuf(struct NineDevice9 *device)
     }
 
 #ifdef DEBUG
-    if (device->state.ps->lconstf.num) {
+    if (device->state.ps->lconstf.ranges) {
         /* TODO: Can we make it so that we don't have to copy everything ? */
         const struct nine_lconstf *lconstf =  &device->state.ps->lconstf;
+        const struct nine_range *r = lconstf->ranges;
+        unsigned n = 0;
         float *dst = (float *)MALLOC(cb.buffer_size);
         float *src = (float *)cb.user_buffer;
-        unsigned i;
         memcpy(dst, src, cb.buffer_size);
-        for (i = 0; i < lconstf->num; ++i)
-            memcpy(&dst[lconstf->locations[i] * 4], &lconstf->data[i * 4],
-                   4 * sizeof(float));
+        while (r) {
+            unsigned p = r->bgn;
+            unsigned c = r->end - r->bgn;
+            memcpy(&dst[p * 4], &lconstf->data[n * 4], c * 4 * sizeof(float));
+            n += c;
+            r = r->next;
+        }
         cb.user_buffer = dst;
     }
 #endif
@@ -566,7 +569,7 @@ update_ps_constants_userbuf(struct NineDevice9 *device)
     pipe->set_constant_buffer(pipe, PIPE_SHADER_FRAGMENT, 0, &cb);
 
 #ifdef DEBUG
-    if (device->state.ps->lconstf.num)
+    if (device->state.ps->lconstf.ranges)
         FREE((void *)cb.user_buffer);
 #endif
 

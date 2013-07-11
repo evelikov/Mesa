@@ -102,8 +102,8 @@ NineVertexShader9_dtor( struct NineVertexShader9 *This )
     if (This->byte_code.tokens)
         FREE((void *)This->byte_code.tokens); /* const_cast */
 
-    FREE(This->lconstf.locations);
     FREE(This->lconstf.data);
+    FREE(This->lconstf.ranges);
 
     NineUnknown_dtor(&This->base);
 }

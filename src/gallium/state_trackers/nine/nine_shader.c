@@ -2622,6 +2622,9 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
     info->sampler_mask = 0x0;
     info->rt_mask = 0x0;
 
+    info->lconstf.data = NULL;
+    info->lconstf.ranges = NULL;
+
     for (i = 0; i < Elements(tx->regs.aL); ++i) {
         tx->regs.aL[i] = ureg_dst_undef();
         tx->regs.rL[i] = ureg_dst_undef();
@@ -2684,7 +2687,6 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     struct shader_translator *tx;
     HRESULT hr = D3D_OK;
     const unsigned processor = tgsi_processor_from_type(info->type);
-    unsigned i;
 
     user_assert(processor != ~0, D3DERR_INVALIDCALL);
 
@@ -2760,29 +2762,60 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
 
     /* record local constants */
     if (tx->num_lconstf && tx->indirect_const_access) {
-        /* TODO: sort them */
-        info->lconstf.data = MALLOC(tx->num_lconstf * 4 * sizeof(float));
-        info->lconstf.locations = MALLOC(tx->num_lconstf * sizeof(int));
-        if (!info->lconstf.data ||
-            !info->lconstf.locations) {
-            hr = E_OUTOFMEMORY;
+        struct nine_range *ranges;
+        float *data;
+        int *indices;
+        unsigned i, k, n;
+
+        hr = E_OUTOFMEMORY;
+
+        data = MALLOC(tx->num_lconstf * 4 * sizeof(float));
+        if (!data)
+            goto out;
+        info->lconstf.data = data;
+
+        indices = MALLOC(tx->num_lconstf * sizeof(indices[0]));
+        if (!indices)
+            goto out;
+
+        /* lazy sort, num_lconstf should be small */
+        for (n = 0; n < tx->num_lconstf; ++n) {
+            for (k = 0, i = 0; i < tx->num_lconstf; ++i) {
+                if (tx->lconstf[i].idx < tx->lconstf[k].idx)
+                    k = i;
+            }
+            indices[n] = tx->lconstf[k].idx;
+            memcpy(&data[n * 4], &tx->lconstf[k].imm.f[0], 4 * sizeof(float));
+            tx->lconstf[k].idx = INT_MAX;
+        }
+
+        /* count ranges */
+        for (n = 1, i = 1; i < tx->num_lconstf; ++i)
+            if (indices[i] != indices[i - 1] + 1)
+                ++n;
+        ranges = MALLOC(n * sizeof(ranges[0]));
+        if (!ranges) {
+            FREE(indices);
             goto out;
         }
-        for (info->lconstf.num = 0, i = 0; i < tx->num_lconstf; ++i) {
-            unsigned n;
-            if (tx->lconstf[i].idx >= NINE_MAX_CONST_F)
-                continue;
-            n = info->lconstf.num++;
-            info->lconstf.locations[n] = tx->lconstf[i].idx;
-            info->lconstf.data[n * 4 + 0] = tx->lconstf[i].imm.f[0];
-            info->lconstf.data[n * 4 + 1] = tx->lconstf[i].imm.f[1];
-            info->lconstf.data[n * 4 + 2] = tx->lconstf[i].imm.f[2];
-            info->lconstf.data[n * 4 + 3] = tx->lconstf[i].imm.f[3];
+        info->lconstf.ranges = ranges;
+
+        k = 0;
+        ranges[k].bgn = indices[0];
+        for (i = 1; i < tx->num_lconstf; ++i) {
+            if (indices[i] != indices[i - 1] + 1) {
+                ranges[k].next = &ranges[k + 1];
+                ranges[k].end = indices[i - 1] + 1;
+                ++k;
+                ranges[k].bgn = indices[i];
+            }
         }
-    } else {
-        info->lconstf.num = 0;
-        info->lconstf.locations = NULL;
-        info->lconstf.data = NULL;
+        ranges[k].end = indices[i - 1] + 1;
+        ranges[k].next = NULL;
+        assert(n == (k + 1));
+
+        FREE(indices);
+        hr = D3D_OK;
     }
 
     if (tx->indirect_const_access)
@@ -2791,8 +2824,8 @@ nine_translate_shader(struct NineDevice9 *device, struct nine_shader_info *info)
     info->cso = ureg_create_shader_and_destroy(tx->ureg, device->pipe);
     if (!info->cso) {
         hr = D3DERR_DRIVERINTERNALERROR;
-        FREE(info->lconstf.locations);
         FREE(info->lconstf.data);
+        FREE(info->lconstf.ranges);
         goto out;
     }
 

@@ -31,11 +31,10 @@
 
 struct NineDevice9;
 
-struct nine_lconstf
+struct nine_lconstf /* NOTE: both pointers should be FREE'd by the user */
 {
-    int *locations;
+    struct nine_range *ranges; /* single MALLOC, but next-pointers valid */
     float *data;
-    unsigned num;
 };
 
 struct nine_shader_info
