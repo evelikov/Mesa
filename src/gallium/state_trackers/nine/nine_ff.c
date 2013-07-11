@@ -788,8 +788,11 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_ENDLOOP(ureg, &label[loop_label]);
 
         /* Set alpha factors of illumination to 1.0 for the multiplications. */
-        ureg_MOV(ureg, ureg_writemask(rD, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
-        ureg_MOV(ureg, ureg_writemask(rS, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
+        rD.WriteMask = TGSI_WRITEMASK_W; rD.Saturate = 0;
+        rS.WriteMask = TGSI_WRITEMASK_W; rS.Saturate = 0;
+        rA.WriteMask = TGSI_WRITEMASK_W; rA.Saturate = 0;
+        ureg_MOV(ureg, rD, ureg_imm1f(ureg, 1.0f));
+        ureg_MOV(ureg, rS, ureg_imm1f(ureg, 1.0f));
 
         /* Apply to material:
          *
@@ -799,7 +802,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
          * oCol[1] = material.specular * specular;
          */
         if (key->mtl_emissive == 0 && key->mtl_ambient == 0) {
-            ureg_MOV(ureg, ureg_writemask(rA, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
+            ureg_MOV(ureg, rA, ureg_imm1f(ureg, 1.0f));
             ureg_MAD(ureg, tmp, ureg_src(rA), vs->mtlA, _CONST(19));
         } else {
             ureg_ADD(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), ureg_src(rA), _CONST(25));
