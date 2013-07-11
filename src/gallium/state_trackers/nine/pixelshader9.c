@@ -58,6 +58,7 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
     hr = nine_translate_shader(device, &info);
     if (FAILED(hr))
         return hr;
+    This->byte_code.version = info.version;
 
     This->byte_code.tokens = mem_dup(pFunction, info.byte_size);
     if (!This->byte_code.tokens)
@@ -133,6 +134,7 @@ NinePixelShader9_GetVariant( struct NinePixelShader9 *This,
         info.type = PIPE_SHADER_FRAGMENT;
         info.byte_code = This->byte_code.tokens;
         info.sampler_mask_shadow = key & 0xffff;
+        info.sampler_ps1xtypes = key;
 
         hr = nine_translate_shader(This->base.device, &info);
         if (FAILED(hr))

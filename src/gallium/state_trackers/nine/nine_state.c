@@ -238,7 +238,20 @@ update_shader_variant_keys(struct NineDevice9 *device)
     ps_key = (ps_key & NINE_PS_SAMPLERS_MASK) >> NINE_SAMPLER_PS(0);
 
     if (state->vs) vs_key &= state->vs->sampler_mask;
-    if (state->ps) ps_key &= state->ps->sampler_mask;
+    if (state->ps) {
+        if (unlikely(state->ps->byte_code.version < 0x20)) {
+            /* no depth textures, but variable targets */
+            uint32_t m = state->ps->sampler_mask;
+            ps_key = 0;
+            while (m) {
+                int s = ffs(m) - 1;
+                m &= ~(1 << s);
+                ps_key |= (state->texture[s] ? state->texture[s]->pstype : 1) << (s * 2);
+            }
+        } else {
+            ps_key &= state->ps->sampler_mask;
+        }
+    }
 
     if (state->vs && state->vs_key != vs_key) {
         state->vs_key = vs_key;

@@ -39,6 +39,7 @@ struct NineVertexShader9
     struct {
         const DWORD *tokens;
         DWORD size;
+        uint8_t version; /* (major << 4) | minor */
     } byte_code;
 
     uint8_t sampler_mask;

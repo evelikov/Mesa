@@ -81,6 +81,7 @@ NineVolumeTexture9_ctor( struct NineVolumeTexture9 *This,
     This->volumes = CALLOC(info->last_level + 1, sizeof(*This->volumes));
     if (!This->volumes)
         return E_OUTOFMEMORY;
+    This->base.pstype = 3;
 
     hr = NineBaseTexture9_ctor(&This->base, pParams,
                                D3DRTYPE_VOLUMETEXTURE, Pool);

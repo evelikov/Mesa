@@ -124,6 +124,7 @@ NineTexture9_ctor( struct NineTexture9 *This,
     hr = NineBaseTexture9_ctor(&This->base, pParams, D3DRTYPE_TEXTURE, Pool);
     if (FAILED(hr))
         return hr;
+    This->base.pstype = (Height == 1) ? 1 : 0;
 
     /* Create all the surfaces right away.
      * They manage backing storage, and transfers (LockRect) are deferred

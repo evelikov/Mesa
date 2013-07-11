@@ -41,6 +41,8 @@ struct nine_shader_info
 {
     unsigned type; /* in, PIPE_SHADER_x */
 
+    uint8_t version; /* (major << 4) | minor */
+
     const DWORD *byte_code; /* in, pointer to shader tokens */
     DWORD        byte_size; /* out, size of data at byte_code */
 
@@ -52,6 +54,7 @@ struct nine_shader_info
     boolean position_t; /* out, true if VP writes pre-transformed position */
     boolean point_size; /* out, true if VP writes point size */
 
+    uint32_t sampler_ps1xtypes; /* 2 bits per sampler */
     uint16_t sampler_mask; /* out, which samplers are being used */
     uint16_t sampler_mask_shadow; /* in, which samplers use depth compare */
     uint8_t rt_mask; /* out, which render targets are being written */

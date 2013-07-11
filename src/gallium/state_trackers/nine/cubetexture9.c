@@ -89,6 +89,7 @@ NineCubeTexture9_ctor( struct NineCubeTexture9 *This,
                                Pool);
     if (FAILED(hr))
         return hr;
+    This->base.pstype = 2;
 
     /* Create all the surfaces right away.
      * They manage backing storage, and transfers (LockRect) are deferred

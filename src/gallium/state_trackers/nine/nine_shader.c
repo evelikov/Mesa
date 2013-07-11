@@ -1730,6 +1730,17 @@ d3dstt_to_tgsi_tex_shadow(BYTE sampler_type)
         return TGSI_TEXTURE_UNKNOWN;
     }
 }
+static INLINE unsigned
+ps1x_sampler_type(const struct nine_shader_info *info, unsigned stage)
+{
+    switch ((info->sampler_ps1xtypes >> (stage * 2)) & 0x3) {
+    case 1: return TGSI_TEXTURE_1D;
+    case 0: return TGSI_TEXTURE_2D;
+    case 3: return TGSI_TEXTURE_3D;
+    default:
+        return TGSI_TEXTURE_CUBE;
+    }
+}
 
 static const char *
 sm1_sampler_type_name(BYTE sampler_type)
@@ -2065,11 +2076,11 @@ DECL_SPECIAL(TEXLD_14)
     struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
     struct ureg_src src = tx_src_param(tx, &tx->insn.src[0]);
     const unsigned s = tx->insn.dst[0].idx;
+    const unsigned t = ps1x_sampler_type(tx->info, s);
 
     tx->info->sampler_mask |= 1 << s;
-    ureg_TEX(ureg, dst, TGSI_TEXTURE_2D, src, ureg_DECL_sampler(ureg, s));
+    ureg_TEX(ureg, dst, t, src, ureg_DECL_sampler(ureg, s));
 
-    WARN("FIXME: < PS 2.0 TEX only works for 2D textures\n");
     return D3D_OK;
 }
 
@@ -2077,6 +2088,7 @@ DECL_SPECIAL(TEX)
 {
     struct ureg_program *ureg = tx->ureg;
     const unsigned s = tx->insn.dst[0].idx;
+    const unsigned t = ps1x_sampler_type(tx->info, s);
     struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
     struct ureg_src src[2];
 
@@ -2087,11 +2099,7 @@ DECL_SPECIAL(TEX)
     src[1] = ureg_DECL_sampler(ureg, s);
     tx->info->sampler_mask |= 1 << s;
 
-    WARN("FIXME: < PS 2.0 TEX only works for 2D textures\n");
-
-    /* XXX TODO: Need shader variants because target depends on outside state.
-     */
-    ureg_TEX(ureg, dst, TGSI_TEXTURE_2D, src[0], src[1]);
+    ureg_TEX(ureg, dst, t, src[0], src[1]);
 
     return D3D_OK;
 }
@@ -2649,6 +2657,8 @@ tx_ctor(struct shader_translator *tx, struct nine_shader_info *info)
         tx->lconstb[i].idx = -1;
 
     sm1_read_version(tx);
+
+    info->version = (tx->version.major << 4) | tx->version.minor;
 
     create_op_info_map(tx);
 }

@@ -58,6 +58,7 @@ NineVertexShader9_ctor( struct NineVertexShader9 *This,
     hr = nine_translate_shader(device, &info);
     if (FAILED(hr))
         return hr;
+    This->byte_code.version = info.version;
 
     This->byte_code.tokens = mem_dup(pFunction, info.byte_size);
     if (!This->byte_code.tokens)
