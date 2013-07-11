@@ -747,7 +747,7 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                                   D3DVTXPCAPS_DIRECTIONALLIGHTS |
                                   D3DVTXPCAPS_POSITIONALLIGHTS |
                                   D3DVTXPCAPS_LOCALVIEWER |
-                                  /*D3DVTXPCAPS_TWEENING |*/
+                                  D3DVTXPCAPS_TWEENING |
                                   /*D3DVTXPCAPS_NO_TEXGEN_NONLOCALVIEWER*/0;
 
     pCaps->MaxActiveLights = NINE_MAX_LIGHTS_ACTIVE; /* like GL_LIGHTi */

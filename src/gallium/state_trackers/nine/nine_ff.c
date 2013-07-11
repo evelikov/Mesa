@@ -165,9 +165,9 @@ static int nine_ff_fvf_key_comp(void *key1, void *key2)
 static void nine_ff_prune_vs(struct NineDevice9 *);
 static void nine_ff_prune_ps(struct NineDevice9 *);
 
-static void nine_ureg_tgsi_dump(struct ureg_program *ureg)
+static void nine_ureg_tgsi_dump(struct ureg_program *ureg, boolean override)
 {
-    if (debug_get_bool_option("NINE_FF_DUMP", FALSE)) {
+    if (debug_get_bool_option("NINE_FF_DUMP", FALSE) || override) {
         unsigned count;
         const struct tgsi_token *toks = ureg_get_tokens(ureg, &count);
         tgsi_dump(toks, 0);
@@ -226,6 +226,8 @@ static void nine_ureg_tgsi_dump(struct ureg_program *ureg)
  * CONST[28]._y__ 1.0f / (RS.FogEnd - RS.FogStart)
  * CONST[28].__z_ RS.FogDensity
  * CONST[29]      RS.FogColor
+
+ * CONST[30].x___ TWEENFACTOR
  *
  * CONST[32].x___ LIGHT[0].Type
  * CONST[32]._yzw LIGHT[0].Attenuation0,1,2
@@ -280,6 +282,9 @@ struct vs_build_ctx
     struct ureg_src aInd;
     struct ureg_src aWgt;
 
+    struct ureg_src aVtx1; /* tweening */
+    struct ureg_src aNrm1;
+
     struct ureg_src mtlA;
     struct ureg_src mtlD;
     struct ureg_src mtlS;
@@ -331,7 +336,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     struct ureg_dst r[8];
     struct ureg_dst AR;
     struct ureg_dst tmp, tmp_x, tmp_z;
-    unsigned i;
+    unsigned i, c;
     unsigned label[32], l = 0;
     unsigned num_r = 8;
     boolean need_rNrm = key->lighting || key->pointscale;
@@ -401,6 +406,10 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         vs->aInd = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDINDICES(0));
     if (key->vertexblend)
         vs->aWgt = build_vs_add_input(vs, NINE_DECLUSAGE_BLENDWEIGHT(0));
+    if (key->vertextween) {
+        vs->aVtx1 = build_vs_add_input(vs, NINE_DECLUSAGE_POSITION(1));
+        vs->aNrm1 = build_vs_add_input(vs, NINE_DECLUSAGE_NORMAL(1));
+    }
 
     /* Declare outputs:
      */
@@ -442,22 +451,32 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
 
     /* === Vertex transformation / vertex blending:
      */
+    if (key->vertextween) {
+        assert(!key->vertexblend);
+        ureg_LRP(ureg, r[2], _XXXX(_CONST(30)), vs->aVtx, vs->aVtx1);
+        if (need_rNrm)
+            ureg_LRP(ureg, r[3], _XXXX(_CONST(30)), vs->aNrm, vs->aNrm1);
+        vs->aVtx = ureg_src(r[2]);
+        vs->aNrm = ureg_src(r[3]);
+    }
+
     if (key->vertexblend) {
         struct ureg_src cWM[4];
 
         for (i = 224; i <= 255; ++i)
             ureg_DECL_constant(ureg, i);
-        for (i = 0; i < 4; ++i)
-            cWM[i] = ureg_src_indirect(ureg_src_register(TGSI_FILE_CONSTANT, i), _X(AR));
 
         /* translate world matrix index to constant file index */
-        if (key->vertexblend_indexed)
+        if (key->vertexblend_indexed) {
             ureg_MAD(ureg, tmp, vs->aInd, ureg_imm1f(ureg, 4.0f), ureg_imm1f(ureg, 224.0f));
-        else
-            ureg_MOV(ureg, tmp, ureg_imm4f(ureg, 224.0f, 228.0f, 232.0f, 236.0f));
+            ureg_ARL(ureg, AR, ureg_src(tmp));
+        }
         for (i = 0; i < key->vertexblend; ++i) {
-            ureg_ARL(ureg, AR, ureg_scalar(ureg_src(tmp), i));
-
+            for (c = 0; c < 4; ++c) {
+                cWM[c] = ureg_src_register(TGSI_FILE_CONSTANT, (224 + i * 4) * !key->vertexblend_indexed + c);
+                if (key->vertexblend_indexed)
+                    cWM[c] = ureg_src_indirect(cWM[c], ureg_scalar(ureg_src(AR), i));
+            }
             /* multiply by WORLD(index) */
             ureg_MUL(ureg, r[0], _XXXX(vs->aVtx), cWM[0]);
             ureg_MAD(ureg, r[0], _YYYY(vs->aVtx), cWM[1], ureg_src(r[0]));
@@ -465,13 +484,19 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             ureg_MAD(ureg, r[0], _WWWW(vs->aVtx), cWM[3], ureg_src(r[0]));
 
             /* accumulate weighted position value */
-            ureg_MAD(ureg, r[1], ureg_src(r[0]), ureg_scalar(vs->aWgt, i), ureg_src(r[1]));
+            if (i)
+                ureg_MAD(ureg, r[2], ureg_src(r[0]), ureg_scalar(vs->aWgt, i), ureg_src(r[2]));
+            else
+                ureg_MUL(ureg, r[2], ureg_src(r[0]), ureg_scalar(vs->aWgt, 0));
         }
         /* multiply by VIEW_PROJ */
-        ureg_MUL(ureg, r[0], _X(r[1]), _CONST(8));
-        ureg_MAD(ureg, r[0], _Y(r[1]), _CONST(9),  ureg_src(r[0]));
-        ureg_MAD(ureg, r[0], _Z(r[1]), _CONST(10), ureg_src(r[0]));
-        ureg_MAD(ureg, oPos, _W(r[1]), _CONST(11), ureg_src(r[0]));
+        ureg_MUL(ureg, r[0], _X(r[2]), _CONST(8));
+        ureg_MAD(ureg, r[0], _Y(r[2]), _CONST(9),  ureg_src(r[0]));
+        ureg_MAD(ureg, r[0], _Z(r[2]), _CONST(10), ureg_src(r[0]));
+        ureg_MAD(ureg, oPos, _W(r[2]), _CONST(11), ureg_src(r[0]));
+
+        if (need_rVtx)
+            vs->aVtx = ureg_src(r[2]);
     } else
     if (key->position_t) {
         ureg_MOV(ureg, oPos, vs->aVtx);
@@ -493,8 +518,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MUL(ureg, rNrm, _XXXX(vs->aNrm), _CONST(16));
         ureg_MAD(ureg, rNrm, _YYYY(vs->aNrm), _CONST(17), ureg_src(rNrm));
         ureg_MAD(ureg, rNrm, _ZZZZ(vs->aNrm), _CONST(18), ureg_src(rNrm));
-        ureg_normalize3(ureg, rNrm, ureg_src(rNrm), r[0]);
+        ureg_normalize3(ureg, rNrm, ureg_src(rNrm), tmp);
     }
+    /* NOTE: don't use vs->aVtx, vs->aNrm after this line */
 
     /* === Process point size:
      */
@@ -839,7 +865,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_property_vs_window_space_position(ureg, TRUE);
 
     ureg_END(ureg);
-    nine_ureg_tgsi_dump(ureg);
+    nine_ureg_tgsi_dump(ureg, FALSE);
     return ureg_create_shader_and_destroy(ureg, device->pipe);
 }
 
@@ -1266,7 +1292,7 @@ nine_ff_build_ps(struct NineDevice9 *device, struct nine_ff_ps_key *key)
     }
 
     ureg_END(ureg);
-    nine_ureg_tgsi_dump(ureg);
+    nine_ureg_tgsi_dump(ureg, FALSE);
     return ureg_create_shader_and_destroy(ureg, device->pipe);
 }
 
@@ -1498,6 +1524,8 @@ nine_ff_load_vs_transforms(struct NineDevice9 *device)
         for (i = 1; i <= 7; ++i)
             M[56 + i] = *GET_D3DTS(WORLDMATRIX(i));
     }
+
+    device->ff.vs_const[30 * 4] = asfloat(state->rs[D3DRS_TWEENFACTOR]);
 }
 
 static void
