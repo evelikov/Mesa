@@ -837,6 +837,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MOV(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_W), _W(rCol[0]));
         ureg_MOV(ureg, ureg_writemask(oCol[1], TGSI_WRITEMASK_W), _W(rCol[1]));
 
+        if (key->position_t) {
+            ureg_MOV(ureg, ureg_saturate(tmp_x), ureg_scalar(vs->aCol[1], TGSI_SWIZZLE_W));
+        } else
         if (key->fog_range) {
             ureg_DP3(ureg, tmp_x, ureg_src(rVtx), ureg_src(rVtx));
             ureg_RSQ(ureg, tmp_z, _X(tmp));
@@ -844,6 +847,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         } else {
             ureg_MOV(ureg, tmp_z, ureg_abs(_Z(rVtx)));
         }
+
         if (key->fog_mode == D3DFOG_EXP) {
             ureg_MUL(ureg, tmp_x, _Z(tmp), _ZZZZ(_CONST(28)));
             ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
@@ -855,7 +859,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             ureg_MUL(ureg, tmp_x, _X(tmp), ureg_imm1f(ureg, -1.442695f));
             ureg_EX2(ureg, tmp_x, _X(tmp));
         } else
-        if (key->fog_mode == D3DFOG_LINEAR) {
+        if (key->fog_mode == D3DFOG_LINEAR && !key->position_t) {
             ureg_SUB(ureg, tmp_x, _XXXX(_CONST(28)), _Z(tmp));
             ureg_MUL(ureg, ureg_saturate(tmp_x), _X(tmp), _YYYY(_CONST(28)));
         }
@@ -1342,11 +1346,9 @@ nine_ff_get_vs(struct NineDevice9 *device)
         key.mtl_specular = state->rs[D3DRS_SPECULARMATERIALSOURCE];
         key.mtl_emissive = state->rs[D3DRS_EMISSIVEMATERIALSOURCE];
     }
-    if (!key.position_t) {
-        key.fog_mode = state->rs[D3DRS_FOGENABLE] ? state->rs[D3DRS_FOGVERTEXMODE] : 0;
-        if (key.fog_mode)
-            key.fog_range = !!state->rs[D3DRS_RANGEFOGENABLE];
-    }
+    key.fog_mode = state->rs[D3DRS_FOGENABLE] ? state->rs[D3DRS_FOGVERTEXMODE] : 0;
+    if (key.fog_mode)
+        key.fog_range = !key.position_t && state->rs[D3DRS_RANGEFOGENABLE];
 
     if (state->rs[D3DRS_VERTEXBLEND] != D3DVBF_DISABLE) {
         key.vertexblend_indexed = !!state->rs[D3DRS_INDEXEDVERTEXBLENDENABLE];
@@ -1593,6 +1595,8 @@ nine_ff_load_point_and_fog_params(struct NineDevice9 *device)
     dst[27].y = asfloat(state->rs[D3DRS_POINTSCALE_C]);
     dst[28].x = asfloat(state->rs[D3DRS_FOGEND]);
     dst[28].y = 1.0f / (asfloat(state->rs[D3DRS_FOGEND]) - asfloat(state->rs[D3DRS_FOGSTART]));
+    if (isinf(dst[28].y))
+        dst[28].y = 0.0f;
     dst[28].z = asfloat(state->rs[D3DRS_FOGDENSITY]);
     d3dcolor_to_rgba(&dst[29].x, state->rs[D3DRS_FOGCOLOR]);
 }
