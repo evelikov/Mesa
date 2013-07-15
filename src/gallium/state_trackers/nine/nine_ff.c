@@ -564,7 +564,7 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         if (!dim) {
             dst[c = 4] = oTex[i];
         } else {
-            dst[4] = tmp;
+            dst[4] = r[5];
             src = ureg_src(dst[4]);
             for (c = 0; c < (dim - 1); ++c)
                 dst[c] = ureg_writemask(tmp, (1 << dim) - 1);
@@ -603,9 +603,9 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             ureg_MOV(ureg, dst[c], src); /* store untransformed components */
         dst[c].WriteMask = ~dst[c].WriteMask;
         if (dim > 0) ureg_MUL(ureg, dst[0], _XXXX(src), _CONST(128 + i * 4));
-        if (dim > 1) ureg_MAD(ureg, dst[1], _YYYY(src), _CONST(129 + i * 4), src);
-        if (dim > 2) ureg_MAD(ureg, dst[2], _ZZZZ(src), _CONST(130 + i * 4), src);
-        if (dim > 3) ureg_MAD(ureg, dst[3], _WWWW(src), _CONST(131 + i * 4), src);
+        if (dim > 1) ureg_MAD(ureg, dst[1], _YYYY(src), _CONST(129 + i * 4), ureg_src(tmp));
+        if (dim > 2) ureg_MAD(ureg, dst[2], _ZZZZ(src), _CONST(130 + i * 4), ureg_src(tmp));
+        if (dim > 3) ureg_MAD(ureg, dst[3], _WWWW(src), _CONST(131 + i * 4), ureg_src(tmp));
     }
 
     /* === Lighting:
@@ -1366,15 +1366,18 @@ nine_ff_get_vs(struct NineDevice9 *device)
     }
 
     for (s = 0; s < 8; ++s) {
-        unsigned dim;
         if (state->ff.tex_stage[s][D3DTSS_COLOROP] == D3DTOP_DISABLE &&
             state->ff.tex_stage[s][D3DTSS_ALPHAOP] == D3DTOP_DISABLE)
-            break; /* XXX continue ? */
-        key.tc_idx |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >>  0) & 7) << (s * 3);
-        key.tc_gen |= ((state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >> 16) + 1) << (s * 3);
-
-        dim = MIN2(state->ff.tex_stage[s][D3DTSS_TEXTURETRANSFORMFLAGS] & 7, 4);
-        key.tc_dim |= dim << (s * 3);
+            break;
+        key.tc_idx |= (state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] & 7) << (s * 3);
+        if (!key.position_t) {
+            unsigned gen = (state->ff.tex_stage[s][D3DTSS_TEXCOORDINDEX] >> 16) + 1;
+            unsigned dim = MIN2(state->ff.tex_stage[s][D3DTSS_TEXTURETRANSFORMFLAGS] & 0x7, 4);
+            key.tc_gen |= gen << (s * 3);
+            key.tc_dim |= dim << (s * 3);
+        } else {
+            key.tc_gen |= NINED3DTSS_TCI_PASSTHRU << (s * 3);
+        }
     }
 
     vs = util_hash_table_get(device->ff.ht_vs, &key);
@@ -1419,9 +1422,9 @@ nine_ff_get_ps(struct NineDevice9 *device)
         key.ts[s].colorop = state->ff.tex_stage[s][D3DTSS_COLOROP];
         key.ts[s].alphaop = state->ff.tex_stage[s][D3DTSS_ALPHAOP];
         /* MSDN says D3DTOP_DISABLE disables this and all subsequent stages. */
+        /* ALPHAOP cannot be disabled if COLOROP is enabled. */
         if (key.ts[s].colorop == D3DTOP_DISABLE) {
-            /* And that alphaop cannot be disabled when colorop isn't. */
-            key.ts[s].alphaop = D3DTOP_DISABLE;
+            key.ts[s].alphaop = D3DTOP_DISABLE; /* DISABLE == 1, avoid degenerate keys */
             break;
         }
         if (!state->texture[s] &&
