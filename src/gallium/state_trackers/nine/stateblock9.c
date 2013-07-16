@@ -373,7 +373,8 @@ nine_state_copy_common_all(struct nine_state *dst,
         }
     }
 
-    if (!(src->changed.group & NINE_STATE_FF))
+    /* keep this check in case we want to disable FF */
+    if (!(help->changed.group & NINE_STATE_FF))
         return;
     WARN_ONCE("Fixed function state not handled properly by StateBlocks.\n");
 
