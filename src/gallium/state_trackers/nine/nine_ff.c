@@ -577,18 +577,21 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             break;
         case NINED3DTSS_TCI_CAMERASPACENORMAL:
             assert(dim <= 3);
-            ureg_MOV(ureg, dst[4], ureg_src(rNrm));
+            ureg_MOV(ureg, ureg_writemask(dst[4], TGSI_WRITEMASK_XYZ), ureg_src(rNrm));
+            ureg_MOV(ureg, ureg_writemask(dst[4], TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
             break;
         case NINED3DTSS_TCI_CAMERASPACEPOSITION:
-            ureg_MOV(ureg, dst[4], ureg_src(rVtx));
+            ureg_MOV(ureg, ureg_writemask(dst[4], TGSI_WRITEMASK_XYZ), ureg_src(rVtx));
+            ureg_MOV(ureg, ureg_writemask(dst[4], TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
             break;
         case NINED3DTSS_TCI_CAMERASPACEREFLECTIONVECTOR:
-            tmp.WriteMask &= ~TGSI_WRITEMASK_W;
+            tmp.WriteMask = TGSI_WRITEMASK_XYZ;
             ureg_DP3(ureg, tmp_x, ureg_src(rVtx), ureg_src(rNrm));
             ureg_MUL(ureg, tmp, ureg_src(rNrm), _X(tmp));
             ureg_ADD(ureg, tmp, ureg_src(tmp), ureg_src(tmp));
-            ureg_SUB(ureg, dst[4], ureg_src(rVtx), ureg_src(tmp));
-            tmp.WriteMask |= TGSI_WRITEMASK_W;
+            ureg_SUB(ureg, ureg_writemask(dst[4], TGSI_WRITEMASK_XYZ), ureg_src(rVtx), ureg_src(tmp));
+            ureg_MOV(ureg, ureg_writemask(dst[4], TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
+            tmp.WriteMask = TGSI_WRITEMASK_XYZW;
             break;
         case NINED3DTSS_TCI_SPHEREMAP:
             assert(!"TODO");
@@ -992,6 +995,24 @@ static uint8_t ps_d3dtop_args_mask(D3DTEXTUREOP top)
     }
 }
 
+static INLINE boolean
+is_MOV_no_op(struct ureg_dst dst, struct ureg_src src)
+{
+    return !dst.WriteMask ||
+        (dst.File == src.File &&
+         dst.Index == src.Index &&
+         !dst.Indirect &&
+         !dst.Saturate &&
+         !src.Indirect &&
+         !src.Negate &&
+         !src.Absolute &&
+         (!(dst.WriteMask & TGSI_WRITEMASK_X) || (src.SwizzleX == TGSI_SWIZZLE_X)) &&
+         (!(dst.WriteMask & TGSI_WRITEMASK_Y) || (src.SwizzleY == TGSI_SWIZZLE_Y)) &&
+         (!(dst.WriteMask & TGSI_WRITEMASK_Z) || (src.SwizzleZ == TGSI_SWIZZLE_Z)) &&
+         (!(dst.WriteMask & TGSI_WRITEMASK_W) || (src.SwizzleW == TGSI_SWIZZLE_W)));
+
+}
+
 static void
 ps_do_ts_op(struct ps_build_ctx *ps, unsigned top, struct ureg_dst dst, struct ureg_src *arg)
 {
@@ -1011,10 +1032,12 @@ ps_do_ts_op(struct ps_build_ctx *ps, unsigned top, struct ureg_dst dst, struct u
 
     switch (top) {
     case D3DTOP_SELECTARG1:
-        ureg_MOV(ureg, dst, arg[1]);
+        if (!is_MOV_no_op(dst, arg[1]))
+            ureg_MOV(ureg, dst, arg[1]);
         break;
     case D3DTOP_SELECTARG2:
-        ureg_MOV(ureg, dst, arg[2]);
+        if (!is_MOV_no_op(dst, arg[2]))
+            ureg_MOV(ureg, dst, arg[2]);
         break;
     case D3DTOP_MODULATE:
         ureg_MUL(ureg, dst, arg[1], arg[2]);
