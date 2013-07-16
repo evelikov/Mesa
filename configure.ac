@@ -1931,6 +1931,7 @@ AM_CONDITIONAL(NEED_GALLIUM_LLVMPIPE_DRIVER, test "x$HAVE_GALLIUM_I915" = xyes -
 if test "x$enable_gallium_loader" = xyes; then
     GALLIUM_WINSYS_DIRS="$GALLIUM_WINSYS_DIRS sw/null sw/wrapper"
 
+    GALLIUM_PIPE_LOADER_LIBS="$DLOPEN_LIBS"
     if test "x$enable_gallium_drm_loader" = xyes; then
         GALLIUM_PIPE_LOADER_DEFINES="$GALLIUM_PIPE_LOADER_DEFINES -DHAVE_PIPE_LOADER_DRM"
         PKG_CHECK_MODULES([GALLIUM_PIPE_LOADER_XCB], [xcb xcb-dri2],
