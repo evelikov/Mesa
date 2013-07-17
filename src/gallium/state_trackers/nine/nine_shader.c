@@ -35,7 +35,7 @@
 
 #define DBG_CHANNEL DBG_SHADER
 
-#if 0
+#if 1
 #define NINE_TGSI_LAZY_DEVS /* don't use TGSI_OPCODE_BREAKC */
 #endif
 #define NINE_TGSI_LAZY_R600 /* don't use TGSI_OPCODE_DP2A */
