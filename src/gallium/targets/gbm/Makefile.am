@@ -30,7 +30,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/gbm/main \
 	-I$(top_srcdir)/src/gallium/winsys \
 	$(GALLIUM_PIPE_LOADER_DEFINES) \
-	-DPIPE_SEARCH_DIR=\"$(libdir)/gallium-pipe\"
+	-DPIPE_SEARCH_DIR=\"$(GALLIUM_PIPE_LOADER_DIR)\"
 
 AM_CFLAGS = \
 	$(GALLIUM_CFLAGS) \

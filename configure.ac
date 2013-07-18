@@ -652,6 +652,12 @@ AC_ARG_WITH([gallium-drivers],
     [with_gallium_drivers="$withval"],
     [with_gallium_drivers="$GALLIUM_DRIVERS_DEFAULT"])
 
+AC_ARG_WITH([gallium-driver-dir],
+    [AS_HELP_STRING([--with-gallium-driver-dir=DIR],
+        [directory for the Gallium pipe drivers @<:@${libdir}/gallium-pipe@:>@])],
+    [GALLIUM_PIPE_LOADER_DIR="$withval"],
+    [GALLIUM_PIPE_LOADER_DIR='${libdir}/gallium-pipe'])
+
 # Doing '--without-gallium-drivers' will set this variable to 'no'.  Clear it
 # here so that the script doesn't choke on an unknown driver name later.
 case "$with_gallium_drivers" in
@@ -1944,6 +1950,7 @@ if test "x$enable_gallium_loader" = xyes; then
 
     AC_SUBST([GALLIUM_PIPE_LOADER_DEFINES])
     AC_SUBST([GALLIUM_PIPE_LOADER_LIBS])
+    AC_SUBST([GALLIUM_PIPE_LOADER_DIR])
 fi
 
 AM_CONDITIONAL(HAVE_I915_DRI, test x$HAVE_I915_DRI = xyes)
