@@ -55,6 +55,12 @@ if HAVE_DRM_LOADER_GALLIUM
 libd3dadapter9_la_SOURCES += drm.c
 endif
 
+d3dadapterdir = $(includedir)/d3dadapter
+d3dadapter_HEADERS = \
+	$(top_srcdir)/include/d3dadapter/d3dadapter9.h \
+	$(top_srcdir)/include/d3dadapter/drm.h \
+	$(top_srcdir)/include/d3dadapter/present.h
+
 # Provide compatibility with scripts for the old Mesa build system for
 # a while by putting a link to the driver into /lib of the build tree.
 all-local: libd3dadapter9.la
