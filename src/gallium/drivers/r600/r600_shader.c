@@ -5141,10 +5141,11 @@ static int tgsi_r600_arl(struct r600_shader_ctx *ctx)
 		alu.src[0].sel = ctx->bc->ar_reg;
 		alu.dst.sel = ctx->bc->ar_reg;
 		alu.dst.write = 1;
+		/* FLT_TO_INT is trans-only on r600/r700 */
+		alu.last = TRUE;
 		for (i = 0; i <= lasti; ++i) {
 			alu.dst.chan = i;
 			alu.src[0].chan = i;
-			alu.last = i == lasti;
 			if ((r = r600_bytecode_add_alu(ctx->bc, &alu)))
 				return r;
 		}
@@ -5154,11 +5155,12 @@ static int tgsi_r600_arl(struct r600_shader_ctx *ctx)
 		alu.op = ALU_OP1_FLT_TO_INT;
 		alu.dst.sel = ctx->bc->ar_reg;
 		alu.dst.write = 1;
+		/* FLT_TO_INT is trans-only on r600/r700 */
+		alu.last = TRUE;
 		for (i = 0; i <= lasti; ++i) {
 			if (inst->Dst[0].Register.WriteMask & (1 << i)) {
 				alu.dst.chan = i;
 				r600_bytecode_src(&alu.src[0], &ctx->src[0], i);
-				alu.last = i == lasti;
 				if ((r = r600_bytecode_add_alu(ctx->bc, &alu)))
 					return r;
 			}
