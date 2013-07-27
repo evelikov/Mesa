@@ -177,7 +177,7 @@ NineCubeTexture9_LockRect( struct NineCubeTexture9 *This,
     const unsigned s = Level * 6 + FaceType;
 
     user_assert(Level <= This->base.base.info.last_level, D3DERR_INVALIDCALL);
-    user_assert(Level == 0 && !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
+    user_assert(Level == 0 || !(This->base.base.usage & D3DUSAGE_AUTOGENMIPMAP),
                 D3DERR_INVALIDCALL);
     user_assert(FaceType < 6, D3DERR_INVALIDCALL);
 
