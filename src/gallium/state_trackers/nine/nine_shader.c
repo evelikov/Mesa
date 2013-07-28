@@ -1085,6 +1085,49 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
     return dst;
 }
 
+static struct ureg_src
+tx_dst_param_as_src(struct shader_translator *tx, const struct sm1_dst_param *param)
+{
+    struct ureg_src src;
+
+    assert(!param->shift);
+    assert(!(param->mod & NINED3DSPDM_SATURATE));
+
+    switch (param->file) {
+    case D3DSPR_INPUT:
+        if (IS_VS) {
+            src = ureg_src_register(TGSI_FILE_INPUT, param->idx);
+        } else {
+            assert(!param->rel);
+            assert(param->idx < Elements(tx->regs.v));
+            src = tx->regs.v[param->idx];
+        }
+        break;
+    default:
+        src = ureg_src(tx_dst_param(tx, param));
+        break;
+    }
+    if (param->rel)
+        src = ureg_src_indirect(src, tx_src_param(tx, param->rel));
+
+    if (!param->mask)
+        WARN("mask is 0, using identity swizzle\n");
+
+    if (param->mask && param->mask != NINED3DSP_WRITEMASK_ALL) {
+        char s[4];
+        int n;
+        int c;
+        for (n = 0, c = 0; c < 4; ++c)
+            if (param->mask & (1 << c))
+                s[n++] = c;
+        assert(n);
+        for (c = n; c < 4; ++c)
+            s[c] = s[n - 1];
+        src = ureg_swizzle(src, s[0], s[1], s[2], s[3]);
+    }
+    return src;
+}
+
 static HRESULT
 NineTranslateInstruction_Mkxn(struct shader_translator *tx, const unsigned k, const unsigned n)
 {
@@ -1943,7 +1986,7 @@ DECL_SPECIAL(TEXKILL)
     struct ureg_src reg;
 
     if (tx->version.major > 1 || tx->version.minor > 3) {
-        reg = ureg_src(tx_dst_param(tx, &tx->insn.dst[0]));
+        reg = tx_dst_param_as_src(tx, &tx->insn.dst[0]);
     } else {
         tx_texcoord_alloc(tx, tx->insn.dst[0].idx);
         reg = tx->regs.vT[tx->insn.dst[0].idx];
