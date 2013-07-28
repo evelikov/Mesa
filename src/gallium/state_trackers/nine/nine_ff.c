@@ -414,8 +414,8 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
     /* Declare outputs:
      */
     oPos = ureg_DECL_output(ureg, TGSI_SEMANTIC_POSITION, 0); /* HPOS */
-    oCol[0] = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0);
-    oCol[1] = ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 1);
+    oCol[0] = ureg_saturate(ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 0));
+    oCol[1] = ureg_saturate(ureg_DECL_output(ureg, TGSI_SEMANTIC_COLOR, 1));
 
     if (key->vertexpointsize || key->pointscale) {
         oPsz = ureg_DECL_output_masked(ureg, TGSI_SEMANTIC_PSIZE, 0, TGSI_WRITEMASK_X);
@@ -829,7 +829,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_MOV(ureg, rCol[0], vs->aCol[0]);
         ureg_MOV(ureg, rCol[1], vs->aCol[1]);
     }
-    /* clamp_vertex_color: done by hardware */
 
     /* === Process fog.
      *
