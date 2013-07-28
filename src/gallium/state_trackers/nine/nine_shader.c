@@ -473,6 +473,7 @@ struct shader_translator
         struct ureg_dst p;
         struct ureg_dst a;
         struct ureg_dst tS[8]; /* texture stage registers */
+        struct ureg_dst tdst; /* scratch dst if we need extra modifiers */
         struct ureg_dst t[5]; /* scratch TEMPs */
         struct ureg_src vC[2]; /* PS color in */
         struct ureg_src vT[8]; /* PS texcoord in */
@@ -976,7 +977,7 @@ tx_src_param(struct shader_translator *tx, const struct sm1_src_param *param)
 }
 
 static struct ureg_dst
-tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
+_tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
 {
     struct ureg_dst dst;
 
@@ -1080,9 +1081,37 @@ tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
     if (param->mod & NINED3DSPDM_SATURATE)
         dst = ureg_saturate(dst);
 
-    assert(!param->shift); /* TODO */
-
     return dst;
+}
+
+static struct ureg_dst
+tx_dst_param(struct shader_translator *tx, const struct sm1_dst_param *param)
+{
+    if (param->shift) {
+        tx->regs.tdst = ureg_writemask(tx_scratch(tx), param->mask);
+        return tx->regs.tdst;
+    }
+    return _tx_dst_param(tx, param);
+}
+
+static void
+tx_apply_dst0_modifiers(struct shader_translator *tx)
+{
+    struct ureg_dst rdst;
+    float f;
+
+    if (!tx->insn.ndst || !tx->insn.dst[0].shift || tx->insn.opcode == D3DSIO_TEXKILL)
+        return;
+    rdst = _tx_dst_param(tx, &tx->insn.dst[0]);
+
+    assert(rdst.File != TGSI_FILE_ADDRESS); /* this probably isn't possible */
+
+    if (tx->insn.dst[0].shift < 0)
+        f = 1.0f / (1 << -tx->insn.dst[0].shift);
+    else
+        f = 1 << tx->insn.dst[0].shift;
+
+    ureg_MUL(tx->ureg, rdst, ureg_src(tx->regs.tdst), ureg_imm1f(tx->ureg, f));
 }
 
 static struct ureg_src
@@ -2646,6 +2675,8 @@ sm1_parse_instruction(struct shader_translator *tx)
         info->handler(tx);
     else
        NineTranslateInstruction_Generic(tx);
+    tx_apply_dst0_modifiers(tx);
+
     tx->num_scratch = 0; /* reset */
 
     TOKEN_JUMP(tx);
