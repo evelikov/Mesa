@@ -540,8 +540,7 @@ NineDevice9_ShowCursor( struct NineDevice9 *This,
 {
     BOOL old = This->cursor.visible;
     This->cursor.visible = bShow && (This->cursor.hotspot.x != -1);
-
-    if (bShow != old && !This->cursor.software)
+    if (!This->cursor.software)
         ID3DPresent_SetCursor(This->swapchains[0]->present, NULL, NULL, bShow);
 
     return old;
