@@ -501,7 +501,7 @@ NineVertexDeclaration9_ConvertStreamOutput(
     }
     translate->set_buffer(translate, 0, src_map, so->stride[0], ~0);
 
-    translate->run(translate, 0, VertexCount, 0, dst_map);
+    translate->run(translate, 0, VertexCount, 0, 0, dst_map);
 
     NineVertexBuffer9_Unlock(pDstBuf);
 out:

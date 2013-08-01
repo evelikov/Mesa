@@ -2022,7 +2022,7 @@ DECL_SPECIAL(TEXKILL)
     }
     if (tx->version.major < 2)
         reg = ureg_swizzle(reg, NINE_SWIZZLE4(X,Y,Z,Z));
-    ureg_KIL(tx->ureg, reg);
+    ureg_KILL_IF(tx->ureg, reg);
 
     return D3D_OK;
 }
@@ -2299,7 +2299,7 @@ struct sm1_op_info inst_table[] =
 
     _OPI(TEXCOORD,     NOP, V(0,0), V(0,0), V(0,0), V(1,3), 1, 0, SPECIAL(TEXCOORD)),
     _OPI(TEXCOORD,     MOV, V(0,0), V(0,0), V(1,4), V(1,4), 1, 1, SPECIAL(TEXCOORD_ps14)),
-    _OPI(TEXKILL,      KIL, V(0,0), V(0,0), V(0,0), V(3,0), 1, 0, SPECIAL(TEXKILL)),
+    _OPI(TEXKILL,      KILL_IF, V(0,0), V(0,0), V(0,0), V(3,0), 1, 0, SPECIAL(TEXKILL)),
     _OPI(TEX,          TEX, V(0,0), V(0,0), V(0,0), V(1,3), 1, 0, SPECIAL(TEX)),
     _OPI(TEX,          TEX, V(0,0), V(0,0), V(1,4), V(1,4), 1, 1, SPECIAL(TEXLD_14)),
     _OPI(TEX,          TEX, V(0,0), V(0,0), V(2,0), V(3,0), 1, 2, SPECIAL(TEXLD)),
