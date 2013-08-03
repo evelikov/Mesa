@@ -391,7 +391,7 @@ update_constants(struct NineDevice9 *device, unsigned shader_type)
             DO_UPLOAD_CONST_F(buf, r->bgn, r->end - r->bgn, const_f);
         if (p) {
             nine_range_pool_put_chain(&device->range_pool,
-                                      device->state.changed.vs_const_f, p);
+                                      device->state.changed.ps_const_f, p);
             device->state.changed.ps_const_f = NULL;
         }
 
