@@ -96,8 +96,6 @@ nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
     switch (usage) {
     case D3DDECLUSAGE_POSITIONT:
     case D3DDECLUSAGE_PSIZE:
-    case D3DDECLUSAGE_TANGENT:
-    case D3DDECLUSAGE_BINORMAL:
     case D3DDECLUSAGE_TESSFACTOR:
     case D3DDECLUSAGE_DEPTH:
     case D3DDECLUSAGE_FOG:
@@ -105,6 +103,8 @@ nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
         return usage_idx <= 0;
     case D3DDECLUSAGE_POSITION:
     case D3DDECLUSAGE_NORMAL:
+    case D3DDECLUSAGE_TANGENT:
+    case D3DDECLUSAGE_BINORMAL:
         return usage_idx <= 1;
     case D3DDECLUSAGE_BLENDWEIGHT:
     case D3DDECLUSAGE_BLENDINDICES:
@@ -132,8 +132,8 @@ nine_d3d9_to_nine_declusage(unsigned usage, unsigned usage_idx)
     NINE_DECLUSAGE_CASEi(NORMAL);
     NINE_DECLUSAGE_CASE0(PSIZE);
     NINE_DECLUSAGE_CASEi(TEXCOORD);
-    NINE_DECLUSAGE_CASE0(TANGENT);
-    NINE_DECLUSAGE_CASE0(BINORMAL);
+    NINE_DECLUSAGE_CASEi(TANGENT);
+    NINE_DECLUSAGE_CASEi(BINORMAL);
     NINE_DECLUSAGE_CASE0(TESSFACTOR);
     NINE_DECLUSAGE_CASE0(POSITIONT);
     NINE_DECLUSAGE_CASEi(COLOR);
@@ -177,8 +177,10 @@ static const char *nine_declusage_names[] =
     [NINE_DECLUSAGE_TEXCOORD(13)]    = "TEXCOORD13",
     [NINE_DECLUSAGE_TEXCOORD(14)]    = "TEXCOORD14",
     [NINE_DECLUSAGE_TEXCOORD(15)]    = "TEXCOORD15",
-    [NINE_DECLUSAGE_TANGENT]         = "TANGENT",
-    [NINE_DECLUSAGE_BINORMAL]        = "BINORMAL",
+    [NINE_DECLUSAGE_TANGENT(0)]      = "TANGENT",
+    [NINE_DECLUSAGE_TANGENT(1)]      = "TANGENT1",
+    [NINE_DECLUSAGE_BINORMAL(0)]     = "BINORMAL",
+    [NINE_DECLUSAGE_BINORMAL(1)]     = "BINORMAL1",
     [NINE_DECLUSAGE_TESSFACTOR]      = "TESSFACTOR",
     [NINE_DECLUSAGE_POSITIONT]       = "POSITIONT",
     [NINE_DECLUSAGE_COLOR(0)]        = "DIFFUSE",

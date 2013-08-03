@@ -38,15 +38,15 @@ unsigned nine_d3d9_to_nine_declusage(unsigned usage, unsigned index);
 #define NINE_DECLUSAGE_NORMAL(i)       (10 + (i))
 #define NINE_DECLUSAGE_PSIZE            12
 #define NINE_DECLUSAGE_TEXCOORD(i)     (13 + (i))
-#define NINE_DECLUSAGE_TANGENT          29
-#define NINE_DECLUSAGE_BINORMAL         30
-#define NINE_DECLUSAGE_TESSFACTOR       31
-#define NINE_DECLUSAGE_POSITIONT        32
-#define NINE_DECLUSAGE_COLOR(i)        (33 + (i))
-#define NINE_DECLUSAGE_DEPTH            37
-#define NINE_DECLUSAGE_FOG              38
-#define NINE_DECLUSAGE_SAMPLE           39
-#define NINE_DECLUSAGE_NONE             40
+#define NINE_DECLUSAGE_TANGENT(i)      (29 + (i))
+#define NINE_DECLUSAGE_BINORMAL(i)     (31 + (i))
+#define NINE_DECLUSAGE_TESSFACTOR       33
+#define NINE_DECLUSAGE_POSITIONT        34
+#define NINE_DECLUSAGE_COLOR(i)        (35 + (i))
+#define NINE_DECLUSAGE_DEPTH            39
+#define NINE_DECLUSAGE_FOG              40
+#define NINE_DECLUSAGE_SAMPLE           41
+#define NINE_DECLUSAGE_NONE             42
 #define NINE_DECLUSAGE_LAST             NINE_DECLUSAGE_NONE
 #define NINE_DECLUSAGE_COUNT           (NINE_DECLUSAGE_LAST + 1)
 

@@ -1693,8 +1693,8 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
      * BLENDWEIGHT[0..3]: 0, 4, 8, 12
      * BLENDINDICES[0..3]: 1, 5, 9, 13
      * NORMAL[0..1]: 2, 6
-     * TANGENT[0]: 3
-     * BINORMAL[0]: 7
+     * TANGENT[0]: 3, 24
+     * BINORMAL[0]: 7, 25
      * TESSFACTOR[0]: 16
      */
 
@@ -1752,12 +1752,14 @@ sm1_declusage_to_tgsi(struct tgsi_declaration_semantic *sem,
         sem->Index = generic_base + 2 + dcl->usage_idx * 4;
         break;
     case D3DDECLUSAGE_TANGENT:
-        assert(dcl->usage_idx == 0);
-        sem->Index = generic_base + 3;
+        /* Yes these are weird, but we try to fit the more frequently used
+         * into lower slots. */
+        assert(dcl->usage_idx <= 1);
+        sem->Index = generic_base + (dcl->usage_idx ? 24 : 3);
         break;
     case D3DDECLUSAGE_BINORMAL:
-        assert(dcl->usage_idx == 0);
-        sem->Index = generic_base + 7;
+        assert(dcl->usage_idx <= 1);
+        sem->Index = generic_base + (dcl->usage_idx ? 25 : 7);
         break;
     case D3DDECLUSAGE_TESSFACTOR:
         assert(dcl->usage_idx == 0);
