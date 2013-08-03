@@ -52,6 +52,8 @@ void
 NineStateBlock9_dtor( struct NineStateBlock9 *This )
 {
     struct nine_state *state = &This->state;
+    struct nine_range *r;
+    struct nine_range_pool *pool = &This->base.device->range_pool;
 
     nine_state_clear(state, FALSE);
 
@@ -61,6 +63,15 @@ NineStateBlock9_dtor( struct NineStateBlock9 *This )
     if (state->ff.light) FREE(state->ff.light);
 
     if (state->ff.transform) FREE(state->ff.transform);
+
+    if (This->state.changed.ps_const_f) {
+        for (r = This->state.changed.ps_const_f; r->next; r = r->next);
+        nine_range_pool_put_chain(pool, This->state.changed.ps_const_f, r);
+    }
+    if (This->state.changed.vs_const_f) {
+        for (r = This->state.changed.vs_const_f; r->next; r = r->next);
+        nine_range_pool_put_chain(pool, This->state.changed.vs_const_f, r);
+    }
 
     NineUnknown_dtor(&This->base);
 }
