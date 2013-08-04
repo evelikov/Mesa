@@ -1593,7 +1593,13 @@ DECL_SPECIAL(ENDIF)
 
 DECL_SPECIAL(IF)
 {
-    ureg_IF(tx->ureg, tx_src_param(tx, &tx->insn.src[0]), tx_cond(tx));
+    struct ureg_src src = tx_src_param(tx, &tx->insn.src[0]);
+
+    if (tx->native_integers && tx->insn.src[0].file == D3DSPR_CONSTBOOL)
+        ureg_UIF(tx->ureg, src, tx_cond(tx));
+    else
+        ureg_IF(tx->ureg, src, tx_cond(tx));
+
     return D3D_OK;
 }
 
