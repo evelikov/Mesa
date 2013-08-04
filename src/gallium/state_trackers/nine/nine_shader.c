@@ -2067,12 +2067,7 @@ DECL_SPECIAL(TEXM3x2TEX)
 
 DECL_SPECIAL(TEXM3x3PAD)
 {
-    STUB(D3DERR_INVALIDCALL);
-}
-
-DECL_SPECIAL(TEXM3x3TEX)
-{
-    STUB(D3DERR_INVALIDCALL);
+    return D3D_OK; /* this is just padding */
 }
 
 DECL_SPECIAL(TEXM3x3SPEC)
@@ -2107,7 +2102,36 @@ DECL_SPECIAL(TEXDP3)
 
 DECL_SPECIAL(TEXM3x3)
 {
-    STUB(D3DERR_INVALIDCALL);
+    struct ureg_program *ureg = tx->ureg;
+    struct ureg_dst dst = tx_dst_param(tx, &tx->insn.dst[0]);
+    struct ureg_src src[4];
+    int s;
+    const int m = tx->insn.dst[0].idx - 2;
+    const int n = tx->insn.src[0].idx;
+    assert(m >= 0 && m > n);
+
+    for (s = m; s <= (m + 2); ++s) {
+        if (ureg_src_is_undef(tx->regs.vT[s]))
+            tx->regs.vT[s] = ureg_DECL_fs_input(ureg, tx->texcoord_sn, s, TGSI_INTERPOLATE_PERSPECTIVE);
+        src[s] = tx->regs.vT[s];
+    }
+    ureg_DP3(ureg, ureg_writemask(dst, TGSI_WRITEMASK_X), src[0], ureg_src(tx->regs.tS[n]));
+    ureg_DP3(ureg, ureg_writemask(dst, TGSI_WRITEMASK_Y), src[1], ureg_src(tx->regs.tS[n]));
+    ureg_DP3(ureg, ureg_writemask(dst, TGSI_WRITEMASK_Z), src[2], ureg_src(tx->regs.tS[n]));
+
+    switch (tx->insn.opcode) {
+    case D3DSIO_TEXM3x3:
+        ureg_MOV(ureg, ureg_writemask(dst, TGSI_WRITEMASK_W), ureg_imm1f(ureg, 1.0f));
+        break;
+    case D3DSIO_TEXM3x3TEX:
+        src[4] = ureg_DECL_sampler(ureg, m + 2);
+        tx->info->sampler_mask |= 1 << (m + 2);
+        ureg_TEX(ureg, dst, ps1x_sampler_type(tx->info, m + 2), ureg_src(dst), src[4]);
+        break;
+    default:
+        return D3DERR_INVALIDCALL;
+    }
+    return D3D_OK;
 }
 
 DECL_SPECIAL(TEXDEPTH)
@@ -2318,7 +2342,7 @@ struct sm1_op_info inst_table[] =
     _OPI(TEXM3x2PAD,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x2PAD)),
     _OPI(TEXM3x2TEX,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x2TEX)),
     _OPI(TEXM3x3PAD,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3PAD)),
-    _OPI(TEXM3x3TEX,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3TEX)),
+    _OPI(TEXM3x3TEX,   TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3)),
     _OPI(TEXM3x3SPEC,  TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3SPEC)),
     _OPI(TEXM3x3VSPEC, TEX, V(0,0), V(0,0), V(0,0), V(1,3), 0, 0, SPECIAL(TEXM3x3VSPEC)),
 
