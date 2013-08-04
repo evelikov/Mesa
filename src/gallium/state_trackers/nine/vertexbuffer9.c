@@ -127,6 +127,7 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
 
     user_assert(ppbData, E_POINTER);
     user_assert(!(Flags & ~(D3DLOCK_DISCARD |
+                            D3DLOCK_DONOTWAIT |
                             D3DLOCK_NO_DIRTY_UPDATE |
                             D3DLOCK_NOSYSLOCK |
                             D3DLOCK_READONLY |
@@ -159,6 +160,8 @@ NineVertexBuffer9_Lock( struct NineVertexBuffer9 *This,
             " box.width = %u\n",
             usage, box.x, box.width);
         /* not sure what to return, msdn suggests this */
+        if (Flags & D3DLOCK_DONOTWAIT)
+            return D3DERR_WASSTILLDRAWING;
         return D3DERR_INVALIDCALL;
     }
 

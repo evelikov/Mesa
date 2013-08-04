@@ -139,6 +139,8 @@ NineIndexBuffer9_Lock( struct NineIndexBuffer9 *This,
             " box.width = %u\n",
             usage, box.x, box.width);
         /* not sure what to return, msdn suggests this */
+        if (Flags & D3DLOCK_DONOTWAIT)
+            return D3DERR_WASSTILLDRAWING;
         return D3DERR_INVALIDCALL;
     }
     *ppbData = data;
