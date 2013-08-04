@@ -495,15 +495,21 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
     pCaps->Caps = 0;
 
     pCaps->Caps2 = D3DCAPS2_CANMANAGERESOURCE |
-                   /*D3DCAPS2_CANSHARERESOURCE |*/
+                /* D3DCAPS2_CANSHARERESOURCE | */
+                /* D3DCAPS2_CANCALIBRATEGAMMA | */
                    D3DCAPS2_DYNAMICTEXTURES |
+                   D3DCAPS2_FULLSCREENGAMMA |
                    D3DCAPS2_CANAUTOGENMIPMAP;
 
-    pCaps->Caps3 = /*D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD |*/
-                   /*D3DCAPS2_FULLSCREENGAMMA |*/
+    pCaps->Caps3 =
+                /* D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD | */
                    D3DCAPS3_COPY_TO_VIDMEM |
                    D3DCAPS3_COPY_TO_SYSTEMMEM |
                    D3DCAPS3_LINEAR_TO_SRGB_PRESENTATION;
+#ifndef DEBUG
+    /* NOTE: CoD4 requires this to start. */
+    pCaps->Caps3 |= D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD;
+#endif
 
     pCaps->PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT |
                                    D3DPRESENT_INTERVAL_ONE |
