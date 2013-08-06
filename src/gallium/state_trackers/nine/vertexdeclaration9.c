@@ -101,15 +101,15 @@ nine_d3ddeclusage_check(unsigned usage, unsigned usage_idx)
     case D3DDECLUSAGE_FOG:
     case D3DDECLUSAGE_SAMPLE:
         return usage_idx <= 0;
-    case D3DDECLUSAGE_POSITION:
     case D3DDECLUSAGE_NORMAL:
     case D3DDECLUSAGE_TANGENT:
     case D3DDECLUSAGE_BINORMAL:
         return usage_idx <= 1;
+    case D3DDECLUSAGE_POSITION:
     case D3DDECLUSAGE_BLENDWEIGHT:
     case D3DDECLUSAGE_BLENDINDICES:
     case D3DDECLUSAGE_COLOR:
-        return usage_idx <= 3;
+        return usage_idx <= 4;
     case D3DDECLUSAGE_TEXCOORD:
         return usage_idx <= 15;
     default:
@@ -150,6 +150,9 @@ static const char *nine_declusage_names[] =
 {
     [NINE_DECLUSAGE_POSITION(0)]     = "POSITION",
     [NINE_DECLUSAGE_POSITION(1)]     = "POSITION1",
+    [NINE_DECLUSAGE_POSITION(2)]     = "POSITION2",
+    [NINE_DECLUSAGE_POSITION(3)]     = "POSITION3",
+    [NINE_DECLUSAGE_POSITION(4)]     = "POSITION4",
     [NINE_DECLUSAGE_BLENDWEIGHT(0)]  = "BLENDWEIGHT",
     [NINE_DECLUSAGE_BLENDWEIGHT(1)]  = "BLENDWEIGHT1",
     [NINE_DECLUSAGE_BLENDWEIGHT(2)]  = "BLENDWEIGHT2",
@@ -187,6 +190,7 @@ static const char *nine_declusage_names[] =
     [NINE_DECLUSAGE_COLOR(1)]        = "SPECULAR",
     [NINE_DECLUSAGE_COLOR(2)]        = "COLOR2",
     [NINE_DECLUSAGE_COLOR(3)]        = "COLOR3",
+    [NINE_DECLUSAGE_COLOR(4)]        = "COLOR4",
     [NINE_DECLUSAGE_DEPTH]           = "DEPTH",
     [NINE_DECLUSAGE_FOG]             = "FOG",
     [NINE_DECLUSAGE_NONE]            = "(NONE)",
