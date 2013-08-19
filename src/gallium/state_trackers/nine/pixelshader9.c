@@ -54,6 +54,7 @@ NinePixelShader9_ctor( struct NinePixelShader9 *This,
     info.const_i_base = NINE_CONST_I_BASE(device->max_ps_const_f) / 16;
     info.const_b_base = NINE_CONST_B_BASE(device->max_ps_const_f) / 16;
     info.sampler_mask_shadow = 0x0;
+    info.sampler_ps1xtypes = 0x0;
 
     hr = nine_translate_shader(device, &info);
     if (FAILED(hr))
