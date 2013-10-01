@@ -28,6 +28,8 @@
 #include "nine_dump.h"
 
 #include "util/u_hash_table.h"
+#include "util/u_format.h"
+#include "util/u_surface.h"
 #include "nine_pdata.h"
 
 #define DBG_CHANNEL DBG_VOLUME
