@@ -578,6 +578,11 @@ AC_ARG_ENABLE([gbm],
          [enable gbm library @<:@default=auto@:>@])],
    [enable_gbm="$enableval"],
    [enable_gbm=auto])
+AC_ARG_ENABLE([nine],
+    [AS_HELP_STRING([--enable-nine],
+        [enable build of the nine Direct3D9 API @<:@default=no@:>@])],
+    [enable_nine="$enableval"],
+    [enable_nine=no])
 
 AC_ARG_ENABLE([xvmc],
    [AS_HELP_STRING([--enable-xvmc],
@@ -621,6 +626,11 @@ AC_ARG_ENABLE([gallium-gbm],
          @<:@default=auto@:>@])],
     [enable_gallium_gbm="$enableval"],
     [enable_gallium_gbm=auto])
+AC_ARG_ENABLE([nine_wine],
+    [AS_HELP_STRING([--enable-nine-wine],
+        [enable optional Direct3D9 wine integration library @<:@default=auto@:>@])],
+    [enable_nine_wine="$enableval"],
+    [enable_nine_wine=auto])
 
 AC_ARG_ENABLE([r600-llvm-compiler],
     [AS_HELP_STRING([--enable-r600-llvm-compiler],
@@ -1265,6 +1275,33 @@ fi
 AM_CONDITIONAL(HAVE_GALLIUM_GBM, test "x$enable_gallium_gbm" = xyes)
 
 dnl
+dnl Nine Direct3D9 configuration
+dnl
+if test "x$enable_nine" = xyes; then
+    PKG_CHECK_MODULES([NINE], [x11-xcb xcb-dri2 >= 1.8 xcb-randr xcb-xfixes])
+    if test "x$with_gallium_drivers" = x; then
+        AC_MSG_ERROR([cannot enable nine without Gallium])
+    fi
+    dnl Test for winegcc to compile a wine .dll.so
+    AC_PATH_PROG([WINEGCC], [winegcc], [no])
+    if test "x$enable_nine_wine" = xauto -a "x$WINEGCC" != xno; then
+        enable_nine_wine=yes
+    elif test "x$enable_nine_wine$WINEGCC" = xyesno; then
+        AC_MSG_ERROR([cannot enable nine-wine without winegcc])
+    fi
+
+    GALLIUM_STATE_TRACKERS_DIRS="$GALLIUM_STATE_TRACKERS_DIRS nine"
+    GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS libd3d9-xlib"
+    if test "x$enable_nine_wine" = xyes; then
+        GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS libd3d9-wine"
+        AC_CONFIG_SUBDIRS([src/gallium/targets/libd3d9-wine/autoconf])
+    fi
+fi
+AM_CONDITIONAL(HAVE_ST_NINE, test "x$enable_nine" = xyes)
+AM_CONDITIONAL(HAVE_NINE_XLIB, test "x$enable_nine" = xyes)
+AM_CONDITIONAL(HAVE_NINE_WINE, test "x$enable_nine_wine" = xyes)
+
+dnl
 dnl XA configuration
 dnl
 if test "x$enable_xa" = xyes; then
@@ -1504,6 +1541,13 @@ AC_ARG_WITH([egl-driver-dir],
     [EGL_DRIVER_INSTALL_DIR='${libdir}/egl'])
 AC_SUBST([EGL_DRIVER_INSTALL_DIR])
 
+AC_ARG_WITH([nine-driver-dir],
+    [AS_HELP_STRING([--with-nine-driver-dir=DIR],
+                    [Directory for d3d9 drivers [[default=${libdir}/nine]]])],
+    [NINE_DRIVER_INSTALL_DIR="$withval"],
+    [NINE_DRIVER_INSTALL_DIR='${libdir}/nine'])
+AC_SUBST([NINE_DRIVER_INSTALL_DIR])
+
 AC_ARG_WITH([max-width],
     [AS_HELP_STRING([--with-max-width=N],
                     [Maximum framebuffer width (4096)])],
@@ -1689,6 +1733,9 @@ gallium_check_st() {
     if test "x$enable_vdpau" = xyes && test "x$5" != x; then
          GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS $5"
     fi
+    if test "x$enable_nine" = xyes && test "x$6" != x; then
+         GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS $6"
+    fi
 }
 
 gallium_require_llvm() {
@@ -1729,7 +1776,8 @@ radeon_llvm_check() {
 
 dnl Gallium drivers
 if test "x$enable_dri" = xyes -o "x$enable_xa" = xyes -o \
-        "x$enable_xvmc" = xyes -o "x$enable_vdpau" = xyes; then
+        "x$enable_xvmc" = xyes -o "x$enable_vdpau" = xyes -o \
+        "x$enable_nine" = xyes; then
     NEED_NONNULL_WINSYS=yes
 fi
 AM_CONDITIONAL(NEED_NONNULL_WINSYS, test "x$NEED_NONNULL_WINSYS" = xyes)
@@ -1803,7 +1851,7 @@ if test "x$with_gallium_drivers" != x; then
             PKG_CHECK_MODULES([NOUVEAU], [libdrm_nouveau >= $LIBDRM_NOUVEAU_REQUIRED])
             gallium_require_drm_loader
             GALLIUM_DRIVERS_DIRS="$GALLIUM_DRIVERS_DIRS nouveau"
-            gallium_check_st "nouveau/drm" "dri-nouveau" "" "xvmc-nouveau" "vdpau-nouveau"
+            gallium_check_st "nouveau/drm" "dri-nouveau" "" "xvmc-nouveau" "vdpau-nouveau" "nine-nouveau"
             DRICOMMON_NEED_LIBDRM=yes
             ;;
         xfreedreno)
@@ -1889,7 +1937,8 @@ AM_CONDITIONAL(HAVE_GALLIUM_LLVMPIPE, test "x$HAVE_GALLIUM_LLVMPIPE" = xyes)
 
 AM_CONDITIONAL(NEED_GALLIUM_SOFTPIPE_DRIVER, test "x$HAVE_GALLIUM_SVGA" = xyes -o \
                                                   "x$HAVE_GALLIUM_I915" = xyes -o \
-                                                  "x$HAVE_GALLIUM_SOFTPIPE" = xyes)
+                                                  "x$HAVE_GALLIUM_SOFTPIPE" = xyes -o \
+                                                  "x$enable_nine$enable_gallium_llvm" = xyesno)
 AM_CONDITIONAL(NEED_GALLIUM_LLVMPIPE_DRIVER, test "x$HAVE_GALLIUM_I915" = xyes -o \
                                                   "x$HAVE_GALLIUM_SOFTPIPE" = xyes \
                                                   && test "x$MESA_LLVM" = x1)
@@ -1923,7 +1972,8 @@ AM_CONDITIONAL(NEED_RADEON_DRM_WINSYS, test "x$NEED_NONNULL_WINSYS" = xyes -a \
                                             "x$HAVE_GALLIUM_R600" = xyes -o \
                                             "x$HAVE_GALLIUM_RADEONSI" = xyes)
 AM_CONDITIONAL(NEED_WINSYS_WRAPPER, test "x$HAVE_GALLIUM_I915" = xyes -o \
-                                         "x$HAVE_GALLIUM_SVGA" = xyes)
+                                         "x$HAVE_GALLIUM_SVGA" = xyes -o \
+                                         "x$enable_nine" = xyes)
 AM_CONDITIONAL(NEED_WINSYS_XLIB, test "x$NEED_WINSYS_XLIB" = xyes)
 AM_CONDITIONAL(NEED_RADEON_LLVM, test x$NEED_RADEON_LLVM = xyes)
 AM_CONDITIONAL(USE_R600_LLVM_COMPILER, test x$USE_R600_LLVM_COMPILER = xyes)
@@ -2008,6 +2058,7 @@ AC_CONFIG_FILES([Makefile
 		src/gallium/state_trackers/egl/Makefile
 		src/gallium/state_trackers/gbm/Makefile
 		src/gallium/state_trackers/glx/xlib/Makefile
+		src/gallium/state_trackers/nine/Makefile
 		src/gallium/state_trackers/osmesa/Makefile
 		src/gallium/state_trackers/vdpau/Makefile
 		src/gallium/state_trackers/vega/Makefile
@@ -2032,7 +2083,17 @@ AC_CONFIG_FILES([Makefile
 		src/gallium/targets/r600/dri/Makefile
 		src/gallium/targets/r600/vdpau/Makefile
 		src/gallium/targets/r600/xvmc/Makefile
+		src/gallium/targets/libd3d9-wine/Makefile
+		src/gallium/targets/libd3d9-xlib/Makefile
 		src/gallium/targets/libgl-xlib/Makefile
+		src/gallium/targets/nine-freedreno/Makefile
+		src/gallium/targets/nine-i915/Makefile
+		src/gallium/targets/nine-ilo/Makefile
+		src/gallium/targets/nine-nouveau/Makefile
+		src/gallium/targets/nine-r300/Makefile
+		src/gallium/targets/nine-r600/Makefile
+		src/gallium/targets/nine-radeonsi/Makefile
+		src/gallium/targets/nine-vmwgfx/Makefile
 		src/gallium/targets/vdpau-nouveau/Makefile
 		src/gallium/targets/xa-vmwgfx/Makefile
 		src/gallium/targets/xa-vmwgfx/xatracker.pc

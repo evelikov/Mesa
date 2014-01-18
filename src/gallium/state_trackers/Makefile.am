@@ -60,3 +60,7 @@ endif
 if HAVE_CLOVER
 SUBDIRS += clover
 endif
+
+if HAVE_ST_NINE
+SUBDIRS += nine
+endif
