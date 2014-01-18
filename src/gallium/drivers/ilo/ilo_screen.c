@@ -433,6 +433,7 @@ ilo_get_param(struct pipe_screen *screen, enum pipe_cap param)
    case PIPE_CAP_MIXED_FRAMEBUFFER_SIZES:
       return true;
    case PIPE_CAP_TGSI_VS_LAYER:
+   case PIPE_CAP_RASTERIZER_LOWER_LEFT_ORIGIN:
       return 0;
 
    default:

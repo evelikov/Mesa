@@ -44,6 +44,7 @@ struct nvc0_program {
    } vp;
    struct {
       uint8_t early_z;
+      uint8_t frag_coord_mode; /* 0x1: integer, 0x2: upper left */
       uint8_t in_pos[PIPE_MAX_SHADER_INPUTS];
    } fp;
    struct {

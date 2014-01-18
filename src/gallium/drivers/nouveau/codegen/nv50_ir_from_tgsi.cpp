@@ -757,6 +757,7 @@ bool Source::scanSource()
    if (info->type == PIPE_SHADER_FRAGMENT) {
       info->prop.fp.writesDepth = scan.writes_z;
       info->prop.fp.usesDiscard = scan.uses_kill;
+      info->prop.fp.fragCoordMode = 0x2; // default value
    } else
    if (info->type == PIPE_SHADER_GEOMETRY) {
       info->prop.gp.instanceCount = 1; // default value
@@ -831,8 +832,16 @@ void Source::scanProperty(const struct tgsi_full_property *prop)
       info->prop.fp.separateFragData = TRUE;
       break;
    case TGSI_PROPERTY_FS_COORD_ORIGIN:
+      if (prop->u[0].Data == TGSI_FS_COORD_ORIGIN_UPPER_LEFT)
+         info->prop.fp.fragCoordMode |=  (1 << 1);
+      else
+         info->prop.fp.fragCoordMode &= ~(1 << 1);
+      break;
    case TGSI_PROPERTY_FS_COORD_PIXEL_CENTER:
-      // we don't care
+      if (prop->u[0].Data == TGSI_FS_COORD_PIXEL_CENTER_INTEGER)
+         info->prop.fp.fragCoordMode |=  (1 << 0);
+      else
+         info->prop.fp.fragCoordMode &= ~(1 << 0);
       break;
    case TGSI_PROPERTY_VS_PROHIBIT_UCPS:
       info->io.genUserClip = -1;
@@ -1422,6 +1431,9 @@ Converter::fetchSrc(tgsi::Instruction::SrcRegister src, int c, Value *ptr)
             return loadImm(NULL, swz == TGSI_SWIZZLE_W ? 1.0f : 0.0f);
 	 if (!ptr && info->in[idx].sn == TGSI_SEMANTIC_FACE)
             return mkOp1v(OP_RDSV, TYPE_F32, getSSA(), mkSysVal(SV_FACE, 0));
+         if (!ptr && info->in[idx].sn == TGSI_SEMANTIC_POSITION)
+            return mkOp1v(OP_RDSV, TYPE_F32, getSSA(), mkSysVal(SV_POSITION,
+                                                                swz));
          return interpolate(src, c, ptr);
       }
       return mkLoadv(TYPE_U32, srcToSym(src, c), ptr);
@@ -2668,7 +2680,7 @@ Converter::handleUserClipPlanes()
 
    for (c = 0; c < 4; ++c) {
       for (i = 0; i < info->io.genUserClip; ++i) {
-         Symbol *sym = mkSymbol(FILE_MEMORY_CONST, info->io.ucpCBSlot,
+         Symbol *sym = mkSymbol(FILE_MEMORY_CONST, info->io.auxCBSlot,
                                 TYPE_F32, info->io.ucpBase + i * 16 + c * 4);
          Value *ucp = mkLoadv(TYPE_F32, sym, NULL);
          if (c == 0)

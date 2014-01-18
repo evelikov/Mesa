@@ -178,6 +178,8 @@ The integer capabilities:
   ARB_framebuffer_object is provided.
 * ``PIPE_CAP_TGSI_VS_LAYER``: Whether TGSI_SEMANTIC_LAYER is supported
   as a vertex shader output.
+* ``PIPE_CAP_RASTERIZER_LOWER_LEFT_ORIGIN``: Indicates whether the setting of
+  lower_left_origin in pipe_rasterizer_state is supported.
 
 
 .. _pipe_capf:

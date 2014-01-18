@@ -76,7 +76,7 @@ update_scissor( struct st_context *st )
    /* Now invert Y if needed.
     * Gallium drivers use the convention Y=0=top for surfaces.
     */
-   if (st_fb_orientation(fb) == Y_0_TOP) {
+   if (!st->use_rast_y_flip && st_fb_orientation(fb) == Y_0_TOP) {
       miny = fb->Height - scissor.maxy;
       maxy = fb->Height - scissor.miny;
       scissor.miny = miny;

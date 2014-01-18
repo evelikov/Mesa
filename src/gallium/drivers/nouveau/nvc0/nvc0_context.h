@@ -116,6 +116,7 @@ struct nvc0_context {
    uint32_t dirty_cp; /* dirty flags for compute state */
 
    struct {
+      uint8_t rasterizer_api; /* rasterizer OGL/D3D bits */
       boolean flushed;
       boolean rasterizer_discard;
       boolean early_z_forced;
@@ -179,7 +180,9 @@ struct nvc0_context {
    struct pipe_poly_stipple stipple;
    struct pipe_scissor_state scissor;
    struct pipe_viewport_state viewport;
+   uint32_t vport_int[2]; /* derived VIEWPORT_HORIZ,VERT */
    struct pipe_clip_state clip;
+
 
    unsigned sample_mask;
 

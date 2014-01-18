@@ -158,6 +158,7 @@ struct nv50_ir_prog_info
          boolean earlyFragTests;
          boolean separateFragData;
          boolean usesDiscard;
+         uint8_t fragCoordMode; /* 0x1: integer, 0x2: upper left */
       } fp;
       struct {
          uint32_t inputOffset; /* base address for user args */
@@ -169,12 +170,15 @@ struct nv50_ir_prog_info
    uint8_t numBarriers;
 
    struct {
+      uint8_t globalAccess;      /* 1 for read, 2 for wr, 3 for rw */
       uint8_t clipDistance;      /* index of first clip distance output */
       uint8_t clipDistanceMask;  /* mask of clip distances defined */
       uint8_t cullDistanceMask;  /* clip distance mode (1 bit per output) */
       int8_t genUserClip;        /* request user clip planes for ClipVertex */
+      uint8_t auxCBSlot;         /* constant buffer index of aux data */
       uint16_t ucpBase;          /* base address for UCPs */
-      uint8_t ucpCBSlot;         /* constant buffer index of UCP data */
+      uint16_t fCoordAdjBase;    /* base address for FragCoord adjustment */
+      uint16_t msInfoBase;       /* base address for multisample info */
       uint8_t pointSize;         /* output index for PointSize */
       uint8_t instanceId;        /* system value index of InstanceID */
       uint8_t vertexId;          /* system value index of VertexID */
@@ -183,13 +187,10 @@ struct nv50_ir_prog_info
       uint8_t fragDepth;         /* output index of FragDepth */
       uint8_t sampleMask;        /* output index of SampleMask */
       uint8_t backFaceColor[2];  /* input/output indices of back face colour */
-      uint8_t globalAccess;      /* 1 for read, 2 for wr, 3 for rw */
       boolean nv50styleSurfaces; /* generate gX[] access for raw buffers */
       uint8_t resInfoCBSlot;     /* cX[] used for tex handles, surface info */
       uint16_t texBindBase;      /* base address for tex handles (nve4) */
       uint16_t suInfoBase;       /* base address for surface info (nve4) */
-      uint8_t msInfoCBSlot;      /* cX[] used for multisample info */
-      uint16_t msInfoBase;       /* base address for multisample info */
    } io;
 
    /* driver callback to assign input/output locations */
