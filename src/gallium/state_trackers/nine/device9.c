@@ -251,7 +251,7 @@ NineDevice9_TestCooperativeLevel( struct NineDevice9 *This )
 UINT WINAPI
 NineDevice9_GetAvailableTextureMem( struct NineDevice9 *This )
 {
-    STUB(0);
+    return This->screen->get_param(This->screen, PIPE_CAP_DEVICE_MEMORY_SIZE);
 }
 
 HRESULT WINAPI
