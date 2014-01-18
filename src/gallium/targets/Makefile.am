@@ -135,11 +135,3 @@ endif
 if HAVE_ST_NINE
 SUBDIRS += d3dadapter9
 endif
-
-#if HAVE_NINE_XLIB
-#SUBDIRS += libd3d9-xlib
-#endif
-
-if HAVE_NINE_WINE
-SUBDIRS += libd3d9-wine
-endif

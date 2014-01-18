@@ -626,11 +626,6 @@ AC_ARG_ENABLE([gallium-gbm],
          @<:@default=auto@:>@])],
     [enable_gallium_gbm="$enableval"],
     [enable_gallium_gbm=auto])
-AC_ARG_ENABLE([nine_wine],
-    [AS_HELP_STRING([--enable-nine-wine],
-        [enable optional Direct3D9 wine integration library @<:@default=auto@:>@])],
-    [enable_nine_wine="$enableval"],
-    [enable_nine_wine=auto])
 
 AC_ARG_ENABLE([r600-llvm-compiler],
     [AS_HELP_STRING([--enable-r600-llvm-compiler],
@@ -1279,31 +1274,17 @@ dnl
 dnl Nine Direct3D9 configuration
 dnl
 if test "x$enable_nine" = xyes; then
-    PKG_CHECK_MODULES([WINED3D9], [x11 xfixes xext dri2proto])
     if test "x$with_gallium_drivers" = x; then
         AC_MSG_ERROR([cannot enable nine without Gallium])
     fi
-    dnl Test for winegcc to compile a wine .dll.so
-    AC_PATH_PROG([WINEGCC], [winegcc], [no])
-    if test "x$enable_nine_wine" = xauto -a "x$WINEGCC" != xno; then
-        enable_nine_wine=yes
-    elif test "x$enable_nine_wine$WINEGCC" = xyesno; then
-        AC_MSG_ERROR([cannot enable nine-wine without winegcc])
-    fi
 
     GALLIUM_STATE_TRACKERS_DIRS="$GALLIUM_STATE_TRACKERS_DIRS nine"
-    GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS d3dadapter9 libd3d9-xlib"
-    if test "x$enable_nine_wine" = xyes; then
-        GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS libd3d9-wine"
-        AC_CONFIG_SUBDIRS([src/gallium/targets/libd3d9-wine/autoconf])
-    fi
+    GALLIUM_TARGET_DIRS="$GALLIUM_TARGET_DIRS d3dadapter9"
 
     dnl d3dadapter9 requires pipe-loader
     enable_gallium_loader=yes
 fi
 AM_CONDITIONAL(HAVE_ST_NINE, test "x$enable_nine" = xyes)
-AM_CONDITIONAL(HAVE_NINE_XLIB, test "x$enable_nine" = xyes)
-AM_CONDITIONAL(HAVE_NINE_WINE, test "x$enable_nine_wine" = xyes)
 
 dnl
 dnl XA configuration
@@ -2088,8 +2069,6 @@ AC_CONFIG_FILES([Makefile
 		src/gallium/targets/r600/dri/Makefile
 		src/gallium/targets/r600/vdpau/Makefile
 		src/gallium/targets/r600/xvmc/Makefile
-		src/gallium/targets/libd3d9-wine/Makefile
-		src/gallium/targets/libd3d9-xlib/Makefile
 		src/gallium/targets/libgl-xlib/Makefile
 		src/gallium/targets/vdpau-nouveau/Makefile
 		src/gallium/targets/xa-vmwgfx/Makefile
