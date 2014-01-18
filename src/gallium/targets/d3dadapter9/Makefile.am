@@ -29,7 +29,7 @@ AM_CFLAGS = \
 	-I$(top_srcdir)/src/gallium/winsys \
 	-I$(top_srcdir)/src/gallium/state_trackers/nine \
 	-I$(top_srcdir)/include/D3D9 \
-	-DD3DADAPTER9_DEFAULT_SEARCH_PATH=\"$(NINE_DRIVER_INSTALL_DIR)\" \
+	-DPIPE_SEARCH_DIR=\"$(GALLIUM_PIPE_LOADER_DIR)\" \
 	$(GALLIUM_PIPE_LOADER_DEFINES)
 
 lib_LTLIBRARIES = libd3dadapter9.la

@@ -312,7 +312,7 @@ drm_create_adapter( int fd,
     const char *paths[] = {
         getenv("D3D9_DRIVERS_PATH"),
         getenv("D3D9_DRIVERS_DIR"),
-        D3DADAPTER9_DEFAULT_SEARCH_PATH
+        PIPE_SEARCH_DIR
     };
     
     if (!ctx) { return E_OUTOFMEMORY; }
