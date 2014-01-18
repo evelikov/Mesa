@@ -23,12 +23,12 @@
 #ifndef _NINE_DEVICE9_H_
 #define _NINE_DEVICE9_H_
 
-#include "nine_helpers.h"
+#include "d3dadapter9/d3dadapter9.h"
 
 #include "iunknown.h"
-#include "d3dpresent.h"
 #include "adapter9.h"
 
+#include "nine_helpers.h"
 #include "nine_state.h"
 
 struct gen_mipmap_state;
@@ -60,7 +60,7 @@ struct NineDevice9
     IDirect3D9 *d3d9;
 
     /* swapchain stuff */
-    ID3DPresentFactory *present;
+    ID3DPresentGroup *present;
     struct NineSwapChain9 **swapchains;
     unsigned nswapchains;
 
@@ -131,8 +131,8 @@ NineDevice9_new( struct pipe_screen *pScreen,
                  D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
                  D3DCAPS9 *pCaps,
                  IDirect3D9 *pD3D9,
-                 ID3DPresentFactory *pPresentationFactory,
-                 PPRESENT_TO_RESOURCE pPTR,
+                 ID3DPresentGroup *pPresentationGroup,
+                 struct d3dadapter9_context *pCTX,
                  struct NineDevice9 **ppOut );
 
 HRESULT
@@ -142,8 +142,8 @@ NineDevice9_ctor( struct NineDevice9 *This,
                   D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
                   D3DCAPS9 *pCaps,
                   IDirect3D9 *pD3D9,
-                  ID3DPresentFactory *pPresentationFactory,
-                  PPRESENT_TO_RESOURCE pPTR );
+                  ID3DPresentGroup *pPresentationGroup,
+                  struct d3dadapter9_context *pCTX );
 
 void
 NineDevice9_dtor( struct NineDevice9 *This );

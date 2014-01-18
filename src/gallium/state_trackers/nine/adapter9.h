@@ -25,30 +25,44 @@
 
 #include "iunknown.h"
 
-#include "d3dadapter9.h"
+#include "d3dadapter9/d3dadapter9.h"
 
 struct pipe_screen;
 struct pipe_resource;
 
-typedef HRESULT (*PPRESENT_TO_RESOURCE)( ID3DPresent *pPresent,
-                                         HWND hWndOverride,
-                                         RECT *pRect,
-                                         RGNDATA **ppRegion,
-                                         struct pipe_screen *pScreen,
-                                         struct pipe_resource **ppResource );
+struct d3dadapter9_context
+{
+    struct pipe_screen *hal, *ref;
+    D3DADAPTER_IDENTIFIER9 identifier;
+
+    /**
+     * Get a gallium resource from an ID3DPresent COM interface
+     * \param screen   the screen to wrap on (->hal and ->ref only)
+     * \param present  presentation interface to query
+     * \param ovr      hWndOverride from IDirect3DSwapChain9::Present
+     * \param rect     pDestRect in, final rect to render to out
+     * \param rgn      region to render to (takes precedence over rect)
+     * \param res_out  returned struct pipe_resource
+     * \return D3D_OK if success, D3DOK_WINDOW_OCCLUDED if nothing needs to be
+     *  rendered; D3DERR_* otherwise.
+     */
+    HRESULT (*resource_from_present)( struct d3dadapter9_context *ctx,
+                                      struct pipe_screen *screen,
+                                      ID3DPresent *present,
+                                      HWND ovr,
+                                      const RECT *dest,
+                                      RECT *rect,
+                                      RGNDATA **rgn,
+                                      struct pipe_resource **res_out );
+
+    void (*destroy)( struct d3dadapter9_context *ctx );
+};
 
 struct NineAdapter9
 {
     struct NineUnknown base;
-
-    struct pipe_screen *hal;
-    struct pipe_screen *ref;
-    PPRESENT_TO_RESOURCE ptrfunc;
-
-    D3DADAPTER_IDENTIFIER9 identifier;
-
-    void *closure;
-    void (*dtor)(void *);
+    
+    struct d3dadapter9_context *ctx;
 };
 static INLINE struct NineAdapter9 *
 NineAdapter9( void *data )
@@ -57,23 +71,13 @@ NineAdapter9( void *data )
 }
 
 HRESULT
-NineAdapter9_new( struct pipe_screen *pScreenHAL,
-                  struct pipe_screen *pScreenREF,
-                  D3DADAPTER_IDENTIFIER9 *pIdentifier,
-                  PPRESENT_TO_RESOURCE pPTR,
-                  void *pClosure,
-                  void (*pDestructor)(void *),
+NineAdapter9_new( struct d3dadapter9_context *pCTX,
                   struct NineAdapter9 **ppOut );
 
 HRESULT
 NineAdapter9_ctor( struct NineAdapter9 *This,
                    struct NineUnknownParams *pParams,
-                   struct pipe_screen *pScreenHAL,
-                   struct pipe_screen *pScreenREF,
-                   D3DADAPTER_IDENTIFIER9 *pIdentifier,
-                   PPRESENT_TO_RESOURCE pPTR,
-                   void *pClosure,
-                   void (*pDestructor)(void *) );
+                   struct d3dadapter9_context *pCTX );
 
 void
 NineAdapter9_dtor( struct NineAdapter9 *This );
@@ -131,7 +135,7 @@ NineAdapter9_CreateDevice( struct NineAdapter9 *This,
                            HWND hFocusWindow,
                            DWORD BehaviorFlags,
                            IDirect3D9 *pD3D9,
-                           ID3DPresentFactory *pPresentationFactory,
+                           ID3DPresentGroup *pPresentationGroup,
                            IDirect3DDevice9 **ppReturnedDeviceInterface );
 
 HRESULT WINAPI
@@ -141,7 +145,7 @@ NineAdapter9_CreateDeviceEx( struct NineAdapter9 *This,
                              HWND hFocusWindow,
                              DWORD BehaviorFlags,
                              IDirect3D9Ex *pD3D9Ex,
-                             ID3DPresentFactory *pPresentationFactory,
+                             ID3DPresentGroup *pPresentationGroup,
                              IDirect3DDevice9Ex **ppReturnedDeviceInterface );
 
 #endif /* _NINE_ADAPTER9_H_ */

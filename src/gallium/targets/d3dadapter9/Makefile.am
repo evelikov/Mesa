@@ -23,47 +23,41 @@
 include $(top_srcdir)/src/gallium/Automake.inc
 
 AM_CFLAGS = \
+	$(NINE_CFLAGS) \
 	$(GALLIUM_CFLAGS) \
-	$(PTHREAD_CFLAGS) \
-	$(LIBDRM_CFLAGS)
-AM_CPPFLAGS = \
-	-I$(top_srcdir)/src/gallium/drivers \
+	$(VISIBILITY_CFLAGS) \
 	-I$(top_srcdir)/src/gallium/winsys \
-	-DGALLIUM_RBUG \
-	-DGALLIUM_TRACE \
-	-DGALLIUM_NOOP
+	-I$(top_srcdir)/src/gallium/state_trackers/nine \
+	-I$(top_srcdir)/include/D3D9 \
+	-DD3DADAPTER9_DEFAULT_SEARCH_PATH=\"$(NINE_DRIVER_INSTALL_DIR)\" \
+	$(GALLIUM_PIPE_LOADER_DEFINES)
 
-ninedir = $(NINE_DRIVER_INSTALL_DIR)
-nine_LTLIBRARIES = kgsl_nine.la
+lib_LTLIBRARIES = libd3dadapter9.la
 
-nodist_EXTRA_kgsl_nine_la_SOURCES = dummy.cpp
-kgsl_nine_la_SOURCES = target.c
-
-kgsl_nine_la_LDFLAGS = -module -avoid-version -shared -no-undefined -fvisibility=hidden
-
-kgsl_nine_la_LIBADD = \
+libd3dadapter9_la_SOURCES = getproc.c
+libd3dadapter9_la_LDFLAGS = -no-undefined -shared
+libd3dadapter9_la_LIBADD = \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader.la \
 	$(top_builddir)/src/gallium/state_trackers/nine/libninetracker.la \
-	$(top_builddir)/src/gallium/winsys/freedreno/drm/libfreedrenodrm.la \
 	$(top_builddir)/src/gallium/winsys/sw/wrapper/libwsw.la \
-	$(top_builddir)/src/gallium/drivers/freedreno/libfreedreno.la \
-	$(top_builddir)/src/gallium/drivers/trace/libtrace.la \
-	$(top_builddir)/src/gallium/drivers/rbug/librbug.la \
-	$(top_builddir)/src/gallium/drivers/noop/libnoop.la \
-	$(FREEDRENO_LIBS)
+	$(top_builddir)/src/gallium/winsys/sw/null/libws_null.la \
+	$(GALLIUM_PIPE_LOADER_LIBS) \
+	$(LIBUDEV_LIBS) \
+	$(NINE_LIBS)
 
 if HAVE_MESA_LLVM
-AM_CFLAGS += -DGALLIUM_LLVMPIPE
-kgsl_nine_la_LDFLAGS += $(LLVM_LDFLAGS)
-kgsl_nine_la_LIBADD += $(LLVM_LIBS)
-kgsl_nine_la_LIBADD += $(top_builddir)/src/gallium/drivers/llvmpipe/libllvmpipe.la
-else
-AM_CFLAGS += -DGALLIUM_SOFTPIPE
-kgsl_nine_la_LIBADD += $(top_builddir)/src/gallium/drivers/softpipe/libsoftpipe.la
+libd3dadapter9_la_SOURCES += dummy.cpp
+libd3dadapter9_la_LDFLAGS += $(LLVM_LDFLAGS)
+libd3dadapter9_la_LIBADD += $(LLVM_LIBS)
+endif
+
+if HAVE_DRM_LOADER_GALLIUM
+libd3dadapter9_la_SOURCES += drm.c
 endif
 
 # Provide compatibility with scripts for the old Mesa build system for
 # a while by putting a link to the driver into /lib of the build tree.
-all-local: kgsl_nine.la
+all-local: libd3dadapter9.la
 	$(MKDIR_P) $(top_builddir)/$(LIB_DIR)/gallium
-	ln -f .libs/kgsl_nine.so $(top_builddir)/$(LIB_DIR)/gallium/kgsl_nine.so
+	ln -f .libs/libd3dadapter9.so* $(top_builddir)/$(LIB_DIR)/gallium/

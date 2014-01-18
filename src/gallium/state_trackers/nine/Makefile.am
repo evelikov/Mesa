@@ -2,15 +2,12 @@ include $(top_srcdir)/src/gallium/Automake.inc
 
 AM_CFLAGS = \
 	$(GALLIUM_CFLAGS) \
-	-I$(top_srcdir)/include/D3D \
+	$(VISIBILITY_CFLAGS) \
 	-I$(top_srcdir)/include/D3D9
 
 noinst_LTLIBRARIES = libninetracker.la
 
-ADAPTER = adapter/drm.c
-
 libninetracker_la_SOURCES = \
-    $(ADAPTER) \
     adapter9.c \
     authenticatedchannel9.c \
     basetexture9.c \

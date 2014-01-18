@@ -26,6 +26,8 @@
 #include "../guid.h"
 #include "present.h"
 
+#include <wine/server.h>
+
 #undef _WIN32
 #include <X11/Xlib.h>
 #include <X11/Xlib-xcb.h>
@@ -34,7 +36,7 @@
 #include <xcb/xfixes.h>
 #define _WIN32
 
-#include <d3ddrm.h>
+#include <d3dadapter9/drm.h>
 
 struct NineWinePresentX11
 {
@@ -205,10 +207,58 @@ NineWinePresentX11_GetPresentParameters( struct NineWinePresentX11 *This,
     return D3D_OK;
 }
 
+static INLINE boolean
+get_winex11_hwnd_offset( HWND real,
+                         HWND anc,
+                         RECT *rect )
+{
+    int x = 0, y = 0;
+
+    /* get size of the HWND we want to draw to */
+    if (!GetClientRect(real, rect)) {
+        _ERROR("Unable to get window size.\n");
+        return FALSE;
+    }
+
+    /* Get the offset caused by non-client area into the real X drawable */
+    SERVER_START_REQ(get_window_rectangles)
+    {
+        req->handle = wine_server_user_handle(anc);
+        req->relative = COORDS_CLIENT;
+        wine_server_call(req);
+
+        x += reply->visible.left;
+        y += reply->visible.top;
+    }
+    SERVER_END_REQ;
+
+    /* Get the offset caused by client area into the real X drawable */
+    if (anc != real) {
+        POINT off = {0, 0};
+        if (!MapWindowPoints(anc, real, &off, 1)) {
+            _ERROR("Unable to get coordinates for fake subwindow.\n");
+            return FALSE;
+        }
+        x += off.x;
+        y += off.y;
+    }
+
+    _MESSAGE("Adjusting RECT (%u..%u)x(%u..%u) to winex11 system (%+d,%+d)\n",
+             rect->left, rect->right, rect->top, rect->bottom, -x, -y);
+
+    rect->left -= x;
+    rect->top -= y;
+    rect->right -= x;
+    rect->bottom -= y;
+
+    return TRUE;
+}
+
 static HRESULT WINAPI
 NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
                               HWND hWndOverride,
                               void *pBuffer,
+                              const RECT *pDestRect,
                               RECT *pRect,
                               RGNDATA **ppRegion )
 {
@@ -220,6 +270,7 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
     xcb_rectangle_t xrect;
     D3DDRM_BUFFER *drmbuf = pBuffer;
     HWND ancestor;
+    RECT dest;
     static const uint32_t attachments[] = {
         XCB_DRI2_ATTACHMENT_BUFFER_BACK_LEFT
     };
@@ -277,33 +328,12 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
         }*/
         *ppRegion = NULL;
     }
-    if (This->current_window.ancestor != This->current_window.real) {
-        HDC hdcAnc, hdcWnd;
-        POINT ptAnc, ptWnd;
-        RECT rectWnd;
-        BOOL ok;
-
-        hdcAnc = GetDC(This->current_window.ancestor);
-        hdcWnd = GetDC(This->current_window.real);
-        ok = GetDCOrgEx(hdcAnc, &ptAnc);
-        ok = ok && GetDCOrgEx(hdcWnd, &ptWnd);
-        ok = ok && GetClientRect(This->current_window.real, &rectWnd);
-        ReleaseDC(This->current_window.ancestor, hdcAnc);
-        ReleaseDC(This->current_window.real, hdcWnd);
-        if (!ok) {
-            _ERROR("Unable to get fake subwindow coordinates.\n");
-            return D3DERR_DRIVERINTERNALERROR;
-        }
-        pRect->left = ptWnd.x - ptAnc.x;
-        pRect->top = ptWnd.y - ptAnc.y;
-        pRect->right = pRect->left + rectWnd.right;
-        pRect->bottom = pRect->top + rectWnd.bottom;
-    } else {
-        if (!GetClientRect(This->current_window.real, pRect)) {
-            _ERROR("Unable to get window size.\n");
-            return D3DERR_DRIVERINTERNALERROR;
-        }
+    if (!get_winex11_hwnd_offset(This->current_window.real,
+                                 This->current_window.ancestor, pRect)) {
+        return D3DERR_DRIVERINTERNALERROR;
     }
+    _MESSAGE("pRect=(%u..%u)x(%u..%u)\n",
+             pRect->left, pRect->right, pRect->top, pRect->bottom);
 
     /* XXX base this on events instead of calling every single frame */
     cookie = xcb_dri2_get_buffers(This->c, This->current_window.drawable,
@@ -328,10 +358,25 @@ NineWinePresentX11_GetBuffer( struct NineWinePresentX11 *This,
         xcb_xfixes_destroy_region(This->c, This->region);
         This->region = 0;
     }
-    xrect.x = pRect->left;
-    xrect.y = pRect->top;
-    xrect.width = pRect->right-pRect->left;
-    xrect.height = pRect->bottom-pRect->top;
+
+    /* set a destrect covering the entire window if none given */
+    if (!pDestRect) {
+        dest.left = 0;
+        dest.top = 0;
+        dest.right = pRect->right-pRect->left;
+        dest.bottom = pRect->top-pRect->bottom;
+        pDestRect = &dest;
+    }
+    _MESSAGE("pDestRect=(%u..%u)x(%u..%u)\n", pDestRect->left,
+             pDestRect->right, pDestRect->top, pDestRect->bottom);
+
+    xrect.x = pRect->left+pDestRect->left;
+    xrect.y = pRect->top+pDestRect->top;
+    xrect.width = pDestRect->right-pDestRect->left;
+    xrect.height = pDestRect->bottom-pDestRect->top;
+    _MESSAGE("XFixes rect (x=%u, y=%u, w=%u, h=%u)\n",
+             xrect.x, xrect.y, xrect.width, xrect.height);
+
     This->region = xcb_generate_id(This->c);
     This->region_cookie =
         xcb_xfixes_create_region_checked(This->c, This->region, 1, &xrect);
@@ -588,7 +633,7 @@ NineWinePresentX11_new( xcb_connection_t *c,
     return D3D_OK;
 }
 
-struct NineWinePresentFactoryX11
+struct NineWinePresentGroupX11
 {
     /* COM vtable */
     void *vtable;
@@ -604,13 +649,13 @@ struct NineWinePresentFactoryX11
 };
 
 static HRESULT WINAPI
-NineWinePresentFactoryX11_QueryInterface( struct NineWinePresentFactoryX11 *This,
-                                          REFIID riid,
-                                          void **ppvObject )
+NineWinePresentGroupX11_QueryInterface( struct NineWinePresentGroupX11 *This,
+                                        REFIID riid,
+                                        void **ppvObject )
 {
     _MESSAGE("%s\n", __FUNCTION__);
     if (!ppvObject) { return E_POINTER; }
-    if (GUID_equal(&IID_ID3DPresentFactory, riid) ||
+    if (GUID_equal(&IID_ID3DPresentGroup, riid) ||
         GUID_equal(&IID_IUnknown, riid)) {
         *ppvObject = This;
         return S_OK;
@@ -621,14 +666,14 @@ NineWinePresentFactoryX11_QueryInterface( struct NineWinePresentFactoryX11 *This
 }
 
 static ULONG WINAPI
-NineWinePresentFactoryX11_AddRef( struct NineWinePresentFactoryX11 *This )
+NineWinePresentGroupX11_AddRef( struct NineWinePresentGroupX11 *This )
 {
     _MESSAGE("%s(%p): %li+=1\n", __FUNCTION__, This, This->refs);
     return ++This->refs;
 }
 
 static ULONG WINAPI
-NineWinePresentFactoryX11_Release( struct NineWinePresentFactoryX11 *This )
+NineWinePresentGroupX11_Release( struct NineWinePresentGroupX11 *This )
 {
     _MESSAGE("%s(%p): %li-=1\n", __FUNCTION__, This, This->refs);
     if (--This->refs == 0) {
@@ -646,20 +691,20 @@ NineWinePresentFactoryX11_Release( struct NineWinePresentFactoryX11 *This )
 }
 
 static UINT WINAPI
-NineWinePresentFactoryX11_GetMultiheadCount( struct NineWinePresentFactoryX11 *This )
+NineWinePresentGroupX11_GetMultiheadCount( struct NineWinePresentGroupX11 *This )
 {
     _MESSAGE("%s\n", __FUNCTION__);
     return 1;
 }
 
 static HRESULT WINAPI
-NineWinePresentFactoryX11_GetPresent( struct NineWinePresentFactoryX11 *This,
-                                   UINT Index,
-                                   ID3DPresent **ppPresent )
+NineWinePresentGroupX11_GetPresent( struct NineWinePresentGroupX11 *This,
+                                    UINT Index,
+                                    ID3DPresent **ppPresent )
 {
     _MESSAGE("%s(This=%p Index=%u ppPresent=%p)\n", __FUNCTION__, This, Index, ppPresent);
 
-    if (Index >= NineWinePresentFactoryX11_GetMultiheadCount(This)) {
+    if (Index >= NineWinePresentGroupX11_GetMultiheadCount(This)) {
         _ERROR("Index >= MultiHeadCount\n");
         return D3DERR_INVALIDCALL;
     }
@@ -671,34 +716,34 @@ NineWinePresentFactoryX11_GetPresent( struct NineWinePresentFactoryX11 *This,
 }
 
 static HRESULT WINAPI
-NineWinePresentFactoryX11_CreateAdditionalPresent( struct NineWinePresentFactoryX11 *This,
-                                                   D3DPRESENT_PARAMETERS *pPresentationParameters,
-                                                   ID3DPresent **ppPresent )
+NineWinePresentGroupX11_CreateAdditionalPresent( struct NineWinePresentGroupX11 *This,
+                                                 D3DPRESENT_PARAMETERS *pPresentationParameters,
+                                                 ID3DPresent **ppPresent )
 {
     STUB(D3DERR_INVALIDCALL);
 }
 
-static ID3DPresentFactoryVtbl NineWinePresentFactoryX11_vtable = {
-    (void *)NineWinePresentFactoryX11_QueryInterface,
-    (void *)NineWinePresentFactoryX11_AddRef,
-    (void *)NineWinePresentFactoryX11_Release,
-    (void *)NineWinePresentFactoryX11_GetMultiheadCount,
-    (void *)NineWinePresentFactoryX11_GetPresent,
-    (void *)NineWinePresentFactoryX11_CreateAdditionalPresent
+static ID3DPresentGroupVtbl NineWinePresentGroupX11_vtable = {
+    (void *)NineWinePresentGroupX11_QueryInterface,
+    (void *)NineWinePresentGroupX11_AddRef,
+    (void *)NineWinePresentGroupX11_Release,
+    (void *)NineWinePresentGroupX11_GetMultiheadCount,
+    (void *)NineWinePresentGroupX11_GetPresent,
+    (void *)NineWinePresentGroupX11_CreateAdditionalPresent
 };
 
 HRESULT
-NineWinePresentFactoryX11_new( xcb_connection_t *c,
-                               HWND focus_wnd,
-                               D3DPRESENT_PARAMETERS *params,
-                               unsigned nparams,
-                               unsigned dri2_major,
-                               unsigned dri2_minor,
-                               ID3DPresentFactory **out )
+NineWinePresentGroupX11_new( xcb_connection_t *c,
+                             HWND focus_wnd,
+                             D3DPRESENT_PARAMETERS *params,
+                             unsigned nparams,
+                             unsigned dri2_major,
+                             unsigned dri2_minor,
+                             ID3DPresentGroup **out )
 {
-    struct NineWinePresentFactoryX11 *This =
+    struct NineWinePresentGroupX11 *This =
         HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
-                  sizeof(struct NineWinePresentFactoryX11));
+                  sizeof(struct NineWinePresentGroupX11));
     HRESULT hr;
     unsigned i;
 
@@ -706,7 +751,7 @@ NineWinePresentFactoryX11_new( xcb_connection_t *c,
 
     if (!This) { OOM(); }
 
-    This->vtable = &NineWinePresentFactoryX11_vtable;
+    This->vtable = &NineWinePresentGroupX11_vtable;
     This->refs = 1;
     This->c = c;
     This->dri2_minor = dri2_minor;
@@ -715,7 +760,7 @@ NineWinePresentFactoryX11_new( xcb_connection_t *c,
                                        This->npresent_backends *
                                        sizeof(struct NineWinePresentX11 *));
     if (!This->present_backends) {
-        NineWinePresentFactoryX11_Release(This);
+        NineWinePresentGroupX11_Release(This);
         OOM();
     }
 
@@ -724,12 +769,12 @@ NineWinePresentFactoryX11_new( xcb_connection_t *c,
                                     dri2_minor, &This->present_backends[i]);
         if (FAILED(hr)) {
             _ERROR("NineWinePresentX11_new failed.\n");
-            NineWinePresentFactoryX11_Release(This);
+            NineWinePresentGroupX11_Release(This);
             return hr;
         }
     }
 
-    *out = (ID3DPresentFactory *)This;
+    *out = (ID3DPresentGroup *)This;
 
     _MESSAGE("*out = %p\n", out ? *out : NULL);
     return D3D_OK;

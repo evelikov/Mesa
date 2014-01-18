@@ -26,7 +26,7 @@
 #include "iunknown.h"
 #include "adapter9.h"
 
-#include "d3dpresent.h"
+#include "d3dadapter9/d3dadapter9.h"
 
 struct NineDevice9;
 struct NineSurface9;
@@ -45,7 +45,7 @@ struct NineSwapChain9
     /* presentation backend */
     ID3DPresent *present;
     D3DPRESENT_PARAMETERS params;
-    PPRESENT_TO_RESOURCE ptrfunc;
+    struct d3dadapter9_context *actx;
     BOOL implicit;
 
     /* buffer handles */
@@ -64,7 +64,7 @@ HRESULT
 NineSwapChain9_new( struct NineDevice9 *pDevice,
                     BOOL implicit,
                     ID3DPresent *pPresent,
-                    PPRESENT_TO_RESOURCE pPTR,
+                    struct d3dadapter9_context *pCTX,
                     HWND hFocusWindow,
                     struct NineSwapChain9 **ppOut );
 
@@ -73,7 +73,7 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      struct NineUnknownParams *pParams,
                      BOOL implicit,
                      ID3DPresent *pPresent,
-                     PPRESENT_TO_RESOURCE pPTR,
+                     struct d3dadapter9_context *pCTX,
                      HWND hFocusWindow );
 
 void

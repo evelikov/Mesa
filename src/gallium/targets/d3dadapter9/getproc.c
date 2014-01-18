@@ -1,5 +1,5 @@
 /*
- * Copyright 2011 Joakim Sindholt <opensource@zhasha.com>
+ * Copyright 2013 Joakim Sindholt <opensource@zhasha.com>
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -20,32 +20,32 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
-#ifndef _D3DDRM_H_
-#define _D3DDRM_H_
+#include <string.h>
 
-#include "d3dadapter9.h"
+#include "util/u_memory.h"
 
-/* NOTE: fd is owned by the calling process, not the driver. The calling
- * process opened it, and it will close it. */
-#define D3DAdapter9DescriptorDRMName "D3DAdapter9DRMEntryPoint"
-typedef HRESULT (*D3DCreateAdapter9DRMProc)(int fd, ID3DAdapter9 **ppAdapter);
+#ifdef HAVE_PIPE_LOADER_DRM
+#include "d3dadapter9/drm.h"
+extern const struct D3DAdapter9DRM drm9_desc;
+#endif /* HAVE_PIPE_LOADER_DRM */
 
-struct D3DAdapter9DescriptorDRM
-{
-    unsigned major_version; /* ABI break */
-    unsigned minor_version; /* backwards compatible feature additions */
-
-    D3DCreateAdapter9DRMProc create_adapter;
+struct {
+    const char *name;
+    const void *desc;
+} drivers[] = {
+#ifdef HAVE_PIPE_LOADER_DRM
+    { D3DADAPTER9DRM_NAME, &drm9_desc },
+#endif /* HAVE_PIPE_LOADER_DRM */
 };
 
-/* presentation buffer */
-typedef struct _D3DDRM_BUFFER
+PUBLIC const void * WINAPI
+D3DAdapter9GetProc( const char *name )
 {
-    INT iName;
-    DWORD dwWidth;
-    DWORD dwHeight;
-    DWORD dwStride;
-    DWORD dwCPP;
-} D3DDRM_BUFFER;
-
-#endif /* _D3DDRM_H_ */
+    int i;
+    for (i = 0; i < Elements(drivers); ++i) {
+        if (strcmp(name, drivers[i].name) == 0) {
+            return drivers[i].desc;
+        }
+    }
+    return NULL;
+}

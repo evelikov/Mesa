@@ -24,7 +24,6 @@
 #include "basetexture9.h"
 #include "cryptosession9.h"
 #include "cubetexture9.h"
-#include "d3dadapter9.h"
 #include "device9.h"
 #include "device9ex.h"
 #include "device9video.h"

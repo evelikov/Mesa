@@ -39,14 +39,14 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
                      struct NineUnknownParams *pParams,
                      BOOL implicit,
                      ID3DPresent *pPresent,
-                     PPRESENT_TO_RESOURCE pPTR,
+                     struct d3dadapter9_context *pCTX,
                      HWND hFocusWindow )
 {
     D3DPRESENT_PARAMETERS params;
     HRESULT hr;
 
-    DBG("This=%p pDevice=%p pPresent=%p pPTR=%p hFocusWindow=%p\n",
-        This, pParams->device, pPresent, pPTR, hFocusWindow);
+    DBG("This=%p pDevice=%p pPresent=%p pCTX=%p hFocusWindow=%p\n",
+        This, pParams->device, pPresent, pCTX, hFocusWindow);
 
     hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr))
@@ -56,7 +56,7 @@ NineSwapChain9_ctor( struct NineSwapChain9 *This,
     This->pipe = NineDevice9_GetPipe(This->base.device);
     This->cso = NineDevice9_GetCSO(This->base.device);
     This->implicit = implicit;
-    This->ptrfunc = pPTR;
+    This->actx = pCTX;
     This->present = pPresent;
     ID3DPresent_AddRef(pPresent);
     hr = ID3DPresent_GetPresentParameters(This->present, &params);
@@ -267,8 +267,10 @@ present( struct NineSwapChain9 *This,
     struct pipe_blit_info blit;
 
     /* get a real backbuffer handle from the windowing system */
-    hr = This->ptrfunc(This->present, hDestWindowOverride, &rect,
-                       &rgndata, This->screen, &resource);
+    hr = This->actx->resource_from_present(This->actx, This->screen,
+                                           This->present, hDestWindowOverride,
+                                           pDestRect, &rect, &rgndata,
+                                           &resource);
     if (FAILED(hr)) {
         return hr;
     } else if (hr == D3DOK_WINDOW_OCCLUDED) {
@@ -303,8 +305,7 @@ present( struct NineSwapChain9 *This,
             blit.dst.box.x += rect.left;
             blit.dst.box.y += rect.top;
             if (u_box_clip_2d(&blit.dst.box, &blit.dst.box,
-                              rect.right - rect.left,
-                              rect.bottom - rect.top) < 0) {
+                              rect.right, rect.bottom) > 0) {
                 DBG("Dest region clipped.\n");
                 return D3D_OK;
             }
@@ -519,10 +520,10 @@ HRESULT
 NineSwapChain9_new( struct NineDevice9 *pDevice,
                     BOOL implicit,
                     ID3DPresent *pPresent,
-                    PPRESENT_TO_RESOURCE pPTR,
+                    struct d3dadapter9_context *pCTX,
                     HWND hFocusWindow,
                     struct NineSwapChain9 **ppOut )
 {
     NINE_DEVICE_CHILD_NEW(SwapChain9, ppOut, pDevice, /* args */
-                          implicit, pPresent, pPTR, hFocusWindow);
+                          implicit, pPresent, pCTX, hFocusWindow);
 }

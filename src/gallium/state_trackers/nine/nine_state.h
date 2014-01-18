@@ -197,12 +197,12 @@ struct nine_state
 
 /* map D3DRS -> NINE_STATE_x
  */
-const uint32_t nine_render_state_group[NINED3DRS_COUNT];
+extern const uint32_t nine_render_state_group[NINED3DRS_COUNT];
 
 /* for D3DSBT_PIXEL/VERTEX:
  */
-const uint32_t nine_render_states_pixel[(NINED3DRS_COUNT + 31) / 32];
-const uint32_t nine_render_states_vertex[(NINED3DRS_COUNT + 31) / 32];
+extern const uint32_t nine_render_states_pixel[(NINED3DRS_COUNT + 31) / 32];
+extern const uint32_t nine_render_states_vertex[(NINED3DRS_COUNT + 31) / 32];
 
 struct NineDevice9;
 

@@ -137,8 +137,8 @@ NineDevice9_ctor( struct NineDevice9 *This,
                   D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
                   D3DCAPS9 *pCaps,
                   IDirect3D9 *pD3D9,
-                  ID3DPresentFactory *pPresentationFactory,
-                  PPRESENT_TO_RESOURCE pPTR )
+                  ID3DPresentGroup *pPresentationGroup,
+                  struct d3dadapter9_context *pCTX )
 {
     unsigned i;
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
@@ -150,9 +150,9 @@ NineDevice9_ctor( struct NineDevice9 *This,
     This->caps = *pCaps;
     This->d3d9 = pD3D9;
     This->params = *pCreationParameters;
-    This->present = pPresentationFactory;
+    This->present = pPresentationGroup;
     IDirect3D9_AddRef(This->d3d9);
-    ID3DPresentFactory_AddRef(This->present);
+    ID3DPresentGroup_AddRef(This->present);
 
     This->pipe = This->screen->context_create(This->screen, NULL);
     if (!This->pipe) { return E_OUTOFMEMORY; } /* guess */
@@ -164,18 +164,18 @@ NineDevice9_ctor( struct NineDevice9 *This,
     This->hud = hud_create(This->pipe, This->cso); /* NULL result is fine */
 
     /* create implicit swapchains */
-    This->nswapchains = ID3DPresentFactory_GetMultiheadCount(This->present);
+    This->nswapchains = ID3DPresentGroup_GetMultiheadCount(This->present);
     This->swapchains = CALLOC(This->nswapchains,
                               sizeof(struct NineSwapChain9 *));
     if (!This->swapchains) { return E_OUTOFMEMORY; }
     for (i = 0; i < This->nswapchains; ++i) {
         ID3DPresent *present;
 
-        hr = ID3DPresentFactory_GetPresent(This->present, i, &present);
+        hr = ID3DPresentGroup_GetPresent(This->present, i, &present);
         if (FAILED(hr))
             return hr;
 
-        hr = NineSwapChain9_new(This, TRUE, present, pPTR,
+        hr = NineSwapChain9_new(This, TRUE, present, pCTX,
                                 This->params.hFocusWindow,
                                 &This->swapchains[i]);
         ID3DPresent_Release(present);
@@ -302,7 +302,7 @@ NineDevice9_ctor( struct NineDevice9 *This,
     This->update = &This->state;
     nine_update_state(This, ~0);
 
-    ID3DPresentFactory_Release(This->present);
+    ID3DPresentGroup_Release(This->present);
 
     return D3D_OK;
 }
@@ -347,7 +347,7 @@ NineDevice9_dtor( struct NineDevice9 *This )
         if (This->pipe->destroy) { This->pipe->destroy(This->pipe); }
     }
 
-    if (This->present) { ID3DPresentFactory_Release(This->present); }
+    if (This->present) { ID3DPresentGroup_Release(This->present); }
     if (This->d3d9) { IDirect3D9_Release(This->d3d9); }
 
     NineUnknown_dtor(&This->base);
@@ -571,7 +571,7 @@ NineDevice9_CreateAdditionalSwapChain( struct NineDevice9 *This,
 
     user_assert(pPresentationParameters, D3DERR_INVALIDCALL);
 
-    hr = NineSwapChain9_new(This, FALSE, tmplt->present, tmplt->ptrfunc,
+    hr = NineSwapChain9_new(This, FALSE, tmplt->present, tmplt->actx,
                             tmplt->params.hDeviceWindow, /* XXX */
                             &swapchain);
     if (FAILED(hr))
@@ -3438,8 +3438,8 @@ NineDevice9_new( struct pipe_screen *pScreen,
                  D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
                  D3DCAPS9 *pCaps,
                  IDirect3D9 *pD3D9,
-                 ID3DPresentFactory *pPresentationFactory,
-                 PPRESENT_TO_RESOURCE pPTR,
+                 ID3DPresentGroup *pPresentationGroup,
+                 struct d3dadapter9_context *pCTX,
                  struct NineDevice9 **ppOut )
 {
     BOOL lock;
@@ -3447,5 +3447,5 @@ NineDevice9_new( struct pipe_screen *pScreen,
 
     NINE_NEW(Device9, ppOut, lock, /* args */
              pScreen, pCreationParameters, pCaps,
-             pD3D9, pPresentationFactory, pPTR);
+             pD3D9, pPresentationGroup, pCTX);
 }

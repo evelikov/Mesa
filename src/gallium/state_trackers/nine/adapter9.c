@@ -36,27 +36,15 @@
 HRESULT
 NineAdapter9_ctor( struct NineAdapter9 *This,
                    struct NineUnknownParams *pParams,
-                   struct pipe_screen *pScreenHAL,
-                   struct pipe_screen *pScreenREF,
-                   D3DADAPTER_IDENTIFIER9 *pIdentifier,
-                   PPRESENT_TO_RESOURCE pPTR,
-                   void *pClosure,
-                   void (*pDestructor)(void *) )
+                   struct d3dadapter9_context *pCTX )
 {
     HRESULT hr = NineUnknown_ctor(&This->base, pParams);
     if (FAILED(hr)) { return hr; }
 
-    DBG("This=%p pParams=%p pScreenHAL/REF=%p/%p pIdentifier=%p pPTR=%p "
-        "pClosure=%p pDtor=%p\n", This, pParams, pScreenHAL, pScreenREF,
-        pIdentifier, pPTR, pClosure, pDestructor);
-    nine_dump_D3DADAPTER_IDENTIFIER9(DBG_CHANNEL, pIdentifier);
-
-    This->hal = pScreenHAL;
-    This->ref = pScreenREF;
-    This->identifier = *pIdentifier;
-    This->ptrfunc = pPTR;
-    This->closure = pClosure;
-    This->dtor = pDestructor;
+    DBG("This=%p pParams=%p pCTX=%p\n", This, pParams, pCTX);
+    nine_dump_D3DADAPTER_IDENTIFIER9(DBG_CHANNEL, &pCTX->identifier);
+    
+    This->ctx = pCTX;
 
     return D3D_OK;
 }
@@ -64,24 +52,17 @@ NineAdapter9_ctor( struct NineAdapter9 *This,
 void
 NineAdapter9_dtor( struct NineAdapter9 *This )
 {
-    void *closure = This->closure;
-    void (*dtor)(void *) = This->dtor;
-
+    struct d3dadapter9_context *ctx = This->ctx;
+    
     DBG("This=%p\n", This);
 
-    if (This->ref) {
-        if (This->ref->destroy) { This->ref->destroy(This->ref); }
-    } else if (This->hal) {
-        /* this assumes that if a ref exists, then the HAL screen will be
-         * lying under it, or not exist. In which case the HAL screen will be
-         * deleted by destroying the ref screen or never exist. */
-        if (This->hal->destroy) { This->hal->destroy(This->hal); }
-    }
     NineUnknown_dtor(&This->base);
 
     /* special case, call backend-specific dtor AFTER destroying this object
      * completely. */
-    if (dtor) { dtor(closure); }
+    if (ctx) {
+        if (ctx->destroy) { ctx->destroy(ctx); }
+    }
 }
 
 static HRESULT
@@ -91,12 +72,12 @@ NineAdapter9_GetScreen( struct NineAdapter9 *This,
 {
     switch (DevType) {
         case D3DDEVTYPE_HAL:
-            *ppScreen = This->hal;
+            *ppScreen = This->ctx->hal;
             break;
 
         case D3DDEVTYPE_REF:
         case D3DDEVTYPE_NULLREF:
-            *ppScreen = This->ref;
+            *ppScreen = This->ctx->ref;
             break;
 
         case D3DDEVTYPE_SW:
@@ -124,7 +105,7 @@ NineAdapter9_GetAdapterIdentifier( struct NineAdapter9 *This,
      *  specified, this call can connect to the Internet to download new
      *  Microsoft Windows Hardware Quality Labs (WHQL) certificates.
      * so let's just ignore it. */
-    *pIdentifier = This->identifier;
+    *pIdentifier = This->ctx->identifier;
     return D3D_OK;
 }
 
@@ -948,7 +929,7 @@ NineAdapter9_CreateDevice( struct NineAdapter9 *This,
                            HWND hFocusWindow,
                            DWORD BehaviorFlags,
                            IDirect3D9 *pD3D9,
-                           ID3DPresentFactory *pPresentationFactory,
+                           ID3DPresentGroup *pPresentationGroup,
                            IDirect3DDevice9 **ppReturnedDeviceInterface )
 {
     struct pipe_screen *screen;
@@ -957,10 +938,10 @@ NineAdapter9_CreateDevice( struct NineAdapter9 *This,
     HRESULT hr;
 
     DBG("This=%p RealAdapter=%u DeviceType=%s hFocusWindow=%p "
-        "BehaviourFlags=%x " "pD3D9=%p pPresentationFactory=%p "
+        "BehaviourFlags=%x " "pD3D9=%p pPresentationGroup=%p "
         "ppReturnedDeviceInterface=%p\n", This,
         RealAdapter, nine_D3DDEVTYPE_to_str(DeviceType), hFocusWindow,
-        BehaviorFlags, pD3D9, pPresentationFactory, ppReturnedDeviceInterface);
+        BehaviorFlags, pD3D9, pPresentationGroup, ppReturnedDeviceInterface);
 
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr)) {
@@ -980,7 +961,7 @@ NineAdapter9_CreateDevice( struct NineAdapter9 *This,
     params.BehaviorFlags = BehaviorFlags;
 
     hr = NineDevice9_new(screen, &params, &caps, pD3D9,
-                         pPresentationFactory, This->ptrfunc,
+                         pPresentationGroup, This->ctx,
                          (struct NineDevice9 **)ppReturnedDeviceInterface);
     if (FAILED(hr)) {
         DBG("Failed to create device.\n");
@@ -998,7 +979,7 @@ NineAdapter9_CreateDeviceEx( struct NineAdapter9 *This,
                              HWND hFocusWindow,
                              DWORD BehaviorFlags,
                              IDirect3D9Ex *pD3D9Ex,
-                             ID3DPresentFactory *pPresentationFactory,
+                             ID3DPresentGroup *pPresentationGroup,
                              IDirect3DDevice9Ex **ppReturnedDeviceInterface )
 {
     struct pipe_screen *screen;
@@ -1007,10 +988,10 @@ NineAdapter9_CreateDeviceEx( struct NineAdapter9 *This,
     HRESULT hr;
 
     DBG("This=%p RealAdapter=%u DeviceType=%s hFocusWindow=%p "
-        "BehaviourFlags=%x " "pD3D9Ex=%p pPresentationFactory=%p "
+        "BehaviourFlags=%x " "pD3D9Ex=%p pPresentationGroup=%p "
         "ppReturnedDeviceInterface=%p\n", This,
         RealAdapter, nine_D3DDEVTYPE_to_str(DeviceType), hFocusWindow,
-        BehaviorFlags, pD3D9Ex, pPresentationFactory, ppReturnedDeviceInterface);
+        BehaviorFlags, pD3D9Ex, pPresentationGroup, ppReturnedDeviceInterface);
 
     hr = NineAdapter9_GetScreen(This, DeviceType, &screen);
     if (FAILED(hr)) {
@@ -1030,7 +1011,7 @@ NineAdapter9_CreateDeviceEx( struct NineAdapter9 *This,
     params.BehaviorFlags = BehaviorFlags;
 
     hr = NineDevice9Ex_new(screen, &params, &caps, pD3D9Ex,
-                           pPresentationFactory, This->ptrfunc,
+                           pPresentationGroup, This->ctx,
                            (struct NineDevice9Ex **)ppReturnedDeviceInterface);
     if (FAILED(hr)) {
         DBG("Failed to create device.\n");
@@ -1063,15 +1044,8 @@ static const GUID *NineAdapter9_IIDs[] = {
 };
 
 HRESULT
-NineAdapter9_new( struct pipe_screen *pScreenHAL,
-                  struct pipe_screen *pScreenREF,
-                  D3DADAPTER_IDENTIFIER9 *pIdentifier,
-                  PPRESENT_TO_RESOURCE pPTR,
-                  void *pClosure,
-                  void (*pDestructor)(void *),
+NineAdapter9_new( struct d3dadapter9_context *pCTX,
                   struct NineAdapter9 **ppOut )
 {
-    NINE_NEW(Adapter9, ppOut, FALSE,
-  /* args */ pScreenHAL, pScreenREF, pIdentifier,
-             pPTR, pClosure, pDestructor);
+    NINE_NEW(Adapter9, ppOut, FALSE, /* args */ pCTX);
 }

@@ -21,8 +21,8 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "d3d9.h"
-#include "d3dadapter9.h"
-#include "d3ddrm.h"
+#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter9/drm.h"
 
 #include "../debug.h"
 #include "../driver.h"
@@ -39,22 +39,8 @@
 
 #include <libdrm/drm.h>
 #include <sys/ioctl.h>
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <dlfcn.h>
 #include <errno.h>
 #include <fcntl.h>
-#include <stdio.h>
-#include <string.h>
-#include <unistd.h>
-
-#define DRIVER_MAJOR 0
-
-struct adapter
-{
-    int fd;
-    void *handle;
-};
 
 struct NineWineDriverX11
 {
@@ -64,11 +50,6 @@ struct NineWineDriverX11
     /* connection */
     xcb_connection_t *c;
     unsigned dri2_major, dri2_minor;
-
-    /* fds and handles */
-    struct adapter *adapters;
-    unsigned nadapters;
-    unsigned nadaptersalloc;
 };
 
 static HRESULT WINAPI
@@ -97,13 +78,7 @@ static ULONG WINAPI
 NineWineDriverX11_Release( struct NineWineDriverX11 *This )
 {
     if (--This->refs == 0) {
-        /* dtor */
-        int i;
-        for (i = 0; i < This->nadapters; ++i) {
-            close(This->adapters[i].fd);
-            dlclose(This->adapters[i].handle);
-        }
-        HeapFree(GetProcessHeap(), 0, This->adapters);
+        xcb_disconnect(This->c);
         HeapFree(GetProcessHeap(), 0, This);
         return 0;
     }
@@ -111,44 +86,15 @@ NineWineDriverX11_Release( struct NineWineDriverX11 *This )
 }
 
 static HRESULT WINAPI
-NineWineDriverX11_CreatePresentFactory( struct NineWineDriverX11 *This,
-                                        HWND hFocusWnd,
-                                        D3DPRESENT_PARAMETERS *pParams,
-                                        unsigned nParams,
-                                        ID3DPresentFactory **ppPresentFactory )
+NineWineDriverX11_CreatePresentGroup( struct NineWineDriverX11 *This,
+                                      HWND hFocusWnd,
+                                      D3DPRESENT_PARAMETERS *pParams,
+                                      unsigned nParams,
+                                      ID3DPresentGroup **ppPresentGroup )
 {
-    return NineWinePresentFactoryX11_new(This->c, hFocusWnd, pParams, nParams,
-                                         This->dri2_major, This->dri2_minor,
-                                         ppPresentFactory);
-}
-
-static INLINE HRESULT
-push_adapter( struct NineWineDriverX11 *This,
-              int fd,
-              void *handle )
-{
-    if (This->nadapters >= This->nadaptersalloc) {
-        void *r;
-
-        if (This->nadaptersalloc == 0) {
-            This->nadaptersalloc = 2;
-            r = HeapAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY,
-                          This->nadaptersalloc*sizeof(struct adapter));
-        } else {
-            This->nadaptersalloc <<= 1;
-            r = HeapReAlloc(GetProcessHeap(), HEAP_ZERO_MEMORY, This->adapters,
-                            This->nadaptersalloc*sizeof(struct adapter));
-        }
-
-        if (!r) { OOM(); }
-        This->adapters = r;
-    }
-
-    This->adapters[This->nadapters].fd = fd;
-    This->adapters[This->nadapters].handle = handle;
-    This->nadapters++;
-
-    return D3D_OK;
+    return NineWinePresentGroupX11_new(This->c, hFocusWnd, pParams, nParams,
+                                       This->dri2_major, This->dri2_minor,
+                                       ppPresentGroup);
 }
 
 /* this function does NOT check if the string length is shorter than len */
@@ -165,116 +111,29 @@ _strndup( const char *str,
     return buf;
 }
 
-static INLINE HRESULT
-load_path( const char *name,
-           unsigned namelen,
-           void **handle,
-           struct D3DAdapter9DescriptorDRM **descriptor )
-{
-    const char *search_paths[] = {
-        getenv("LIBD3D9_DRIVERS_PATH"),
-        getenv("LIBD3D9_DRIVERS_DIR"),
-        LIBD3D9_DEFAULT_SEARCH_PATH
-    };
-
-    int i, j;
-    boolean escape;
-
-    for (i = 0; i < sizeof(search_paths)/sizeof(*search_paths); ++i) {
-        escape = FALSE;
-        if (search_paths[i] == NULL) { continue; }
-
-        for (j = 0; search_paths[i][j] != '\0'; ++j) {
-            if (!escape && search_paths[i][j] == '\\') {
-                escape = TRUE;
-                continue;
-            }
-
-            if ((search_paths[i][j+1] == ':' ||
-                 search_paths[i][j+1] == '\0') && !escape) {
-                void *driver;
-                char *buf = malloc(j+namelen+16);
-                if (!buf) { OOM(); }
-
-                snprintf(buf, j+namelen+16, "%s%s%.*s_nine.so",
-                         search_paths[i], search_paths[i][j] == '/' ? "" : "/",
-                         namelen, name);
-
-                dlerror(); /* clear dlerror before loading */
-                driver = dlopen(buf, RTLD_LAZY);
-
-                {
-                    char *err = dlerror();
-                    if (err) {
-                        _WARNING("Error opening driver `%s': %s\n", buf, err);
-                    }
-                }
-
-                if (driver) {
-                    do {
-                        /* validate it here */
-                        struct D3DAdapter9DescriptorDRM *drm =
-                            dlsym(driver, D3DAdapter9DescriptorDRMName);
-
-                        if (!drm) {
-                            _WARNING("Error opening driver `%s': %s\n",
-                                     buf, dlerror());
-                            break;
-                        }
-
-                        if (drm->major_version != DRIVER_MAJOR) {
-                            _WARNING("Error opening driver `%s': Driver "
-                                     "major version (%u) is not the same "
-                                     "as library version (%u)\n",
-                                     buf, drm->major_version, DRIVER_MAJOR);
-                            break;
-                        }
-
-                        if (drm->create_adapter == NULL) {
-                            _WARNING("Error opening driver `%s': "
-                                     "create_adapter == NULL\n", buf);
-                        }
-
-                        *handle = driver;
-                        *descriptor = drm;
-
-                        _MESSAGE("Loaded driver `%.*s' from `%s'\n",
-                                 namelen, name, buf);
-                        free(buf);
-
-                        return D3D_OK;
-                    } while (0);
-
-                    dlclose(driver);
-                }
-                free(buf);
-
-                search_paths[i] += j+1;
-                j = -1;
-
-                escape = FALSE;
-            }
-        }
-    }
-
-    _WARNING("Unable to locate driver named `%.*s'\n", namelen, name);
-
-    return D3DERR_NOTAVAILABLE;
-}
-
 static HRESULT WINAPI
 NineWineDriverX11_CreateAdapter9( struct NineWineDriverX11 *This,
                                   HDC hdc,
                                   ID3DAdapter9 **ppAdapter )
 {
-    struct D3DAdapter9DescriptorDRM *drm;
+    const struct D3DAdapter9DRM *drm = D3DAdapter9GetProc(D3DADAPTER9DRM_NAME);
     xcb_generic_error_t *err = NULL;
     xcb_drawable_t drawable = 0;
     xcb_window_t root;
     drm_auth_t auth;
-    void *handle;
     int fd;
     HRESULT hr;
+
+    if (!drm) {
+        _WARNING("DRM drivers are not supported on your system.\n");
+        return D3DERR_DRIVERINTERNALERROR;
+    }
+    if (drm->major_version != D3DADAPTER9DRM_MAJOR) {
+        _WARNING("D3DAdapter9DRM version %d.%d mismatch with expected %d.%d",
+                 drm->major_version, drm->minor_version,
+                 D3DADAPTER9DRM_MAJOR, D3DADAPTER9DRM_MINOR);
+        return D3DERR_DRIVERINTERNALERROR;
+    }
 
     drawable = X11DRV_ExtEscape_GET_DRAWABLE(hdc);
 
@@ -311,14 +170,6 @@ NineWineDriverX11_CreateAdapter9( struct NineWineDriverX11 *This,
             return D3DERR_DRIVERINTERNALERROR;
         }
 
-        hr = load_path(xcb_dri2_connect_driver_name(reply),
-                       xcb_dri2_connect_driver_name_length(reply),
-                       &handle, &drm);
-        if (FAILED(hr)) {
-            free(reply);
-            return hr;
-        }
-
         path = _strndup(xcb_dri2_connect_device_name(reply),
                         xcb_dri2_connect_device_name_length(reply));
 
@@ -326,19 +177,9 @@ NineWineDriverX11_CreateAdapter9( struct NineWineDriverX11 *This,
         if (fd < 0) {
             _WARNING("Failed to open drm fd: %s (%s)\n",
                       strerror(errno), path);
-            dlclose(handle);
             free(path);
             free(reply);
             return D3DERR_DRIVERINTERNALERROR;
-        }
-
-        hr = push_adapter(This, fd, handle);
-        if (FAILED(hr)) {
-            close(fd);
-            dlclose(handle);
-            free(path);
-            free(reply);
-            return hr;
         }
 
         /* authenticate */
@@ -435,7 +276,7 @@ static ID3DWineDriverVtbl NineWineDriverX11_vtable = {
     (void *)NineWineDriverX11_QueryInterface,
     (void *)NineWineDriverX11_AddRef,
     (void *)NineWineDriverX11_Release,
-    (void *)NineWineDriverX11_CreatePresentFactory,
+    (void *)NineWineDriverX11_CreatePresentGroup,
     (void *)NineWineDriverX11_CreateAdapter9
 };
 

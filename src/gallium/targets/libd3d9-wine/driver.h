@@ -1,6 +1,5 @@
 #include "d3d9.h"
-#include "d3dadapter9.h"
-#include "d3dpresent.h"
+#include "d3dadapter9/d3dadapter9.h"
 
 typedef struct ID3DWineDriver ID3DWineDriver;
 
@@ -13,7 +12,7 @@ typedef struct ID3DWineDriverVtbl
     ULONG (WINAPI *Release)(ID3DWineDriver *This);
 
     /* ID3DWineDriver */
-    HRESULT (WINAPI *CreatePresentFactory)(ID3DWineDriver *This, HWND hFocusWnd, D3DPRESENT_PARAMETERS *pParams, unsigned nParams, ID3DPresentFactory **ppPresentFactory);
+    HRESULT (WINAPI *CreatePresentGroup)(ID3DWineDriver *This, HWND hFocusWnd, D3DPRESENT_PARAMETERS *pParams, unsigned nParams, ID3DPresentGroup **ppPresentGroup);
     HRESULT (WINAPI *CreateAdapter9)(ID3DWineDriver *This, HDC hdc, ID3DAdapter9 **ppAdapter);
 } ID3DWineDriverVtbl;
 
@@ -27,5 +26,5 @@ struct ID3DWineDriver
 #define ID3DWineDirver_AddRef(p) (p)->lpVtbl->AddRef(p)
 #define ID3DWineDirver_Release(p) (p)->lpVtbl->Release(p)
 /* ID3DWineDriver macros */
-#define ID3DWineDriver_CreatePresentFactory(p,a,b,c,d) (p)->lpVtbl->CreatePresentFactory(p,a,b,c,d)
+#define ID3DWineDriver_CreatePresentGroup(p,a,b,c,d) (p)->lpVtbl->CreatePresentGroup(p,a,b,c,d)
 #define ID3DWineDriver_CreateAdapter9(p,a,b) (p)->lpVtbl->CreateAdapter9(p,a,b)

@@ -20,13 +20,13 @@
 # OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
+include $(top_srcdir)/src/gallium/Automake.inc
+
 AM_CFLAGS = \
-	$(NINE_CFLAGS) \
-	-I$(top_srcdir)/include \
-	-I$(top_srcdir)/src/gallium/include \
-	-I$(top_srcdir)/include/D3D \
+	$(GALLIUM_CFLAGS) \
+	$(VISIBILITY_CFLAGS) \
 	-I$(top_srcdir)/include/D3D9 \
-	-DLIBD3D9_DEFAULT_SEARCH_PATH=\"$(NINE_DRIVER_INSTALL_DIR)\" \
+	-I$(top_srcdir)/../wine/include \
 	-DPIPE_SUBSYSTEM_WINDOWS_USER=1 \
 	-DWIN32_LEAN_AND_MEAN=1
 
@@ -37,8 +37,13 @@ LIBTOOL = $(SHELL) $(srcdir)/autoconf/libtool
 lib_LTLIBRARIES = d3d9.dll.la
 
 d3d9_dll_la_SOURCES = d3d9.c debug.c guid.c x11/driver.c x11/present.c
-d3d9_dll_la_LDFLAGS = -module -avoid-version -shared -XCClinker d3d9.spec
-d3d9_dll_la_LIBADD = -lgdi32 $(NINE_LIBS) -ldl
+d3d9_dll_la_LDFLAGS = \
+    -module \
+    -avoid-version \
+    -shared \
+    -L$(top_srcdir)/lib/gallium \
+    -XCClinker d3d9.spec
+d3d9_dll_la_LIBADD = -lgdi32 $(NINE_LIBS) -ldl -ld3dadapter9
 
 # Provide compatibility with scripts for the old Mesa build system for
 # a while by putting a link to the driver into /lib of the build tree.

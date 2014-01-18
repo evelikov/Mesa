@@ -20,26 +20,35 @@
  * OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
-#ifndef _LIBD3D9_WINE_PRESENT_H_
-#define _LIBD3D9_WINE_PRESENT_H_
+#ifndef _D3DADAPTER9_DRM_H_
+#define _D3DADAPTER9_DRM_H_
 
-#include "d3d9.h"
-#include "d3dadapter9/d3dadapter9.h"
+#include "d3dadapter9.h"
 
-#undef _WIN32
-#include <xcb/xcb.h>
-#define _WIN32
+/* query driver support name */
+#define D3DADAPTER9DRM_NAME "drm"
+/* current version */
+#define D3DADAPTER9DRM_MAJOR 0
+#define D3DADAPTER9DRM_MINOR 0
 
-HRESULT
-NineWinePresentGroupX11_new( xcb_connection_t *c,
-                             HWND focus_wnd,
-                             D3DPRESENT_PARAMETERS *params,
-                             unsigned nparams,
-                             unsigned dri2_major,
-                             unsigned dri2_minor,
-                             ID3DPresentGroup **out );
+struct D3DAdapter9DRM
+{
+    unsigned major_version; /* ABI break */
+    unsigned minor_version; /* backwards compatible feature additions */
 
-xcb_drawable_t
-X11DRV_ExtEscape_GET_DRAWABLE( HDC hdc );
+    /* NOTE: upon passing an fd to this function, it's now owned by this
+        function. If this function fails, the fd will be closed here as well */
+    HRESULT (WINAPI *create_adapter)(int fd, ID3DAdapter9 **ppAdapter);
+};
 
-#endif /* _LIBD3D9_WINE_PRESENT_H_ */
+/* presentation buffer */
+typedef struct _D3DDRM_BUFFER
+{
+    INT iName;
+    DWORD dwWidth;
+    DWORD dwHeight;
+    DWORD dwStride;
+    DWORD dwCPP;
+} D3DDRM_BUFFER;
+
+#endif /* _D3DADAPTER9_DRM_H_ */

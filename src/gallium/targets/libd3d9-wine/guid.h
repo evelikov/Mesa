@@ -29,7 +29,7 @@
 
 extern const GUID IID_IUnknown;
 extern const GUID IID_ID3DPresent;
-extern const GUID IID_ID3DPresentFactory;
+extern const GUID IID_ID3DPresentGroup;
 extern const GUID IID_ID3DWineDriver;
 
 boolean

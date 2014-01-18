@@ -21,8 +21,7 @@
  * USE OR OTHER DEALINGS IN THE SOFTWARE. */
 
 #include "d3d9.h"
-#include "d3ddrm.h"
-#include "d3dadapter9.h"
+#include "d3dadapter9/d3dadapter9.h"
 
 #include "debug.h"
 #include "driver.h"
@@ -382,7 +381,7 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
                       D3DPRESENT_PARAMETERS *pPresentationParameters,
                       IDirect3DDevice9 **ppReturnedDeviceInterface )
 {
-    ID3DPresentFactory *present;
+    ID3DPresentGroup *present;
     HRESULT hr;
     unsigned nparams;
 
@@ -397,11 +396,11 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
 
     nparams = (BehaviorFlags & D3DCREATE_ADAPTERGROUP_DEVICE) ?
               This->groups[This->map[Adapter].group].noutputs : 1;
-    hr = ID3DWineDriver_CreatePresentFactory(This->driver, hFocusWindow,
-                                             pPresentationParameters, nparams,
-                                             &present);
+    hr = ID3DWineDriver_CreatePresentGroup(This->driver, hFocusWindow,
+                                           pPresentationParameters, nparams,
+                                           &present);
     if (FAILED(hr)) {
-        _WARNING("%s: Failed to create PresentFactory.\n", __FUNCTION__);
+        _WARNING("%s: Failed to create PresentGroup.\n", __FUNCTION__);
         return hr;
     }
 
@@ -418,7 +417,7 @@ Nine9Ex_CreateDevice( struct Nine9Ex *This,
     }
     if (FAILED(hr)) {
         _WARNING("%s: ADAPTER_PROC failed.\n", __FUNCTION__);
-        ID3DPresentFactory_Release(present);
+        ID3DPresentGroup_Release(present);
     }
 
     return hr;

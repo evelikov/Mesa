@@ -40,8 +40,8 @@ NineDevice9Ex_new( struct pipe_screen *pScreen,
                    D3DDEVICE_CREATION_PARAMETERS *pCreationParameters,
                    D3DCAPS9 *pCaps,
                    IDirect3D9Ex *pD3D9Ex,
-                   ID3DPresentFactory *pPresentationFactory,
-                   PPRESENT_TO_RESOURCE pPTR,
+                   ID3DPresentGroup *pPresentationGroup,
+                   struct d3dadapter9_context *pCTX,
                    struct NineDevice9Ex **ppOut );
 
 HRESULT WINAPI
