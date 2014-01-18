@@ -189,6 +189,8 @@ softpipe_get_param(struct pipe_screen *screen, enum pipe_cap param)
       return PIPE_ENDIAN_NATIVE;
    case PIPE_CAP_TGSI_VS_LAYER:
       return 0;
+   case PIPE_CAP_DEVICE_MEMORY_SIZE:
+      return 3072; /* 3 GiB to represent 32-bit address space */
    }
    /* should only get here on unhandled cases */
    debug_printf("Unexpected PIPE_CAP %d query\n", param);
