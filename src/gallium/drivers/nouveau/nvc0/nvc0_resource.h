@@ -34,7 +34,7 @@ struct pipe_resource *
 nvc0_miptree_create(struct pipe_screen *pscreen,
                     const struct pipe_resource *tmp);
 
-const struct u_resource_vtbl nvc0_miptree_vtbl;
+extern const struct u_resource_vtbl nvc0_miptree_vtbl;
 
 struct pipe_surface *
 nvc0_miptree_surface_new(struct pipe_context *,
