@@ -485,15 +485,14 @@ loader_get_device_name_for_fd(int fd)
    udev = udev_new();
    device = udev_device_new_from_fd(udev, fd);
    if (device == NULL)
-      return NULL;
+      goto out_unref;
 
    const_device_name = udev_device_get_devnode(device);
-   if (!const_device_name)
-      goto out;
-   device_name = strdup(const_device_name);
+   if (const_device_name != NULL)
+      device_name = strdup(const_device_name);
 
-out:
    udev_device_unref(device);
+out_unref:
    udev_unref(udev);
 #endif
    return device_name;
