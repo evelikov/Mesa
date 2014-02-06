@@ -264,13 +264,13 @@ loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
 
    udev = udev_new();
    device = udev_device_new_from_fd(udev, fd);
-   if (!device)
-      goto out;
+   if (device == NULL)
+      goto out_unref;
 
    parent = udev_device_get_parent(device);
    if (parent == NULL) {
       log_(_LOADER_WARNING, "MESA-LOADER: could not get parent device\n");
-      goto out;
+      goto out_device_unref;
    }
 
    pci_id = udev_device_get_property_value(parent, "PCI_ID");
@@ -278,14 +278,13 @@ loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
        sscanf(pci_id, "%x:%x", vendor_id, chip_id) != 2) {
       log_(_LOADER_WARNING, "MESA-LOADER: malformed or no PCI ID\n");
       *chip_id = -1;
-      goto out;
    }
 
-out:
-   if (device)
-      udev_device_unref(device);
-   if (udev)
-      udev_unref(udev);
+out_device_unref:
+   udev_device_unref(device);
+
+out_unref:
+   udev_unref(udev);
 
    return (*chip_id >= 0);
 }
