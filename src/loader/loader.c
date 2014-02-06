@@ -105,11 +105,20 @@ lookup_driver_for_pci_id(int vendor_id, int chip_id, unsigned int driver_types)
          continue;
 
       if (driver_map[i].num_chips_ids == -1)
-         return strdup(driver_map[i].driver);
+         goto out;
 
       for (j = 0; j < driver_map[i].num_chips_ids; j++)
          if (driver_map[i].chip_ids[j] == chip_id)
-            return strdup(driver_map[i].driver);
+            goto out;
+   }
+
+ out:
+   if (driver_map[i].driver) {
+      log_(_LOADER_DEBUG,
+           "pci id: %04x:%04x, driver %s from internal db",
+           vendor_id, chip_id, driver_map[i].driver);
+
+      return strdup(driver_map[i].driver);
    }
 
    return NULL;
@@ -232,6 +241,7 @@ loader_get_hwdb_driver_for_fd(int fd)
 
    hwdb_driver = udev_device_get_property_value(parent, "DRI_DRIVER");
    if (hwdb_driver != NULL) {
+      log_(_LOADER_DEBUG, "using driver %s from udev hwdb", hwdb_driver);
       driver = strdup(hwdb_driver);
    }
 
@@ -418,7 +428,7 @@ out:
 char *
 loader_get_driver_for_fd(int fd, unsigned int driver_types)
 {
-   int vendor_id, chip_id = -1;
+   int vendor_id, chip_id;
    char *driver = NULL;
 
    if (!driver_types)
@@ -432,13 +442,8 @@ loader_get_driver_for_fd(int fd, unsigned int driver_types)
       driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
    }
 
-   if (driver && chip_id == -1) {
-      log_(_LOADER_DEBUG, "using driver %s from udev hwdb", driver);
-   } else {
-      log_(driver ? _LOADER_DEBUG : _LOADER_WARNING,
-           "pci id for fd %d: %04x:%04x, driver %s",
-           fd, vendor_id, chip_id, driver);
-   }
+   if (driver == NULL)
+      log_(_LOADER_WARNING, "no driver %s for %d\n", fd);
 
    return driver;
 }
