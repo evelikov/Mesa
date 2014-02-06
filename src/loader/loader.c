@@ -115,6 +115,29 @@ lookup_driver_for_pci_id(int vendor_id, int chip_id, unsigned int driver_types)
    return NULL;
 }
 
+static char *
+fallback_to_kernel_name(int fd)
+{
+   char *driver = NULL;
+
+#ifndef __NOT_HAVE_DRM_H
+   /* fallback to drmGetVersion(): */
+   drmVersionPtr version = drmGetVersion(fd);
+
+   if (!version) {
+      log_(_LOADER_WARNING, "failed to get driver name for fd %d\n", fd);
+      return NULL;
+   }
+
+   driver = strndup(version->name, version->name_len);
+   log_(_LOADER_INFO, "using driver %s for %d\n", driver, fd);
+
+   drmFreeVersion(version);
+#endif
+
+   return driver;
+}
+
 #ifdef HAVE_LIBUDEV
 #include <libudev.h>
 
@@ -348,25 +371,8 @@ loader_get_driver_for_fd(int fd, unsigned int driver_types)
    if (!driver_types)
       driver_types = _LOADER_GALLIUM | _LOADER_DRI;
 
-   if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id)) {
-
-#ifndef __NOT_HAVE_DRM_H
-      /* fallback to drmGetVersion(): */
-      drmVersionPtr version = drmGetVersion(fd);
-
-      if (!version) {
-         log_(_LOADER_WARNING, "failed to get driver name for fd %d\n", fd);
-         return NULL;
-      }
-
-      driver = strndup(version->name, version->name_len);
-      log_(_LOADER_INFO, "using driver %s for %d\n", driver, fd);
-
-      drmFreeVersion(version);
-#endif
-
-      return driver;
-   }
+   if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
+      return fallback_to_kernel_name(fd);
 
    if (driver == NULL)
       driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
