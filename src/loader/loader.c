@@ -92,6 +92,29 @@ static void default_logger(int level, const char *fmt, ...)
 
 static void (*log_)(int level, const char *fmt, ...) = default_logger;
 
+static char *
+lookup_driver_for_pci_id(int vendor_id, int chip_id, unsigned int driver_types)
+{
+   int i, j;
+
+   for (i = 0; driver_map[i].driver; i++) {
+      if (vendor_id != driver_map[i].vendor_id)
+         continue;
+
+      if (!(driver_types & driver_map[i].driver_types))
+         continue;
+
+      if (driver_map[i].num_chips_ids == -1)
+         return strdup(driver_map[i].driver);
+
+      for (j = 0; j < driver_map[i].num_chips_ids; j++)
+         if (driver_map[i].chip_ids[j] == chip_id)
+            return strdup(driver_map[i].driver);
+   }
+
+   return NULL;
+}
+
 #ifdef HAVE_LIBUDEV
 #include <libudev.h>
 
@@ -317,9 +340,9 @@ out:
 }
 
 char *
-loader_get_driver_for_fd(int fd, unsigned driver_types)
+loader_get_driver_for_fd(int fd, unsigned int driver_types)
 {
-   int vendor_id, chip_id, i, j;
+   int vendor_id, chip_id;
    char *driver = NULL;
 
    if (!driver_types)
@@ -345,29 +368,14 @@ loader_get_driver_for_fd(int fd, unsigned driver_types)
       return driver;
    }
 
-   for (i = 0; driver_map[i].driver; i++) {
-      if (vendor_id != driver_map[i].vendor_id)
-         continue;
-
-      if (!(driver_types & driver_map[i].driver_types))
-         continue;
-
-      if (driver_map[i].num_chips_ids == -1) {
-         driver = strdup(driver_map[i].driver);
-         goto out;
-      }
-
-      for (j = 0; j < driver_map[i].num_chips_ids; j++)
-         if (driver_map[i].chip_ids[j] == chip_id) {
-            driver = strdup(driver_map[i].driver);
-            goto out;
-         }
-   }
+   if (driver == NULL)
+      driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
 
 out:
    log_(driver ? _LOADER_DEBUG : _LOADER_WARNING,
          "pci id for fd %d: %04x:%04x, driver %s\n",
          fd, vendor_id, chip_id, driver);
+
    return driver;
 }
 
