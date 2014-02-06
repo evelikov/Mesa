@@ -203,6 +203,47 @@ udev_device_new_from_fd(struct udev *udev, int fd)
    return device;
 }
 
+static char *
+loader_get_hwdb_driver_for_fd(int fd)
+{
+   struct udev *udev;
+   struct udev_device *device, *parent;
+   UDEV_SYMBOL(struct udev *, udev_new, (void));
+   UDEV_SYMBOL(struct udev_device *, udev_device_get_parent,
+               (struct udev_device *));
+   UDEV_SYMBOL(const char *, udev_device_get_property_value,
+               (struct udev_device *, const char *));
+   UDEV_SYMBOL(struct udev_device *, udev_device_unref,
+               (struct udev_device *));
+   UDEV_SYMBOL(struct udev *, udev_unref, (struct udev *));
+   const char *hwdb_driver;
+   char *driver = NULL;
+
+   udev = udev_new();
+   device = udev_device_new_from_fd(udev, fd);
+   if (device == NULL)
+      goto out_unref;
+
+   parent = udev_device_get_parent(device);
+   if (parent == NULL) {
+      log_(_LOADER_WARNING, "MESA-LOADER: could not get parent device\n");
+      goto out_device_unref;
+   }
+
+   hwdb_driver = udev_device_get_property_value(parent, "DRI_DRIVER");
+   if (hwdb_driver != NULL) {
+      driver = strdup(hwdb_driver);
+   }
+
+out_device_unref:
+   udev_device_unref(device);
+
+out_unref:
+   udev_unref(udev);
+
+   return driver;
+}
+
 int
 loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
 {
@@ -254,6 +295,12 @@ out:
 #include <i915_drm.h>
 /* for radeon */
 #include <radeon_drm.h>
+
+char *
+loader_get_hwdb_driver_for_fd(int fd)
+{
+   return NULL
+}
 
 int
 loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
@@ -321,6 +368,12 @@ loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
 
 #else
 
+char *
+loader_get_hwdb_driver_for_fd(int fd)
+{
+   return NULL
+}
+
 int
 loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
 {
@@ -365,22 +418,27 @@ out:
 char *
 loader_get_driver_for_fd(int fd, unsigned int driver_types)
 {
-   int vendor_id, chip_id;
+   int vendor_id, chip_id = -1;
    char *driver = NULL;
 
    if (!driver_types)
       driver_types = _LOADER_GALLIUM | _LOADER_DRI;
 
-   if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
-      return fallback_to_kernel_name(fd);
+   driver = loader_get_hwdb_driver_for_fd(fd);
+   if (driver == NULL) {
+      if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
+         return fallback_to_kernel_name(fd);
 
-   if (driver == NULL)
       driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
+   }
 
-out:
-   log_(driver ? _LOADER_DEBUG : _LOADER_WARNING,
-         "pci id for fd %d: %04x:%04x, driver %s\n",
-         fd, vendor_id, chip_id, driver);
+   if (driver && chip_id == -1) {
+      log_(_LOADER_DEBUG, "using driver %s from udev hwdb", driver);
+   } else {
+      log_(driver ? _LOADER_DEBUG : _LOADER_WARNING,
+           "pci id for fd %d: %04x:%04x, driver %s",
+           fd, vendor_id, chip_id, driver);
+   }
 
    return driver;
 }

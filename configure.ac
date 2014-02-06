@@ -777,6 +777,20 @@ if test "x$have_libdrm" = xyes; then
 	DEFINES="$DEFINES -DHAVE_LIBDRM"
 fi
 
+# This /lib prefix does not change with 32/64 bits it's always /lib
+case "$prefix" in
+/usr) default_udevhwdbdir=/lib/udev/hwdb.d ;;
+NONE) default_udevhwdbdir=${ac_default_prefix}/lib/udev/hwdb.d ;;
+*)    default_udevhwdbdir=$prefix/lib/udev/hwdb.d ;;
+esac
+
+AC_ARG_WITH([udev-hwdb-dir],
+    [AS_HELP_STRING([--with-udev-hwdb-dir=DIR],
+        [directory for the udev hwdb @<:@/lib/udev/hwdb.d@:>@])],
+    [udevhwdbdir="$withval"],
+    [udevhwdbdir=$default_udevhwdbdir])
+AC_SUBST([udevhwdbdir])
+
 PKG_CHECK_MODULES([LIBUDEV], [libudev >= $LIBUDEV_REQUIRED],
                   have_libudev=yes, have_libudev=no)
 

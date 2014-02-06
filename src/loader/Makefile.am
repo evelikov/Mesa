@@ -41,3 +41,16 @@ libloader_la_LIBADD = \
 endif
 
 libloader_la_SOURCES = $(LOADER_C_FILES)
+
+dist_udevhwdb_DATA = 20-dri-driver.hwdb
+
+# Update hwdb on installation. Do not bother if installing
+# in DESTDIR, since this is likely for packaging purposes.
+install-data-hook :
+	-test -z "$(DESTDIR)" && udevadm hwdb --update
+
+20-dri-driver.hwdb :
+	$(srcdir)/dump-hwdb.sh $(top_srcdir)/include/pci_ids > $@-tmp && mv $@-tmp $@
+
+CLEANFILES = \
+	20-dri-driver.hwdb*

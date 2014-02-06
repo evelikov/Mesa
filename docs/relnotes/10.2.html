@@ -53,6 +53,18 @@ TBD.
 
 <h2>Changes</h2>
 
+<p>
+Mesa now generates a hwdb that is used with udev. Normally <tt>make
+install</tt> automatically updates the udev database, unless
+<tt>DESTDIR</tt> is set.
+</p>
+<p>
+Note: make sure that your package includes the following post-install command.
+<pre>
+udevadm hwdb --update
+</pre>
+
+
 <ul>
 </ul>
 
