@@ -299,6 +299,29 @@ out:
    return (*chip_id >= 0);
 }
 
+char *
+loader_get_driver_for_fd(int fd, unsigned int driver_types)
+{
+   int vendor_id, chip_id = -1;
+   char *driver = NULL;
+
+   if (!driver_types)
+      driver_types = _LOADER_GALLIUM | _LOADER_DRI;
+
+   driver = loader_get_hwdb_driver_for_fd(fd);
+   if (driver == NULL) {
+      if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
+         return fallback_to_kernel_name(fd);
+
+      driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
+   }
+
+   if (driver == NULL)
+      log_(_LOADER_WARNING, "no driver %s for %d\n", fd);
+
+   return driver;
+}
+
 #elif defined(ANDROID) && !defined(__NOT_HAVE_DRM_H)
 
 /* for i915 */
@@ -376,18 +399,32 @@ loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
    return (*chip_id >= 0);
 }
 
-#else
-
 char *
-loader_get_hwdb_driver_for_fd(int fd)
+loader_get_driver_for_fd(int fd, unsigned int driver_types)
 {
-   return NULL
+   int vendor_id, chip_id;
+
+   if (!driver_types)
+      driver_types = _LOADER_GALLIUM | _LOADER_DRI;
+
+   if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
+      return fallback_to_kernel_name(fd);
+
+   return lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
 }
+
+#else
 
 int
 loader_get_pci_id_for_fd(int fd, int *vendor_id, int *chip_id)
 {
    return 0;
+}
+
+char *
+loader_get_driver_for_fd(int fd, unsigned int driver_types)
+{
+   return fallback_to_kernel_name(fd);
 }
 
 #endif
@@ -423,29 +460,6 @@ out:
    udev_unref(udev);
 #endif
    return device_name;
-}
-
-char *
-loader_get_driver_for_fd(int fd, unsigned int driver_types)
-{
-   int vendor_id, chip_id;
-   char *driver = NULL;
-
-   if (!driver_types)
-      driver_types = _LOADER_GALLIUM | _LOADER_DRI;
-
-   driver = loader_get_hwdb_driver_for_fd(fd);
-   if (driver == NULL) {
-      if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
-         return fallback_to_kernel_name(fd);
-
-      driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
-   }
-
-   if (driver == NULL)
-      log_(_LOADER_WARNING, "no driver %s for %d\n", fd);
-
-   return driver;
 }
 
 void
