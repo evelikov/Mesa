@@ -67,6 +67,9 @@
 #include <stdarg.h>
 #include <stdio.h>
 #include <string.h>
+#if defined(__linux__)
+#include <fnmatch.h>
+#endif
 #ifdef HAVE_LIBUDEV
 #include <assert.h>
 #include <dlfcn.h>
@@ -77,8 +80,7 @@
 #include <xf86drm.h>
 #endif
 
-#define __IS_LOADER
-#include "pci_ids/pci_id_driver_map.h"
+#include "modalias-map.h"
 
 static void default_logger(int level, const char *fmt, ...)
 {
@@ -93,35 +95,24 @@ static void default_logger(int level, const char *fmt, ...)
 static void (*log_)(int level, const char *fmt, ...) = default_logger;
 
 static char *
-lookup_driver_for_pci_id(int vendor_id, int chip_id, unsigned int driver_types)
+lookup_driver_for_modalias(const char *modalias)
 {
-   int i, j;
+   const char *m, *d;
+   char *driver = NULL;
 
-   for (i = 0; driver_map[i].driver; i++) {
-      if (vendor_id != driver_map[i].vendor_id)
-         continue;
-
-      if (!(driver_types & driver_map[i].driver_types))
-         continue;
-
-      if (driver_map[i].num_chips_ids == -1)
-         goto out;
-
-      for (j = 0; j < driver_map[i].num_chips_ids; j++)
-         if (driver_map[i].chip_ids[j] == chip_id)
-            goto out;
+   for (m = modalias_map; *m; m = d + strlen(d) + 1) {
+      d = m + strlen(m) + 1;
+      if (fnmatch(m, modalias, FNM_NOESCAPE) == 0) {
+         driver = strdup(d);
+         break;
+      }
    }
 
- out:
-   if (driver_map[i].driver) {
+   if (driver)
       log_(_LOADER_DEBUG,
-           "pci id: %04x:%04x, driver %s from internal db",
-           vendor_id, chip_id, driver_map[i].driver);
+           "using driver %s for %s from internal db", driver, modalias);
 
-      return strdup(driver_map[i].driver);
-   }
-
-   return NULL;
+   return driver;
 }
 
 static char *
@@ -299,22 +290,63 @@ out:
    return (*chip_id >= 0);
 }
 
+int
+loader_get_modalias_for_fd(int fd)
+{
+   struct udev *udev;
+   struct udev_device *device, *parent;
+   const char *modalias;
+   UDEV_SYMBOL(struct udev *, udev_new, (void));
+   UDEV_SYMBOL(struct udev_device *, udev_device_get_parent,
+               (struct udev_device *));
+   UDEV_SYMBOL(const char *, udev_device_get_property_value,
+               (struct udev_device *, const char *));
+   UDEV_SYMBOL(struct udev_device *, udev_device_unref,
+               (struct udev_device *));
+   UDEV_SYMBOL(struct udev *, udev_unref, (struct udev *));
+
+   udev = udev_new();
+   device = udev_device_new_from_fd(udev, fd);
+   if (device == NULL)
+      goto out_unref;
+
+   parent = udev_device_get_parent(device);
+   if (parent == NULL) {
+      log_(_LOADER_WARNING, "MESA-LOADER: could not get parent device\n");
+      goto out_device_unref;
+   }
+
+   modalias = udev_device_get_sysattr_value(parent, "modalias");
+   if (modalias == NULL)
+      log_(_LOADER_WARNING, "MESA-LOADER: cannot retrieve device modalias\n");
+   }
+
+out_device_unref:
+   udev_device_unref(device);
+
+out_unref:
+   udev_unref(udev);
+
+   return modalias;
+}
+
 char *
 loader_get_driver_for_fd(int fd, unsigned int driver_types)
 {
    int vendor_id, chip_id = -1;
-   char *driver = NULL;
+   char *driver, *modalias;
 
    if (!driver_types)
       driver_types = _LOADER_GALLIUM | _LOADER_DRI;
 
    driver = loader_get_hwdb_driver_for_fd(fd);
-   if (driver == NULL) {
-      if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
-         return fallback_to_kernel_name(fd);
-
-      driver = lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
+   if (driver == NULL)
+         modalias = loader_get_modalias_for_fd(fd);
+         if (modalias != NULL)
+            driver = lookup_driver_for_modalias(modalias);
    }
+   if (driver == NULL)
+      driver = fallback_to_kernel_name(fd);
 
    if (driver == NULL)
       log_(_LOADER_WARNING, "no driver %s for %d\n", fd);
@@ -403,6 +435,7 @@ char *
 loader_get_driver_for_fd(int fd, unsigned int driver_types)
 {
    int vendor_id, chip_id;
+   char modalias[32];
 
    if (!driver_types)
       driver_types = _LOADER_GALLIUM | _LOADER_DRI;
@@ -410,7 +443,12 @@ loader_get_driver_for_fd(int fd, unsigned int driver_types)
    if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id))
       return fallback_to_kernel_name(fd);
 
-   return lookup_driver_for_pci_id(vendor_id, chip_id, driver_types);
+   if (chip_id != 0)
+      snprintf(modalias, sizeof(modalias), "pci:v%08Xd%08X", vendor_id, chip_id);
+   else
+      snprintf(modalias, sizeof(modalias), "pci:v%08X", vendor_id);
+
+   return lookup_driver_for_modalias(modalias);
 }
 
 #else

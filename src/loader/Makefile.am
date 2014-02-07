@@ -42,6 +42,9 @@ endif
 
 libloader_la_SOURCES = $(LOADER_C_FILES)
 
+modalias-map.h :
+	$(srcdir)/dump-hwdb.sh $(top_srcdir)/include/pci_ids modalias-map > $@-tmp && mv $@-tmp $@
+
 dist_udevhwdb_DATA = 20-dri-driver.hwdb
 
 # Update hwdb on installation. Do not bother if installing
@@ -53,4 +56,5 @@ install-data-hook :
 	$(srcdir)/dump-hwdb.sh $(top_srcdir)/include/pci_ids > $@-tmp && mv $@-tmp $@
 
 CLEANFILES = \
-	20-dri-driver.hwdb*
+	20-dri-driver.hwdb* \
+	modalias-map.h*
