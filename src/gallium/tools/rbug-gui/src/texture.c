@@ -28,6 +28,9 @@
 
 #include "pipe/p_format.h"
 #include "util/u_format.h"
+#undef CLAMP
+#include "util/u_inlines.h"
+#include "tgsi/tgsi_strings.h"
 
 /* needed for u_tile */
 #include "pipe/p_state.h"
@@ -437,7 +440,7 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	struct rbug_proto_texture_info_reply *info;
 	struct texture_action_read *action;
 	uint32_t serial = 0;
-	char info_short_string[64];
+	char info_short_string[128];
 	char info_long_string[128];
 	GdkPixbuf *buf = NULL;
 
@@ -598,7 +601,10 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	case PIPE_FORMAT_B4G4R4X4_UNORM: break;
 	}
 
-	snprintf(info_short_string, 64, "%ux%ux%u", info->width[0], info->height[0], info->depth[0]);
+	snprintf(info_short_string, 128, "%s, %ux%ux%u, %s",
+		 tgsi_texture_names[util_pipe_tex_to_tgsi_tex(info->target, info->nr_samples)],
+		 info->width[0], info->height[0], info->depth[0],
+		 util_format_name(info->format)+12);
 	snprintf(info_long_string, 128, "%s (%ux%ux%u) %u", util_format_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
 
 	gtk_tree_store_set(p->main.treestore, &action->iter,
