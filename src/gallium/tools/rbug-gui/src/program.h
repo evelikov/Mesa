@@ -108,11 +108,13 @@ struct program
 
 	struct {
 		GtkWidget *window;
+		GtkWidget *texture_view;
 		GtkWidget *context_view;
 		GtkTextView *textview;
 		GtkWidget *textview_scrolled;
 		GtkTreeView *treeview;
 		GtkTreeStore *treestore;
+		GtkSpinButton *layer;
 		GtkDrawingArea *draw;
 		GtkStatusbar *statusbar;
 
@@ -181,7 +183,7 @@ struct program
 		unsigned width;
 		unsigned height;
 
-		gulong tid[3];
+		gulong tid[4];
 		gboolean automatic;
 		int back;
 

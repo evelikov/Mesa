@@ -2,18 +2,6 @@
 <interface>
   <requires lib="gtk+" version="2.16"/>
   <!-- interface-naming-policy project-wide -->
-  <object class="GtkRadioAction" id="ra_ctx_fragment">
-    <property name="draw_as_radio">True</property>
-    <property name="active">True</property>
-  </object>
-  <object class="GtkRadioAction" id="ra_ctx_color0">
-    <property name="draw_as_radio">True</property>
-    <property name="group">ra_ctx_fragment</property>
-  </object>
-  <object class="GtkRadioAction" id="ra_ctx_color1">
-    <property name="draw_as_radio">True</property>
-    <property name="group">ra_ctx_fragment</property>
-  </object>
   <object class="GtkRadioAction" id="ra_ctx_color2">
     <property name="draw_as_radio">True</property>
     <property name="group">ra_ctx_fragment</property>
@@ -37,6 +25,10 @@
   <object class="GtkRadioAction" id="ra_ctx_color7">
     <property name="draw_as_radio">True</property>
     <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_fragment">
+    <property name="draw_as_radio">True</property>
+    <property name="active">True</property>
   </object>
   <object class="GtkRadioAction" id="ra_ctx_geom">
     <property name="draw_as_radio">True</property>
@@ -114,6 +106,19 @@
     <property name="draw_as_radio">True</property>
     <property name="group">ra_ctx_fragment</property>
   </object>
+  <object class="GtkAdjustment" id="layer_adjustment">
+    <property name="upper">100</property>
+    <property name="step_increment">1</property>
+    <property name="page_increment">10</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color0">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
+  <object class="GtkRadioAction" id="ra_ctx_color1">
+    <property name="draw_as_radio">True</property>
+    <property name="group">ra_ctx_fragment</property>
+  </object>
   <object class="GtkTreeStore" id="treestore">
     <columns>
       <!-- column-name id -->
@@ -147,6 +152,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Refresh</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Rerfresh</property>
                 <property name="stock_id">gtk-refresh</property>
               </object>
@@ -168,6 +174,7 @@
               <object class="GtkToggleToolButton" id="tool_break_before">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Break Before</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Break Before</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-stop</property>
@@ -181,6 +188,7 @@
               <object class="GtkToggleToolButton" id="tool_break_after">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Break After</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Break After</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-stop</property>
@@ -194,6 +202,7 @@
               <object class="GtkToolButton" id="tool_step">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Step</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Step</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-jump-to</property>
@@ -207,6 +216,7 @@
               <object class="GtkToolButton" id="tool_flush">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Flush</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Flush</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-convert</property>
@@ -227,6 +237,7 @@
             <child>
               <object class="GtkToolButton" id="tool_back">
                 <property name="can_focus">False</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Back</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-go-back</property>
@@ -239,6 +250,7 @@
             <child>
               <object class="GtkToolButton" id="tool_forward">
                 <property name="can_focus">False</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Forward</property>
                 <property name="stock_id">gtk-go-forward</property>
               </object>
@@ -251,6 +263,7 @@
               <object class="GtkToolButton" id="tool_background">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Change Background</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Background</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-select-color</property>
@@ -264,6 +277,7 @@
               <object class="GtkToggleToolButton" id="tool_alpha">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Enable/Disable Alpha Blend</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Alpha Blend</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-bold</property>
@@ -277,6 +291,7 @@
               <object class="GtkToggleToolButton" id="tool_auto">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Automatically Update Texture</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Auto</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-execute</property>
@@ -290,6 +305,7 @@
               <object class="GtkToolButton" id="tool_disable">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Disable</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Disable</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-no</property>
@@ -303,6 +319,7 @@
               <object class="GtkToolButton" id="tool_enable">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Enable</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Enable</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-yes</property>
@@ -316,6 +333,7 @@
               <object class="GtkToolButton" id="tool_save">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Save Edited Shader</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Save</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-save</property>
@@ -329,6 +347,7 @@
               <object class="GtkToolButton" id="tool_revert">
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Restore Original Shader</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Revert</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-revert-to-saved</property>
@@ -354,6 +373,7 @@
                 <property name="visible">True</property>
                 <property name="can_focus">False</property>
                 <property name="tooltip_text" translatable="yes">Exit</property>
+                <property name="use_action_appearance">False</property>
                 <property name="label" translatable="yes">Quit</property>
                 <property name="use_underline">True</property>
                 <property name="stock_id">gtk-quit</property>
@@ -471,10 +491,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton1">
                                 <property name="label" translatable="yes">Fragment</property>
-                                <property name="related_action">ra_ctx_fragment</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_fragment</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -485,10 +505,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton2">
                                 <property name="label" translatable="yes">Vertex</property>
-                                <property name="related_action">ra_ctx_vertex</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_vertex</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -510,10 +530,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton4">
                                 <property name="label" translatable="yes">Texture 1</property>
-                                <property name="related_action">ra_ctx_texture0</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture0</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -524,10 +544,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton5">
                                 <property name="label" translatable="yes">Texture 2</property>
-                                <property name="related_action">ra_ctx_texture1</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture1</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -538,10 +558,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton6">
                                 <property name="label" translatable="yes">Texture 3</property>
-                                <property name="related_action">ra_ctx_texture2</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture2</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -552,10 +572,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton7">
                                 <property name="label" translatable="yes">Texture 4</property>
-                                <property name="related_action">ra_ctx_texture3</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture3</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -566,10 +586,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton8">
                                 <property name="label" translatable="yes">Texture 5</property>
-                                <property name="related_action">ra_ctx_texture4</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_texture4</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -594,10 +614,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton19">
                                 <property name="label" translatable="yes">Color 1</property>
-                                <property name="related_action">ra_ctx_color0</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_color0</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -608,10 +628,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton20">
                                 <property name="label" translatable="yes">Color 2</property>
-                                <property name="related_action">ra_ctx_color1</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_color1</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -622,10 +642,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton21">
                                 <property name="label" translatable="yes">Color 3</property>
-                                <property name="related_action">ra_ctx_color2</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_color2</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -636,10 +656,10 @@
                             <child>
                               <object class="GtkToggleButton" id="_togglebutton22">
                                 <property name="label" translatable="yes">ZS</property>
-                                <property name="related_action">ra_ctx_zs</property>
                                 <property name="visible">True</property>
                                 <property name="can_focus">True</property>
                                 <property name="receives_default">True</property>
+                                <property name="related_action">ra_ctx_zs</property>
                               </object>
                               <packing>
                                 <property name="expand">False</property>
@@ -675,7 +695,74 @@
                   </packing>
                 </child>
                 <child>
-                  <placeholder/>
+                  <object class="GtkVBox" id="texture_view">
+                    <property name="visible">True</property>
+                    <property name="can_focus">False</property>
+                    <child>
+                      <object class="GtkHBox" id="layer_hbox">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                        <child>
+                          <object class="GtkLabel" id="label1">
+                            <property name="visible">True</property>
+                            <property name="can_focus">False</property>
+                            <property name="label" translatable="yes">Layer:</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">0</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <object class="GtkSpinButton" id="layer">
+                            <property name="visible">True</property>
+                            <property name="can_focus">True</property>
+                            <property name="max_length">5</property>
+                            <property name="invisible_char">•</property>
+                            <property name="invisible_char_set">True</property>
+                            <property name="primary_icon_activatable">False</property>
+                            <property name="secondary_icon_activatable">False</property>
+                            <property name="primary_icon_sensitive">True</property>
+                            <property name="secondary_icon_sensitive">True</property>
+                            <property name="adjustment">layer_adjustment</property>
+                            <property name="snap_to_ticks">True</property>
+                            <property name="numeric">True</property>
+                          </object>
+                          <packing>
+                            <property name="expand">False</property>
+                            <property name="fill">True</property>
+                            <property name="position">1</property>
+                          </packing>
+                        </child>
+                        <child>
+                          <placeholder/>
+                        </child>
+                      </object>
+                      <packing>
+                        <property name="expand">False</property>
+                        <property name="fill">True</property>
+                        <property name="padding">4</property>
+                        <property name="position">0</property>
+                      </packing>
+                    </child>
+                    <child>
+                      <object class="GtkDrawingArea" id="draw">
+                        <property name="visible">True</property>
+                        <property name="can_focus">False</property>
+                      </object>
+                      <packing>
+                        <property name="expand">True</property>
+                        <property name="fill">True</property>
+                        <property name="position">1</property>
+                      </packing>
+                    </child>
+                  </object>
+                  <packing>
+                    <property name="expand">True</property>
+                    <property name="fill">True</property>
+                    <property name="position">1</property>
+                  </packing>
                 </child>
                 <child>
                   <object class="GtkScrolledWindow" id="textview_scrolled">
@@ -696,14 +783,7 @@
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkDrawingArea" id="draw">
-                    <property name="can_focus">False</property>
-                  </object>
-                  <packing>
-                    <property name="expand">True</property>
-                    <property name="fill">True</property>
-                    <property name="position">3</property>
-                  </packing>
+                  <placeholder/>
                 </child>
               </object>
               <packing>

@@ -437,11 +437,13 @@ void main_window_create(struct program *p)
 	GObject *selection;
 	GtkDrawingArea *draw;
 	GtkTextView *textview;
+	GtkWidget *texture_view;
 	GtkWidget *context_view;
 	GtkWidget *textview_scrolled;
 	GtkTreeView *treeview;
 	GtkTreeStore *treestore;
 	GtkStatusbar *statusbar;
+	GtkSpinButton *layer;
 
 	GObject *tool_quit;
 	GObject *tool_refresh;
@@ -475,9 +477,10 @@ void main_window_create(struct program *p)
 	treestore = GTK_TREE_STORE(gtk_builder_get_object(builder, "treestore"));
 	selection = G_OBJECT(gtk_tree_view_get_selection(treeview));
 	statusbar = GTK_STATUSBAR(gtk_builder_get_object(builder, "statusbar"));
+	texture_view = GTK_WIDGET(gtk_builder_get_object(builder, "texture_view"));
 	context_view = GTK_WIDGET(gtk_builder_get_object(builder, "context_view"));
 	textview_scrolled = GTK_WIDGET(gtk_builder_get_object(builder, "textview_scrolled"));
-
+	layer = GTK_SPIN_BUTTON(gtk_builder_get_object(builder, "layer"));
 
 	tool_quit = gtk_builder_get_object(builder, "tool_quit");
 	tool_refresh = gtk_builder_get_object(builder, "tool_refresh");
@@ -548,8 +551,10 @@ void main_window_create(struct program *p)
 	p->main.treeview = treeview;
 	p->main.treestore = treestore;
 	p->main.statusbar = statusbar;
+	p->main.texture_view = texture_view;
 	p->main.context_view = context_view;
 	p->main.textview_scrolled = textview_scrolled;
+	p->main.layer = layer;
 
 	p->tool.break_before = GTK_WIDGET(tool_break_before);
 	p->tool.break_after = GTK_WIDGET(tool_break_after);
@@ -582,7 +587,7 @@ void main_window_create(struct program *p)
 
 	gtk_widget_hide(p->main.textview_scrolled);
 	gtk_widget_hide(GTK_WIDGET(p->main.textview));
-	gtk_widget_hide(GTK_WIDGET(p->main.draw));
+	gtk_widget_hide(p->main.texture_view);
 
 	gtk_widget_show(window);
 

@@ -100,6 +100,12 @@ static void background(GtkWidget *widget, struct program *p)
 	gtk_widget_queue_draw(GTK_WIDGET(p->main.draw));
 }
 
+static void layer_changed(GtkWidget *widget, struct program *p)
+{
+	(void)widget;
+
+	texture_start_if_new_read_action(p->viewed.id, &p->viewed.iter, p);
+}
 
 /*
  * Exported
@@ -176,7 +182,7 @@ void texture_unviewed(struct program *p)
 	gtk_widget_hide(p->tool.alpha);
 	gtk_widget_hide(p->tool.automatic);
 	gtk_widget_hide(p->tool.background);
-	gtk_widget_hide(GTK_WIDGET(p->main.draw));
+	gtk_widget_hide(p->main.texture_view);
 
 	p->texture.automatic = FALSE;
 	p->texture.back = BACK_CHECKER;
@@ -184,6 +190,7 @@ void texture_unviewed(struct program *p)
 	g_signal_handler_disconnect(p->tool.alpha, p->texture.tid[0]);
 	g_signal_handler_disconnect(p->tool.automatic, p->texture.tid[1]);
 	g_signal_handler_disconnect(p->tool.background, p->texture.tid[2]);
+	g_signal_handler_disconnect(p->main.layer, p->texture.tid[3]);
 }
 
 void texture_viewed(struct program *p)
@@ -195,7 +202,7 @@ void texture_viewed(struct program *p)
 	gtk_widget_show(p->tool.alpha);
 	gtk_widget_show(p->tool.automatic);
 	gtk_widget_show(p->tool.background);
-	gtk_widget_show(GTK_WIDGET(p->main.draw));
+	gtk_widget_show(p->main.texture_view);
 
 	p->texture.automatic = FALSE;
 	p->texture.back = BACK_CHECKER;
@@ -205,6 +212,7 @@ void texture_viewed(struct program *p)
 	p->texture.tid[0] = g_signal_connect(p->tool.alpha, "clicked", G_CALLBACK(alpha), p);
 	p->texture.tid[1] = g_signal_connect(p->tool.automatic, "clicked", G_CALLBACK(automatic), p);
 	p->texture.tid[2] = g_signal_connect(p->tool.background, "clicked", G_CALLBACK(background), p);
+	p->texture.tid[3] = g_signal_connect(p->main.layer, "value-changed", G_CALLBACK(layer_changed), p);
 }
 
 void texture_unselected(struct program *p)
@@ -226,6 +234,7 @@ struct texture_action_read
 	struct rbug_event e;
 
 	rbug_texture_t id;
+	unsigned layer;
 
 	GtkTreeIter iter;
 
@@ -607,6 +616,7 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 		 util_format_name(info->format)+12);
 	snprintf(info_long_string, 128, "%s (%ux%ux%u) %u", util_format_name(info->format), info->width[0], info->height[0], info->depth[0], info->last_level);
 
+	gtk_spin_button_set_range(p->main.layer, 0, info->depth[0]-1);
 	gtk_tree_store_set(p->main.treestore, &action->iter,
 	                   COLUMN_PIXBUF, buf,
 	                   COLUMN_INFO_SHORT, info_short_string,
@@ -621,7 +631,7 @@ static gboolean texture_action_read_info(struct rbug_event *e,
 	action->format = info->format;
 
 	rbug_send_texture_read(con, action->id,
-	                       0, 0, 0,
+	                       0, 0, action->layer,
 	                       0, 0, action->width, action->height,
 	                       &serial);
 	/* new message pending */
@@ -683,6 +693,7 @@ texture_start_read_action(rbug_texture_t t, GtkTreeIter *iter, struct program *p
 
 	action->e.func = texture_action_read_info;
 	action->id = t;
+	action->layer = gtk_spin_button_get_value_as_int(p->main.layer);
 	action->iter = *iter;
 	action->pending = TRUE;
 	action->running = TRUE;
