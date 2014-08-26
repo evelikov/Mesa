@@ -244,8 +244,10 @@ static void update_raster_state( struct st_context *st )
                                   ctx->Color._ClampFragmentColor;
 
    raster->half_pixel_center = 1;
-   if (st_fb_orientation(ctx->DrawBuffer) == Y_0_TOP)
+   if (st_fb_orientation(ctx->DrawBuffer) == Y_0_TOP) {
       raster->bottom_edge_rule = 1;
+      raster->lower_left_origin = st->use_rast_y_flip;
+   }
    /* _NEW_TRANSFORM */
    if (ctx->Transform.ClipOrigin == GL_UPPER_LEFT)
       raster->bottom_edge_rule ^= 1;
