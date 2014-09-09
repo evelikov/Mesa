@@ -1,7 +1,6 @@
 # Mesa 3-D graphics library
 #
-# Copyright (C) 2010-2011 Chia-I Wu <olvaffe@gmail.com>
-# Copyright (C) 2010-2011 LunarG Inc.
+# Copyright (C) 2014 Tomasz Figa <tomasz.figa@gmail.com>
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -21,53 +20,39 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# Android.mk for glsl
-
 LOCAL_PATH := $(call my-dir)
 
 include $(LOCAL_PATH)/Makefile.sources
 
-GLSL_SRCDIR = .
 # ---------------------------------------
-# Build libmesa_glsl
+# Build libmesa_util
 # ---------------------------------------
 
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-	$(LIBGLCPP_FILES) \
-	$(LIBGLSL_FILES)
+	$(MESA_UTIL_FILES)
 
-LOCAL_C_INCLUDES := \
-	$(MESA_TOP)/src \
-	$(MESA_TOP)/src/mapi \
-	$(MESA_TOP)/src/mesa
+LOCAL_MODULE := libmesa_util
 
-LOCAL_MODULE := libmesa_glsl
-
-include external/stlport/libstlport.mk
 include $(LOCAL_PATH)/Android.gen.mk
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
 
 # ---------------------------------------
-# Build glsl_compiler
+# Build host libmesa_util
 # ---------------------------------------
 
 include $(CLEAR_VARS)
 
+LOCAL_IS_HOST_MODULE := true
+LOCAL_CFLAGS := -D_POSIX_C_SOURCE=199309L
+
 LOCAL_SRC_FILES := \
-	$(GLSL_COMPILER_CXX_FILES)
+	$(MESA_UTIL_FILES)
 
-LOCAL_C_INCLUDES := \
-	$(MESA_TOP)/src \
-	$(MESA_TOP)/src/mapi \
-	$(MESA_TOP)/src/mesa
+LOCAL_MODULE := libmesa_util
 
-LOCAL_STATIC_LIBRARIES := libmesa_glsl libmesa_glsl_utils libmesa_util
-
-LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := glsl_compiler
-
+include $(LOCAL_PATH)/Android.gen.mk
 include $(MESA_COMMON_MK)
-include $(BUILD_EXECUTABLE)
+include $(BUILD_HOST_STATIC_LIBRARY)
