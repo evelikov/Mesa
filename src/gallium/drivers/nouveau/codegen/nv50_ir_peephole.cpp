@@ -24,9 +24,11 @@
 #include "codegen/nv50_ir_target.h"
 #include "codegen/nv50_ir_build_util.h"
 
-extern "C" {
-#include "util/u_math.h"
-}
+//extern "C" {
+//#include "util/u_math.h"
+//}
+
+#include <cmath>
 
 namespace nv50_ir {
 
@@ -416,9 +418,9 @@ ConstantFolding::expr(Instruction *i,
    case OP_FMA:
    case OP_MUL:
       if (i->dnz && i->dType == TYPE_F32) {
-         if (!isfinite(a->data.f32))
+         if (!std::isfinite(a->data.f32))
             a->data.f32 = 0.0f;
-         if (!isfinite(b->data.f32))
+         if (!std::isfinite(b->data.f32))
             b->data.f32 = 0.0f;
       }
       switch (i->dType) {
