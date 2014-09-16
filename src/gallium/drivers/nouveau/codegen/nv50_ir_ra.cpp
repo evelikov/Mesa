@@ -984,7 +984,7 @@ GCRA::doCoalesce(ArrayList& insns, unsigned int mask)
             break;
          i = NULL;
          if (!insn->getDef(0)->uses.empty())
-            i = (*insn->getDef(0)->uses.begin())->getInsn();
+            i = insn->getDef(0)->uses.front()->getInsn();
          // if this is a contraint-move there will only be a single use
          if (i && i->op == OP_MERGE) // do we really still need this ?
             break;
@@ -1560,7 +1560,7 @@ SpillCodeInserter::run(const std::list<ValuePair>& lst)
          // Unspill at each use *before* inserting spill instructions,
          // we don't want to have the spill instructions in the use list here.
          while (!dval->uses.empty()) {
-            ValueRef *u = *dval->uses.begin();
+            ValueRef *u = dval->uses.front();
             Instruction *usei = u->getInsn();
             assert(usei);
             if (usei->isPseudo()) {
