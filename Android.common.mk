@@ -24,9 +24,9 @@
 # use c99 compiler by default
 ifeq ($(LOCAL_CC),)
 ifeq ($(LOCAL_IS_HOST_MODULE),true)
-LOCAL_CC := $(HOST_CC)
+LOCAL_CC := $(HOST_CC) -std=c99
 else
-LOCAL_CC := $(TARGET_CC)
+LOCAL_CC := $(TARGET_CC) -std=c99
 endif
 endif
 
@@ -41,7 +41,6 @@ LOCAL_CFLAGS += \
 	-DANDROID_VERSION=0x0$(MESA_ANDROID_MAJOR_VERSION)0$(MESA_ANDROID_MINOR_VERSION)
 
 LOCAL_CFLAGS += \
-	-std=c99 \
 	-DHAVE_PTHREAD=1 \
 	-fvisibility=hidden \
 	-Wno-sign-compare
