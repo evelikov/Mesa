@@ -171,8 +171,8 @@ static boolean TAG(do_cliptest)( struct pt_post_vs *pvs,
 	 position[2] = position[2] * w * scale[2] + trans[2];
 	 position[3] = w;
       }
-#ifdef DEBUG
-      /* For debug builds, set the clipped vertex's window coordinate
+#if 0
+      /* Set the clipped vertex's window coordinate
        * to NaN to help catch potential errors later.
        */
       else {
