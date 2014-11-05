@@ -80,9 +80,6 @@ struct threadpool *
 _mesa_threadpool_create(void)
 {
     struct threadpool *pool = calloc(1, sizeof(*pool));
-    struct sched_param sched_param;
-    pthread_attr_t attr;
-    int s;
 
     if (!pool)
         return NULL;
@@ -90,23 +87,7 @@ _mesa_threadpool_create(void)
     pthread_mutex_init(&pool->m, NULL);
     pthread_cond_init(&pool->new_work, NULL);
 
-    /* we use only one thread to allow the execution order predictable.
-     * We put maximum priority on it */
-    s = pthread_attr_init(&attr);
-    if (!s) {
-        s |= pthread_attr_setinheritsched(&attr, PTHREAD_EXPLICIT_SCHED);
-        s |= pthread_attr_setschedpolicy(&attr, SCHED_RR);
-        sched_param.sched_priority = 99;
-        s |= pthread_attr_setschedparam(&attr, &sched_param);
-        if (s != 0)
-            pthread_attr_destroy(&attr);
-    }
-    if (s != 0)
-        pthread_create(&pool->thread, NULL, threadpool_worker, pool);
-    else {
-        pthread_create(&pool->thread, &attr, threadpool_worker, pool);
-        pthread_attr_destroy(&attr);
-    }
+    pthread_create(&pool->thread, NULL, threadpool_worker, pool);
 
     return pool;
 }
