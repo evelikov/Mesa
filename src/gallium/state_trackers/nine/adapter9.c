@@ -497,15 +497,13 @@ NineAdapter9_GetDeviceCaps( struct NineAdapter9 *This,
                    D3DCAPS2_FULLSCREENGAMMA |
                    D3DCAPS2_CANAUTOGENMIPMAP;
 
-    pCaps->Caps3 =
-                /* D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD | */
+    /* Note: D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD just means the
+     * backbuffer can be ARGB (instead of only XRGB) when we are fullscreen
+     * and in discard mode. */
+    pCaps->Caps3 = D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD |
                    D3DCAPS3_COPY_TO_VIDMEM |
                    D3DCAPS3_COPY_TO_SYSTEMMEM |
                    D3DCAPS3_LINEAR_TO_SRGB_PRESENTATION;
-#ifndef DEBUG
-    /* NOTE: CoD4 requires this to start. */
-    pCaps->Caps3 |= D3DCAPS3_ALPHA_FULLSCREEN_FLIP_OR_DISCARD;
-#endif
 
     pCaps->PresentationIntervals = D3DPRESENT_INTERVAL_DEFAULT |
                                    D3DPRESENT_INTERVAL_ONE |
