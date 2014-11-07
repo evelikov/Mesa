@@ -252,6 +252,13 @@ static void nine_ureg_tgsi_dump(struct ureg_program *ureg, boolean override)
  * CONST[88]      LIGHT[7]
  * NOTE: no lighting code is generated if there are no active lights
  *
+ * CONST[100].x___ Viewport 2/width
+ * CONST[100]._y__ Viewport 2/height
+ * CONST[100].__z_ Viewport 1/(zmax - zmin)
+ * CONST[101].x___ Viewport x0
+ * CONST[101]._y__ Viewport y0
+ * CONST[101].__z_ Viewport z0
+ *
  * CONST[128..131] D3DTS_TEXTURE0
  * CONST[132..135] D3DTS_TEXTURE1
  * CONST[136..139] D3DTS_TEXTURE2
@@ -499,7 +506,32 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
             vs->aVtx = ureg_src(r[2]);
     } else
     if (key->position_t) {
-        ureg_MOV(ureg, oPos, vs->aVtx);
+        /* vs->aVtx contains the coordinates buffer wise.
+        * later in the pipeline, clipping, viewport and division
+        * by w (rhw = 1/w) are going to be applied, so do the reverse
+        * of these transformations (except clipping) to have the good
+        * position at the end.*/
+        ureg_MOV(ureg, tmp, vs->aVtx);
+        /* X from [X_min, X_min + width] to [-1, 1], same for Y. Z to [0, 1] */
+        ureg_SUB(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), ureg_src(tmp), _CONST(101));
+        ureg_MUL(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), ureg_src(tmp), _CONST(100));
+        ureg_SUB(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XY), ureg_src(tmp), ureg_imm1f(ureg, 1.0f));
+        /* Y needs to be reversed */
+        ureg_MOV(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_Y), ureg_negate(ureg_src(tmp)));
+        /* inverse rhw */
+        ureg_RCP(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_W), _W(tmp));
+        /* multiply X, Y, Z by w */
+        ureg_MUL(ureg, ureg_writemask(tmp, TGSI_WRITEMASK_XYZ), ureg_src(tmp), _W(tmp));
+        ureg_MOV(ureg, oPos, ureg_src(tmp));
+
+        /* TODO: when driver implement VS_WINDOW_SPACE correctly, check
+         * the flag, and if there, do instead:
+         * ureg_MOV(ureg, oPos, vs->aVtx);
+         * ureg_property_vs_window_space_position(ureg, TRUE);
+         * Note: perhaps needs to be called at the end of this function.
+         * Second Note: rhw is not supposed to be 0, but wine treats it as if
+         * it was 1.0. Perhaps some programs get it wrong.
+         */
     } else {
         /* position = vertex * WORLD_VIEW_PROJ */
         ureg_MUL(ureg, r[0], _XXXX(vs->aVtx), _CONST(0));
@@ -884,9 +916,6 @@ nine_ff_build_vs(struct NineDevice9 *device, struct vs_build_ctx *vs)
         ureg_LRP(ureg, ureg_writemask(oCol[0], TGSI_WRITEMASK_XYZ), _X(tmp), ureg_src(rCol[0]), _CONST(29));
         ureg_LRP(ureg, ureg_writemask(oCol[1], TGSI_WRITEMASK_XYZ), _X(tmp), ureg_src(rCol[1]), _CONST(29));
     }
-
-    if (key->position_t)
-        ureg_property_vs_window_space_position(ureg, TRUE);
 
     ureg_END(ureg);
     nine_ureg_tgsi_dump(ureg, FALSE);
@@ -1694,6 +1723,24 @@ nine_ff_load_ps_params(struct NineDevice9 *device)
     dst[22].z = asfloat(state->rs[D3DRS_FOGDENSITY]);
 }
 
+static void
+nine_ff_load_viewport_info(struct NineDevice9 *device)
+{
+    D3DVIEWPORT9 *viewport = &device->state.viewport;
+    struct fvec4 *dst = (struct fvec4 *)device->ff.vs_const;
+    float diffZ = viewport->MaxZ - viewport->MinZ;
+
+    /* Note: the other functions avoids to fill the const again if nothing changed.
+     * But we don't have much to fill, and adding code to allow that may be complex
+     * so just fill it always */
+    dst[100].x = 2.0f / (float)(viewport->Width);
+    dst[100].y = 2.0f / (float)(viewport->Height);
+    dst[100].z = (diffZ == 0.0f) ? 0.0f : (1.0f / diffZ);
+    dst[101].x = (float)(viewport->X);
+    dst[101].y = (float)(viewport->Y);
+    dst[101].z = (float)(viewport->MinZ);
+}
+
 void
 nine_ff_update(struct NineDevice9 *device)
 {
@@ -1723,6 +1770,7 @@ nine_ff_update(struct NineDevice9 *device)
         nine_ff_load_tex_matrices(device);
         nine_ff_load_lights(device);
         nine_ff_load_point_and_fog_params(device);
+        nine_ff_load_viewport_info(device);
 
         memset(state->ff.changed.transform, 0, sizeof(state->ff.changed.transform));
 
