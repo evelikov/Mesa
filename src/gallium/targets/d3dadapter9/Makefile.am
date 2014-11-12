@@ -47,26 +47,27 @@ AM_CPPFLAGS = \
 
 endif
 
-lib_LTLIBRARIES = libd3dadapter9.la
+lib_LTLIBRARIES = d3dadapter9.la
 
-libd3dadapter9_la_SOURCES = \
+d3dadapter9_la_SOURCES = \
 	getproc.c \
 	drm.c
 
-libd3dadapter9_la_LDFLAGS = \
+d3dadapter9_la_LDFLAGS = \
 	-shared \
 	-shrext .so \
 	-module \
 	-no-undefined \
+	-version-number $(NINE_MAJOR):$(NINE_MINOR) \
 	$(GC_SECTIONS) \
 	$(LD_NO_UNDEFINED)
 
 if HAVE_LD_VERSION_SCRIPT
-libd3dadapter9_la_LDFLAGS += \
+d3dadapter9_la_LDFLAGS += \
 	-Wl,--version-script=$(top_srcdir)/src/gallium/targets/d3dadapter9/d3dadapter9.sym
 endif # HAVE_LD_VERSION_SCRIPT
 
-libd3dadapter9_la_LIBADD = \
+d3dadapter9_la_LIBADD = \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
 	$(top_builddir)/src/gallium/state_trackers/nine/libninetracker.la \
 	$(top_builddir)/src/util/libmesautil.la \
@@ -101,13 +102,13 @@ include $(top_srcdir)/src/gallium/drivers/llvmpipe/Automake.inc
 
 if HAVE_GALLIUM_STATIC_TARGETS
 
-libd3dadapter9_la_CPPFLAGS = $(AM_CPPFLAGS) $(TARGET_CPPFLAGS)
-libd3dadapter9_la_LIBADD += $(TARGET_LIB_DEPS) \
+d3dadapter9_la_CPPFLAGS = $(AM_CPPFLAGS) $(TARGET_CPPFLAGS)
+d3dadapter9_la_LIBADD += $(TARGET_LIB_DEPS) \
 	$(TARGET_RADEON_WINSYS) $(TARGET_RADEON_COMMON)
 
 else # HAVE_GALLIUM_STATIC_TARGETS
 
-libd3dadapter9_la_LIBADD += \
+d3dadapter9_la_LIBADD += \
 	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader.la \
 	$(GALLIUM_PIPE_LOADER_WINSYS_LIBS) \
 	$(GALLIUM_PIPE_LOADER_LIBS)
@@ -115,9 +116,9 @@ libd3dadapter9_la_LIBADD += \
 endif # HAVE_GALLIUM_STATIC_TARGETS
 
 if HAVE_MESA_LLVM
-nodist_EXTRA_libd3dadapter9_la_SOURCES = dummy.cpp
-libd3dadapter9_la_LDFLAGS += $(LLVM_LDFLAGS)
-libd3dadapter9_la_LIBADD += $(LLVM_LIBS)
+nodist_EXTRA_d3dadapter9_la_SOURCES = dummy.cpp
+d3dadapter9_la_LDFLAGS += $(LLVM_LDFLAGS)
+d3dadapter9_la_LIBADD += $(LLVM_LIBS)
 endif
 
 d3dadapterdir = $(includedir)/d3dadapter

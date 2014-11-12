@@ -1842,6 +1842,13 @@ AC_ARG_WITH([va-libdir],
     [VA_LIB_INSTALL_DIR="${libdir}/dri"])
 AC_SUBST([VA_LIB_INSTALL_DIR])
 
+AC_ARG_WITH([d3d-libdir],
+    [AS_HELP_STRING([--with-d3d-libdir=DIR],
+        [directory for the D3D modules @<:@${libdir}/d3d@:>@])],
+    [D3D_DRIVER_INSTALL_DIR="$withval"],
+    [D3D_DRIVER_INSTALL_DIR="${libdir}/d3d"])
+AC_SUBST([D3D_DRIVER_INSTALL_DIR])
+
 dnl
 dnl Gallium helper functions
 dnl
@@ -2126,6 +2133,9 @@ AM_CONDITIONAL(HAVE_X86_ASM, test "x$asm_arch" = xx86 -o "x$asm_arch" = xx86_64)
 AM_CONDITIONAL(HAVE_X86_64_ASM, test "x$asm_arch" = xx86_64)
 AM_CONDITIONAL(HAVE_SPARC_ASM, test "x$asm_arch" = xsparc)
 
+AC_SUBST([NINE_MAJOR], 1)
+AC_SUBST([NINE_MINOR], 0)
+
 AC_SUBST([VDPAU_MAJOR], 1)
 AC_SUBST([VDPAU_MINOR], 0)
 
@@ -2206,6 +2216,7 @@ AC_CONFIG_FILES([Makefile
 		src/gallium/state_trackers/xa/Makefile
 		src/gallium/state_trackers/xvmc/Makefile
 		src/gallium/targets/d3dadapter9/Makefile
+		src/gallium/targets/d3dadapter9/d3d.pc
 		src/gallium/targets/dri/Makefile
 		src/gallium/targets/egl-static/Makefile
 		src/gallium/targets/gbm/Makefile
