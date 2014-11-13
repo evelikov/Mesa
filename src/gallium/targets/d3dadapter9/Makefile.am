@@ -47,7 +47,8 @@ AM_CPPFLAGS = \
 
 endif
 
-lib_LTLIBRARIES = d3dadapter9.la
+ninedir = $(D3D_DRIVER_INSTALL_DIR)
+nine_LTLIBRARIES = d3dadapter9.la
 
 d3dadapter9_la_SOURCES = \
 	getproc.c \
