@@ -1,0 +1,1 @@
+EGL_DRIVERS_PATH=/boot/home/mesa/build/haiku-x86-debug/egl/drivers/dri2/ EGL_DRIVER=libegl_haiku.so MESA_DEBUG=1 EGL_LOG_LEVEL=debug LIBGL_DEBUG=verbose ./demo1

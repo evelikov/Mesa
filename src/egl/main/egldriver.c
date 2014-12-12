@@ -52,7 +52,6 @@
 #include <unistd.h>
 #endif
 
-
 typedef struct _egl_module {
    char *Path;
    _EGLMain_t BuiltIn;

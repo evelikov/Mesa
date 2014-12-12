@@ -1,0 +1,24 @@
+Import('*')
+
+env = env.Clone()
+
+env.Append(CPPDEFINES = [
+	'HAVE_EGL_PLATFORM_HAIKU',
+	'DEFAULT_DRIVER_DIR=\\"\\"'
+])
+
+env.Append(CPPPATH = [
+	'#/src/egl/main',
+])
+
+sources = [
+	'egl_dri2.c',
+	'platform_haiku.cpp',
+]
+
+libEGL_Haiku = env.SharedLibrary(
+	target = 'egl_haiku.so',
+	source = sources,
+)
+
+Export('libEGL_Haiku')
