@@ -3,22 +3,37 @@ Import('*')
 env = env.Clone()
 
 env.Append(CPPDEFINES = [
-	'HAVE_EGL_PLATFORM_HAIKU',
-	'DEFAULT_DRIVER_DIR=\\"\\"'
+    'DEFAULT_DRIVER_DIR=\\"\\"'
 ])
 
 env.Append(CPPPATH = [
-	'#/src/egl/main',
+    '#/include',
+    '#/src/egl/main',
+    '#/src/loader',
 ])
 
 sources = [
-	'egl_dri2.c',
-	'platform_haiku.cpp',
+    'egl_dri2.c',
 ]
 
-libEGL_Haiku = env.SharedLibrary(
-	target = 'egl_haiku.so',
-	source = sources,
+if env['platform'] == 'haiku':
+    sources.append('platform_haiku.cpp')
+    env.Append(CPPDEFINES = [
+        'HAVE_HAIKU_PLATFORM',
+    ])
+
+if env['x11']:
+    sources.append('platform_x11.cpp')
+    env.Append(CPPDEFINES = [
+        'HAVE_X11_PLATFORM',
+    ])
+    env.Append([CPPPATH = [
+#        'XCB_DRI2_CFLAGS',
+    ])
+
+egl_dri2 = env.ConvenienceLibrary(
+    target = 'egl_dri2',
+    source = sources,
 )
 
-Export('libEGL_Haiku')
+Export('egl_dri2')

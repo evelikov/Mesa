@@ -198,7 +198,7 @@ struct dri2_egl_display
    uint32_t                  capabilities;
 #endif
 
-#ifdef HAVE_EGL_PLATFORM_HAIKU
+#ifdef HAVE_HAIKU_PLATFORM
    void                     *bwindow;
    void                     *glview;
 #endif

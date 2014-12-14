@@ -28,11 +28,19 @@ env.Append(CPPPATH = [
     '#/include',
 ])
 
+env.Prepend(LIBS = [
+    'egl_dri2',
+])
+
 # parse Makefile.sources
 egl_sources = env.ParseSourceList('Makefile.sources', 'LIBEGL_C_FILES')
 
-egl = env.ConvenienceLibrary(
-    target = 'egl',
+# libEGL.dll
+env['LIBPREFIX'] = 'lib'
+env['SHLIBPREFIX'] = 'lib'
+
+egl = env.SharedLibrary(
+    target = 'EGL',
     source = egl_sources,
 )
 

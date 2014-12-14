@@ -654,6 +654,13 @@ dri2_initialize(_EGLDriver *drv, _EGLDisplay *disp)
       return dri2_initialize_android(drv, disp);
 #endif
 
+#ifdef HAVE_HAIKU_PLATFORM
+   case _EGL_PLATFORM_HAIKU:
+      if (disp->Options.TestOnly)
+         return EGL_TRUE;
+      return dri2_initialize_haiku(drv, disp);
+#endif
+
    default:
       return EGL_FALSE;
    }

@@ -24,7 +24,6 @@ SConscript('mapi/glapi/SConscript')
 # Haiku C++ libGL dispatch (renderers depend on libgl)
 if env['platform'] in ['haiku']:
     SConscript('hgl/SConscript')
-    SConscript('egl/drivers/dri2/SConscript')
 
 SConscript('mesa/SConscript')
 
@@ -34,6 +33,7 @@ if not env['embedded']:
     if env['platform'] not in ('cygwin', 'darwin', 'freebsd', 'haiku', 'windows'):
         SConscript('glx/SConscript')
     if env['platform'] not in ['darwin', 'sunos']:
+        SConscript('egl/drivers/dri2/SConscript')
         SConscript('egl/main/SConscript')
 
     if env['gles']:
