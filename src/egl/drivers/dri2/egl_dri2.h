@@ -199,8 +199,8 @@ struct dri2_egl_display
 #endif
 
 #ifdef HAVE_EGL_PLATFORM_HAIKU
-	void					*bwindow;
-	void					*glview;
+   void                     *bwindow;
+   void                     *glview;
 #endif
 };
 

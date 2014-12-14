@@ -77,9 +77,9 @@ extern "C"
 EGLBoolean
 dri2_initialize_haiku(_EGLDriver *drv, _EGLDisplay *dpy)
 {
-   printf("INITIALIZING HAIKU");
-   struct dri2_egl_display_vtbl dri2_haiku_display_vtbl;
-   dri2_haiku_display_vtbl={};
+   struct dri2_egl_display_vtbl dri2_haiku_display_vtbl = {};
+   struct dri2_egl_display *dri2_dpy;
+
    dri2_haiku_display_vtbl.authenticate = NULL;
    dri2_haiku_display_vtbl.create_window_surface = NULL;
    dri2_haiku_display_vtbl.create_pixmap_surface = NULL;
@@ -95,25 +95,22 @@ dri2_initialize_haiku(_EGLDriver *drv, _EGLDisplay *dpy)
    dri2_haiku_display_vtbl.create_wayland_buffer_from_image = dri2_fallback_create_wayland_buffer_from_image;
    dri2_haiku_display_vtbl.get_sync_values = dri2_fallback_get_sync_values;
 
-   struct dri2_egl_display *dri2_dpy;
-   const char *err;
-
+   printf("INITIALIZING HAIKU");
    _eglSetLogProc(haiku_log);
 
-   //loader_set_logger(_eglLog);
+   loader_set_logger(_eglLog);
 
-   dri2_dpy =(struct dri2_egl_display*) calloc(1, sizeof(*dri2_dpy));
+   dri2_dpy = (struct dri2_egl_display*) calloc(1, sizeof(*dri2_dpy));
    if (!dri2_dpy)
       return _eglError(EGL_BAD_ALLOC, "eglInitialize");
+
    dpy->DriverData=(void*) dri2_dpy;
-   if(dpy->PlatformDisplay == NULL)
-   {
+   if (!dpy->PlatformDisplay) {
       /* OPEN DEVICE */
-      dri2_dpy->bwindow=(void*)haiku_create_window();
-      dri2_dpy->own_device=true;
-   }else{
-      BWindow* win=(BWindow*)dpy->PlatformDisplay;
-      dri2_dpy->bwindow=win;
+      dri2_dpy->bwindow = (void*)haiku_create_window();
+      dri2_dpy->own_device = true;
+   } else {
+      dri2_dpy->bwindow = (BWindow*)dpy->PlatformDisplay;
    }
 
    dri2_dpy->driver_name = strdup("Haiku OpenGL");
