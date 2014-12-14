@@ -26,10 +26,9 @@
 #include <dlfcn.h>
 #include <stdio.h>
 
+#include "loader.h"
 #include "egl_dri2.h"
 #include "egl_dri2_fallbacks.h"
-#include "../../../loader/loader.h"
-//#include "gralloc_drm.h"
 
 #include <InterfaceKit.h>
 
