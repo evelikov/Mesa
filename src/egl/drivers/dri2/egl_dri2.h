@@ -197,6 +197,11 @@ struct dri2_egl_display
    int			     formats;
    uint32_t                  capabilities;
 #endif
+
+#ifdef HAVE_EGL_PLATFORM_HAIKU
+	void					*bwindow;
+	void					*glview;
+#endif
 };
 
 struct dri2_egl_context
@@ -331,5 +336,13 @@ dri2_initialize_wayland(_EGLDriver *drv, _EGLDisplay *disp);
 
 EGLBoolean
 dri2_initialize_android(_EGLDriver *drv, _EGLDisplay *disp);
+
+#ifdef __cplusplus
+
+extern "C"
+EGLBoolean
+dri2_initialize_haiku(_EGLDriver *drv, _EGLDisplay *disp);
+#endif
+
 
 #endif /* EGL_DRI2_INCLUDED */
