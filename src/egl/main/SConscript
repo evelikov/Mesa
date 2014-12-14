@@ -30,6 +30,7 @@ env.Append(CPPPATH = [
 
 env.Prepend(LIBS = [
     'egl_dri2',
+    libloader,
 ])
 
 # parse Makefile.sources
