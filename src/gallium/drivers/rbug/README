@@ -15,9 +15,8 @@ Do
 
 which should open gallium remote debugging session. While the program is running
 you can launch the small remote debugging application from progs/rbug. More
-information is in that directory. Also for a gui see:
-
-   http://cgit.freedesktop.org/mesa/rbug-gui
+information is in that directory. For interactive debugging the GUI is located
+under src/gallium/tools/rbug-gui.
 
 
 = Integrating =

@@ -7,30 +7,18 @@ It is written in C and uses gtk, gtkglext and Gallium.
 
 
 For information about protocol (de)marshaling see:
-$(MESA)/src/gallium/auxiliary/rbug/README
+src/gallium/auxiliary/rbug/README
 
 for information about driver integration look in:
-$(MESA)/src/gallium/drivers/rbug/README
+src/gallium/drivers/rbug/README
 
 
-= Building =
+= Dependencies =
 
-You need to have checked out a mesa repository in a sibling directory to this
-directory called mesa, as currently the build looks for mesa in ../mesa/.
-You also need to build a debug build of mesa with with gallium so that the
-needed library exist:
-
-	$(MESA)/src/gallium/auxiliary/libgallium.a
-
-
-The gtk dependancies should be satisfied on debian based system with:
+The tool uses GTK for its GUI. The dependancies on a Debian based system should
+be satisfied with:
 
 sudo apt-get install libgtk2.0-dev libgtkglext1-dev
-
-
-Then just do:
- ./autogen.sh
- make
 
 
 = Usage =
@@ -46,8 +34,10 @@ From the debugging computer launch rbug-gui from this folder.
 
 ./rbug-gui [ip|hostname]
 
-If no ip/hostname is give rbug-gui will ask you for a ip and port. You can
-also call "make run" which will connect automaticaly to localhost.
+If no ip/hostname is given rbug-gui will ask you for a ip and port. To connect
+to localhost run
+
+./rbug-gui localhost
 
 
 You should now see the debugger. On the left you have a list of resources

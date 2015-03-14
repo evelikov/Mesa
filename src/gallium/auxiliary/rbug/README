@@ -18,7 +18,7 @@ progs/rbug/README
 
 for a GUI see:
 
-  http://cgit.freedesktop.org/mesa/rbug-gui
+src/gallium/tools/rbug-gui
 
 
 --

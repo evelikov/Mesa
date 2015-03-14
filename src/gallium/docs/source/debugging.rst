@@ -104,6 +104,6 @@ Remote Debugger
 
 The remote debugger, commonly known as rbug, allows for runtime inspections of
 :ref:`Context`, :ref:`Screen`, :ref:`Resource` and :ref:`Shader` objects; and
-pausing and stepping of :ref:`Draw` calls. Is used with rbug-gui which is
-hosted outside of the main mesa repository. rbug is can be used over a network
+pausing and stepping of :ref:`Draw` calls. It is used with rbug-gui which is
+localted in src/gallium/tools/rbug-gui. rbug can be used over a network
 connection, so the debugger does not need to be on the same machine.

@@ -83,7 +83,7 @@ Wrapper driver. Trace dumps an XML record of the calls made to the
 Rbug
 ^^^^
 
-Wrapper driver. :ref:`rbug` driver used with stand alone rbug-gui.
+Wrapper driver. :ref:`rbug` driver used with the rbug-gui tool.
 
 .. _galahad:
 
