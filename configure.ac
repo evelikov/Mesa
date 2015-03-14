@@ -808,6 +808,12 @@ AC_ARG_ENABLE([gallium-tests],
     [enable_gallium_tests="$enableval"],
     [enable_gallium_tests=no])
 
+AC_ARG_ENABLE([gallium-rbug-gui],
+    [AS_HELP_STRING([--enable-gallium-rbug-gui],
+        [Enable the GUI tool for the Gallium Remote Debugger) @<:@default=disabled@:>@])],
+    [enable_gallium_rbug_gui="$enableval"],
+    [enable_gallium_rbug_gui=no])
+
 # Option for Gallium drivers
 
 # Keep this in sync with the --with-gallium-drivers help string default value
@@ -1987,6 +1993,14 @@ if test "x$enable_gallium_tests" = xyes; then
 fi
 AM_CONDITIONAL(HAVE_GALLIUM_TESTS, test "x$enable_gallium_tests" = xyes)
 
+if test "x$enable_gallium_rbug_gui" = xyes; then
+    if test -z "$with_gallium_drivers"; then
+        AC_MSG_ERROR([Building the rbug GUI requires gallium.])
+    fi
+    PKG_CHECK_MODULES(GTK, [gtkglext-1.0])
+fi
+AM_CONDITIONAL(HAVE_GALLIUM_RBUG_GUI, test "x$enable_gallium_rbug_gui" = xyes)
+
 dnl Directory for VDPAU libs
 AC_ARG_WITH([vdpau-libdir],
     [AS_HELP_STRING([--with-vdpau-libdir=DIR],
@@ -2399,6 +2413,7 @@ AC_CONFIG_FILES([Makefile
 		src/gallium/targets/xvmc/Makefile
 		src/gallium/tests/trivial/Makefile
 		src/gallium/tests/unit/Makefile
+		src/gallium/tools/rbug-gui/Makefile
 		src/gallium/winsys/freedreno/drm/Makefile
 		src/gallium/winsys/i915/drm/Makefile
 		src/gallium/winsys/intel/drm/Makefile

@@ -32,7 +32,8 @@ AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-vdpau \
 	--enable-xa \
 	--enable-xvmc \
-	--with-egl-platforms=x11,wayland,drm
+	--with-egl-platforms=x11,wayland,drm \
+	--enable-gallium-rbug-gui
 
 ACLOCAL_AMFLAGS = -I m4
 
