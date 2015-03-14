@@ -1,0 +1,3 @@
+* Fix name for resources.
+* View constant buffers for shaders.
+* View other bound state then just textures and shaders.
