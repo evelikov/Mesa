@@ -76,7 +76,9 @@ ifeq ($(strip $(MESA_BUILD_GALLIUM)),true)
 gallium_DRIVERS :=
 
 # swrast
+ifneq ($(filter swrast, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_pipe_softpipe libmesa_winsys_sw_android
+endif
 
 # freedreno
 ifneq ($(filter freedreno, $(MESA_GPU_DRIVERS)),)

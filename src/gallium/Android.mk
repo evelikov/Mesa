@@ -33,7 +33,9 @@ SUBDIRS := auxiliary
 #
 
 # swrast
+ifneq ($(filter swrast, $(MESA_GPU_DRIVERS)),)
 SUBDIRS += winsys/sw/android drivers/softpipe
+endif
 
 # freedreno
 ifneq ($(filter freedreno, $(MESA_GPU_DRIVERS)),)
