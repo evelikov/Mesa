@@ -78,24 +78,30 @@ gallium_DRIVERS :=
 # swrast
 ifneq ($(filter swrast, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_pipe_softpipe libmesa_winsys_sw_android
+LOCAL_REQUIRED_MODULES += swrast_dri
 endif
 
 # freedreno
 ifneq ($(filter freedreno, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_winsys_freedreno libmesa_pipe_freedreno
 LOCAL_SHARED_LIBRARIES += libdrm_freedreno
+LOCAL_REQUIRED_MODULES += msm_dri kgsl_dri
 endif
 
 # i915g
 ifneq ($(filter i915g, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_winsys_i915 libmesa_pipe_i915
 LOCAL_SHARED_LIBRARIES += libdrm_intel
+LOCAL_REQUIRED_MODULES += i915g_dri
+# ^^ need to have post-install step which renames it to i915_dri
 endif
 
 # ilo
 ifneq ($(filter ilo, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_winsys_intel libmesa_pipe_ilo
 LOCAL_SHARED_LIBRARIES += libdrm_intel
+LOCAL_REQUIRED_MODULES += ilo_dri
+# ^^ need to have post-install step which renames it to i965_dri
 endif
 
 # nouveau
@@ -103,6 +109,7 @@ ifneq ($(filter nouveau, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS +=  libmesa_winsys_nouveau libmesa_pipe_nouveau
 LOCAL_SHARED_LIBRARIES += libdrm_nouveau
 LOCAL_SHARED_LIBRARIES += libstlport
+LOCAL_REQUIRED_MODULES += nouveau_dri
 endif
 
 # r300g/r600g/radeonsi
@@ -111,22 +118,26 @@ gallium_DRIVERS += libmesa_winsys_radeon
 LOCAL_SHARED_LIBRARIES += libdrm_radeon
 ifneq ($(filter r300g, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_pipe_r300
+LOCAL_REQUIRED_MODULES += r300_dri
 endif # r300g
 ifneq ($(filter r600g radeonsi, $(MESA_GPU_DRIVERS)),)
 ifneq ($(filter r600g, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_pipe_r600
 LOCAL_SHARED_LIBRARIES += libstlport
+LOCAL_REQUIRED_MODULES += r600_dri
 endif # r600g
 ifneq ($(filter radeonsi, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_pipe_radeonsi
 endif # radeonsi
 gallium_DRIVERS += libmesa_pipe_radeon
+LOCAL_REQUIRED_MODULES += radeonsi_dri
 endif # r600g || radeonsi
 endif # r300g || r600g || radeonsi
 
 # vmwgfx
 ifneq ($(filter vmwgfx, $(MESA_GPU_DRIVERS)),)
 gallium_DRIVERS += libmesa_winsys_svga libmesa_pipe_svga
+LOCAL_REQUIRED_MODULES += vmwgfx_dri
 endif
 
 #
