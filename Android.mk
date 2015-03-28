@@ -83,16 +83,9 @@ SUBDIRS := \
 	src/mesa \
 	src/util \
 	src/egl/main \
-	src/egl/drivers/dri2
-
-ifeq ($(strip $(MESA_BUILD_CLASSIC)),true)
-SUBDIRS += \
-	src/mesa/drivers/dri
-endif
-
-ifeq ($(strip $(MESA_BUILD_GALLIUM)),true)
-SUBDIRS += src/gallium
-endif
+	src/egl/drivers/dri2 \
+	src/mesa/drivers/dri \
+	src/gallium
 
 include $(call all-named-subdir-makefiles,$(SUBDIRS))
 
