@@ -62,10 +62,10 @@ ifneq ($(MESA_GPU_DRIVERS),swrast)
 LOCAL_SHARED_LIBRARIES += libdrm
 endif
 
-ifeq ($(strip $(MESA_BUILD_CLASSIC)),true)
 LOCAL_CFLAGS += -D_EGL_BUILT_IN_DRIVER_DRI2
 LOCAL_STATIC_LIBRARIES += libmesa_egl_dri2
 
+ifeq ($(strip $(MESA_BUILD_CLASSIC)),true)
 # require i915_dri and/or i965_dri
 LOCAL_REQUIRED_MODULES += \
 	$(addsuffix _dri, $(filter i915 i965, $(MESA_GPU_DRIVERS)))
