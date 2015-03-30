@@ -1,0 +1,15 @@
+version: 1.0.{build}
+branches:
+  only: 
+  - appveyor
+clone_folder: C:\mesa
+init:
+
+build_script:
+- '"C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\Tools\VsDevCmd"'
+- C:\MinGW\msys\1.0\bin\bash -lc "echo \"C:/MinGW /mingw\" > /etc/fstab"
+- C:\MinGW\msys\1.0\bin\bash -lc "cp /c/pthreads-win32/Pre-built.2/dll/x86/*.dll /c/mesa/."
+- C:\MinGW\msys\1.0\bin\bash -lc "mv /bin/link.exe /bin/link_copy.exe"
+- C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && ./autogen.sh"
+- C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && ./configure CC=build-aux/cccl LD=\"`which link`\""
+- C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && make"
