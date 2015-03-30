@@ -46,13 +46,6 @@ AC_CONFIG_MACRO_DIR([m4])
 AC_CANONICAL_SYSTEM
 AM_INIT_AUTOMAKE([foreign tar-ustar dist-xz])
 
-dnl We only support native Windows builds (MinGW/MSVC) through SCons.
-case "$host_os" in
-mingw*)
-    AC_MSG_ERROR([MinGW build not supported through autoconf/automake, use SCons instead])
-    ;;
-esac
-
 # Support silent build rules, requires at least automake-1.11. Disable
 # by either passing --disable-silent-rules to configure or passing V=1
 # to make
@@ -656,7 +649,7 @@ AC_CHECK_FUNCS([dladdr])
 LIBS="$save_LIBS"
 
 case "$host_os" in
-darwin*)
+darwin*|mingw*)
     ;;
 *)
     AC_CHECK_FUNCS([clock_gettime], [CLOCK_LIB=],
@@ -670,10 +663,16 @@ dnl See if posix_memalign is available
 AC_CHECK_FUNC([posix_memalign], [DEFINES="$DEFINES -DHAVE_POSIX_MEMALIGN"])
 
 dnl Check for pthreads
-AX_PTHREAD
-if test "x$ax_pthread_ok" = xno; then
-    AC_MSG_ERROR([Building mesa on this platform requires pthreads])
-fi
+case "$host_os" in
+mingw*)
+    ;;
+*)
+    AX_PTHREAD
+    if test "x$ax_pthread_ok" = xno; then
+        AC_MSG_ERROR([Building mesa on this platform requires pthreads])
+    fi
+    ;;
+esac
 dnl AX_PTHREADS leaves PTHREAD_LIBS empty for gcc and sets PTHREAD_CFLAGS
 dnl to -pthread, which causes problems if we need -lpthread to appear in
 dnl pkgconfig files.
@@ -904,7 +903,7 @@ AM_CONDITIONAL(HAVE_DRI_GLX, test "x$enable_glx" = xyes -a \
 case "$host_os" in
 darwin*)
     dri_platform='apple' ;;
-gnu*|cygwin*)
+gnu*|mingw*|cygwin*)
     dri_platform='none' ;;
 *)
     dri_platform='drm' ;;
