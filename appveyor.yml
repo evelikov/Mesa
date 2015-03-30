@@ -3,6 +3,7 @@ branches:
   only:
   - appveyor
 clone_folder: C:\mesa
+shallow_clone: true
 init:
 
 build_script:
