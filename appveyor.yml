@@ -10,6 +10,5 @@ build_script:
 - '"C:\Program Files (x86)\Microsoft Visual Studio 12.0\Common7\Tools\VsDevCmd"'
 - C:\MinGW\msys\1.0\bin\bash -lc "echo \"C:/MinGW /mingw\" > /etc/fstab"
 - C:\MinGW\msys\1.0\bin\bash -lc "mv /bin/link.exe /bin/link_copy.exe"
-- C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && ./autogen.sh"
-- C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && ./configure CC=build-aux/cccl LD=\"`which link`\""
+- C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && ./autogen.sh CC=build-aux/cccl LD=\"`which link`\" --disable-glx --disable-shader-cache"
 - C:\MinGW\msys\1.0\bin\bash -lc "cd /c/mesa && make"
