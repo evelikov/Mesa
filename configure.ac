@@ -2144,12 +2144,6 @@ if test -n "$with_gallium_drivers"; then
             HAVE_GALLIUM_VC4=yes
             gallium_require_drm "vc4"
             gallium_require_drm_loader
-
-            case "$host_cpu" in
-                i?86 | x86_64 | amd64)
-                USE_VC4_SIMULATOR=yes
-                ;;
-            esac
             ;;
         *)
             AC_MSG_ERROR([Unknown Gallium driver: $driver])
