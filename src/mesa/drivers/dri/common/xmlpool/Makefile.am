@@ -66,9 +66,11 @@ CLEANFILES = \
 	$(POS) \
 	$(MOS)
 
+PYTHON_GEN = $(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS)
+
 # Default target options.h
 options.h: t_options.h $(MOS)
-	$(AM_V_GEN) $(PYTHON2) $(PYTHON_FLAGS) $(srcdir)/gen_xmlpool.py $(srcdir)/t_options.h . $(LANGS) > options.h
+	$(PYTHON_GEN) $(srcdir)/gen_xmlpool.py $(srcdir)/t_options.h . $(LANGS) > options.h
 
 # Update .mo files from the corresponding .po files.
 %/LC_MESSAGES/options.mo: %.po
