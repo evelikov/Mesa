@@ -54,16 +54,15 @@ mesa_dri_drivers_la_SOURCES =
 mesa_dri_drivers_la_LDFLAGS = \
         -module -avoid-version -shared -shrext .so \
         $(BSYMBOLIC) \
-        $(GC_SECTIONS) \
-        $()
+        $(GC_SECTIONS)
+
 mesa_dri_drivers_la_LIBADD = \
         ../../libmesa.la \
         common/libmegadriver_stub.la \
         common/libdricommon.la \
         common/libxmlconfig.la \
         $(MEGADRIVERS_DEPS) \
-        $(DRI_LIB_DEPS) \
-        $()
+        $(DRI_LIB_DEPS)
 
 if NEED_MEGADRIVER
 dri_LTLIBRARIES = mesa_dri_drivers.la
