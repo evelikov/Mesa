@@ -50,6 +50,9 @@ AM_CPPFLAGS =							\
 
 include Makefile.sources
 
+MKDIR_GEN = $(AM_V_at)$(MKDIR_P) $(@D)
+PYTHON_GEN = $(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS)
+
 glapi_gen_mapi_deps := \
 	mapi_abi.py \
 	$(wildcard glapi/gen/*.xml) \
@@ -85,9 +88,9 @@ shared_glapi_test_LDADD = \
 endif
 
 shared-glapi/glapi_mapi_tmp.h : glapi/gen/gl_and_es_API.xml $(glapi_gen_mapi_deps)
-	@$(MKDIR_P) $(dir $@)
-	$(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS) $(srcdir)/mapi_abi.py \
-	--mode lib --printer shared-glapi $< > $@
+	$(MKDIR_GEN)
+	$(PYTHON_GEN) $(srcdir)/mapi_abi.py --mode lib --printer shared-glapi \
+		$(srcdir)/glapi/gen/gl_and_es_API.xml > $@
 
 if HAVE_OPENGL
 noinst_LTLIBRARIES = glapi/libglapi.la
@@ -179,9 +182,9 @@ endif
 endif
 
 es1api/glapi_mapi_tmp.h: glapi/gen/gl_and_es_API.xml $(glapi_gen_mapi_deps)
-	@$(MKDIR_P) $(dir $@)
-	$(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS) $(srcdir)/mapi_abi.py \
-	--mode lib --printer es1api $< > $@
+	$(MKDIR_GEN)
+	$(PYTHON_GEN) $(srcdir)/mapi_abi.py --mode lib --printer es1api \
+		$(srcdir)/glapi/gen/gl_and_es_API.xml > $@
 
 if HAVE_OPENGL_ES2
 TESTS += es2api/ABI-check
@@ -225,8 +228,8 @@ endif
 endif
 
 es2api/glapi_mapi_tmp.h: glapi/gen/gl_and_es_API.xml $(glapi_gen_mapi_deps)
-	@$(MKDIR_P) $(dir $@)
-	$(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS) $(srcdir)/mapi_abi.py \
-	--mode lib --printer es2api $< > $@
+	$(MKDIR_GEN)
+	$(PYTHON_GEN) $(srcdir)/mapi_abi.py --mode lib --printer es2api \
+		$(srcdir)/glapi/gen/gl_and_es_API.xml > $@
 
 include $(top_srcdir)/install-lib-links.mk
