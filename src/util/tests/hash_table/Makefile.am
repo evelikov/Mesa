@@ -38,7 +38,6 @@ TESTS = \
 	null_destroy \
 	random_entry \
 	remove_null \
-	replacement \
-	$()
+	replacement
 
 check_PROGRAMS = $(TESTS)
