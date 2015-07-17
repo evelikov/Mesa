@@ -30,8 +30,7 @@ endif
 AM_CFLAGS = \
 	$(LIBDRM_CFLAGS) \
 	$(GALLIUM_DRIVER_CFLAGS) \
-	$(SIM_CFLAGS) \
-	-I$(top_srcdir)/src/mesa/
+	$(SIM_CFLAGS)
 
 noinst_LTLIBRARIES = libvc4.la
 
