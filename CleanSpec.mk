@@ -1,3 +1,11 @@
+# How to cleanup (if we move the sources generation to Makefile.sources
+# for in in `find MESA_TOP -name "Makefile.sources"`; do
+# 	path=`dir $i`
+# 	include $i
+# 	generated_sources =  $(addprefix $(intermediates)/, CLEANFILES)
+#	$(call add-clean-step, rm -rf $(generated_sources))
+# done
+
 $(call add-clean-step, rm -rf $(PRODUCT_OUT)/obj/STATIC_LIBRARIES/libmesa_*_intermediates)
 $(call add-clean-step, rm -rf $(PRODUCT_OUT)/obj/SHARED_LIBRARIES/i9*5_dri_intermediates)
 $(call add-clean-step, rm -rf $(PRODUCT_OUT)/obj/SHARED_LIBRARIES/libglapi_intermediates)
