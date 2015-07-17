@@ -184,32 +184,19 @@ glsl_test_LDADD =					\
 #    automake to name the resulting generated code as <library-name>_filename.c.
 #    Frankly, that's ugly and we don't want a libglcpp_glcpp_parser.h file.
 
-# In order to make build output print "LEX" and "YACC", we reproduce the
-# automake variables below.
-
-AM_V_LEX = $(am__v_LEX_$(V))
-am__v_LEX_ = $(am__v_LEX_$(AM_DEFAULT_VERBOSITY))
-am__v_LEX_0 = @echo "  LEX     " $@;
-am__v_LEX_1 =
-
-AM_V_YACC = $(am__v_YACC_$(V))
-am__v_YACC_ = $(am__v_YACC_$(AM_DEFAULT_VERBOSITY))
-am__v_YACC_0 = @echo "  YACC    " $@;
-am__v_YACC_1 =
-
 glsl_parser.cpp glsl_parser.h: glsl_parser.yy
-	$(AM_V_YACC) $(YACC) $(YFLAGS) -o $@ -p "_mesa_glsl_" --defines=$(builddir)/glsl_parser.h $<
+	$(AM_V_GEN) $(YACC) $(YFLAGS) -o $@ -p "_mesa_glsl_" --defines=$(builddir)/glsl_parser.h $<
 
 glsl_lexer.cpp: glsl_lexer.ll
-	$(AM_V_LEX) $(LEX) $(LFLAGS) -o $@ $<
+	$(AM_V_GEN) $(LEX) $(LFLAGS) -o $@ $<
 
 glcpp/glcpp-parse.c glcpp/glcpp-parse.h: glcpp/glcpp-parse.y
 	$(AM_V_at)$(MKDIR_P) glcpp
-	$(AM_V_YACC) $(YACC) $(YFLAGS) -o $@ -p "glcpp_parser_" --defines=$(builddir)/glcpp/glcpp-parse.h $<
+	$(AM_V_GEN) $(YACC) $(YFLAGS) -o $@ -p "glcpp_parser_" --defines=$(builddir)/glcpp/glcpp-parse.h $<
 
 glcpp/glcpp-lex.c: glcpp/glcpp-lex.l
 	$(AM_V_at)$(MKDIR_P) glcpp
-	$(AM_V_LEX) $(LEX) $(LFLAGS) -o $@ $<
+	$(AM_V_GEN) $(LEX) $(LFLAGS) -o $@ $<
 
 # Only the parsers (specifically the header files generated at the same time)
 # need to be in BUILT_SOURCES. Though if we list the parser headers YACC is
