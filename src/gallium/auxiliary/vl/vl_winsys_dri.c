@@ -387,7 +387,7 @@ vl_screen_create(Display *display, int screen)
    if (authenticate == NULL || !authenticate->authenticated)
       goto free_authenticate;
 
-   if (pipe_loader_drm_probe_fd(&scrn->base.dev, fd))
+   if (pipe_loader_drm_probe_fd(&scrn->base.dev, dup(fd)))
       scrn->base.pscreen = pipe_loader_create_screen(scrn->base.dev);
 
    if (!scrn->base.pscreen)
