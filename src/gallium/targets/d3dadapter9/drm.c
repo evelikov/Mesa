@@ -216,6 +216,8 @@ drm_create_adapter( int fd,
 
     ctx->base.destroy = drm_destroy;
 
+    /* XXX: Is the owner responsible for FD owndership or are we ?
+     * In the former we're screwing things hard here */
     fd = loader_get_user_preferred_fd(fd, &different_device);
     ctx->fd = fd;
     ctx->base.linear_framebuffer = !!different_device;
