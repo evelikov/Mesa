@@ -91,22 +91,22 @@ brw_reg_from_fs_reg(fs_inst *inst, fs_reg *reg, unsigned gen)
 
       switch (reg->type) {
       case BRW_REGISTER_TYPE_F:
-	 brw_reg = brw_imm_f(reg->fixed_hw_reg.dw1.f);
+	 brw_reg = brw_imm_f(reg->fixed_hw_reg.f);
 	 break;
       case BRW_REGISTER_TYPE_D:
-	 brw_reg = brw_imm_d(reg->fixed_hw_reg.dw1.d);
+	 brw_reg = brw_imm_d(reg->fixed_hw_reg.d);
 	 break;
       case BRW_REGISTER_TYPE_UD:
-	 brw_reg = brw_imm_ud(reg->fixed_hw_reg.dw1.ud);
+	 brw_reg = brw_imm_ud(reg->fixed_hw_reg.ud);
 	 break;
       case BRW_REGISTER_TYPE_W:
-	 brw_reg = brw_imm_w(reg->fixed_hw_reg.dw1.d);
+	 brw_reg = brw_imm_w(reg->fixed_hw_reg.d);
 	 break;
       case BRW_REGISTER_TYPE_UW:
-	 brw_reg = brw_imm_uw(reg->fixed_hw_reg.dw1.ud);
+	 brw_reg = brw_imm_uw(reg->fixed_hw_reg.ud);
 	 break;
       case BRW_REGISTER_TYPE_VF:
-         brw_reg = brw_imm_vf(reg->fixed_hw_reg.dw1.ud);
+         brw_reg = brw_imm_vf(reg->fixed_hw_reg.ud);
          break;
       default:
 	 unreachable("not reached");
@@ -658,7 +658,7 @@ fs_generator::generate_get_buffer_size(fs_inst *inst,
               retype(dst, BRW_REGISTER_TYPE_UW),
               inst->base_mrf,
               src,
-              surf_index.dw1.ud,
+              surf_index.ud,
               0,
               GEN5_SAMPLER_MESSAGE_SAMPLE_RESINFO,
               rlen, /* response length */
@@ -667,7 +667,7 @@ fs_generator::generate_get_buffer_size(fs_inst *inst,
               simd_mode,
               BRW_SAMPLER_RETURN_FORMAT_SINT32);
 
-   brw_mark_surface_used(prog_data, surf_index.dw1.ud);
+   brw_mark_surface_used(prog_data, surf_index.ud);
 }
 
 void
@@ -905,7 +905,7 @@ fs_generator::generate_tex(fs_inst *inst, struct brw_reg dst, struct brw_reg src
          : prog_data->binding_table.texture_start;
 
    if (sampler_index.file == BRW_IMMEDIATE_VALUE) {
-      uint32_t sampler = sampler_index.dw1.ud;
+      uint32_t sampler = sampler_index.ud;
 
       brw_SAMPLE(p,
                  retype(dst, BRW_REGISTER_TYPE_UW),
@@ -1172,11 +1172,11 @@ fs_generator::generate_uniform_pull_constant_load(fs_inst *inst,
 
    assert(index.file == BRW_IMMEDIATE_VALUE &&
 	  index.type == BRW_REGISTER_TYPE_UD);
-   uint32_t surf_index = index.dw1.ud;
+   uint32_t surf_index = index.ud;
 
    assert(offset.file == BRW_IMMEDIATE_VALUE &&
 	  offset.type == BRW_REGISTER_TYPE_UD);
-   uint32_t read_offset = offset.dw1.ud;
+   uint32_t read_offset = offset.ud;
 
    brw_oword_block_read(p, dst, brw_message_reg(inst->base_mrf),
 			read_offset, surf_index);
@@ -1223,7 +1223,7 @@ fs_generator::generate_uniform_pull_constant_load_gen7(fs_inst *inst,
 
    if (index.file == BRW_IMMEDIATE_VALUE) {
 
-      uint32_t surf_index = index.dw1.ud;
+      uint32_t surf_index = index.ud;
 
       brw_push_insn_state(p);
       brw_set_default_compression_control(p, BRW_COMPRESSION_NONE);
@@ -1294,7 +1294,7 @@ fs_generator::generate_varying_pull_constant_load(fs_inst *inst,
 
    assert(index.file == BRW_IMMEDIATE_VALUE &&
 	  index.type == BRW_REGISTER_TYPE_UD);
-   uint32_t surf_index = index.dw1.ud;
+   uint32_t surf_index = index.ud;
 
    uint32_t simd_mode, rlen, msg_type;
    if (dispatch_width == 16) {
@@ -1376,7 +1376,7 @@ fs_generator::generate_varying_pull_constant_load_gen7(fs_inst *inst,
 
    if (index.file == BRW_IMMEDIATE_VALUE) {
 
-      uint32_t surf_index = index.dw1.ud;
+      uint32_t surf_index = index.ud;
 
       brw_inst *send = brw_next_insn(p, BRW_OPCODE_SEND);
       brw_set_dest(p, send, retype(dst, BRW_REGISTER_TYPE_UW));
@@ -2067,7 +2067,7 @@ fs_generator::generate_code(const cfg_t *cfg, int dispatch_width)
       case FS_OPCODE_DDY_COARSE:
       case FS_OPCODE_DDY_FINE:
          assert(src[1].file == BRW_IMMEDIATE_VALUE);
-         generate_ddy(inst->opcode, dst, src[0], src[1].dw1.ud);
+         generate_ddy(inst->opcode, dst, src[0], src[1].ud);
 	 break;
 
       case SHADER_OPCODE_GEN4_SCRATCH_WRITE:
@@ -2135,37 +2135,37 @@ fs_generator::generate_code(const cfg_t *cfg, int dispatch_width)
 
       case SHADER_OPCODE_UNTYPED_ATOMIC:
          assert(src[2].file == BRW_IMMEDIATE_VALUE);
-         brw_untyped_atomic(p, dst, src[0], src[1], src[2].dw1.ud,
+         brw_untyped_atomic(p, dst, src[0], src[1], src[2].ud,
                             inst->mlen, !inst->dst.is_null());
          break;
 
       case SHADER_OPCODE_UNTYPED_SURFACE_READ:
          assert(src[2].file == BRW_IMMEDIATE_VALUE);
          brw_untyped_surface_read(p, dst, src[0], src[1],
-                                  inst->mlen, src[2].dw1.ud);
+                                  inst->mlen, src[2].ud);
          break;
 
       case SHADER_OPCODE_UNTYPED_SURFACE_WRITE:
          assert(src[2].file == BRW_IMMEDIATE_VALUE);
          brw_untyped_surface_write(p, src[0], src[1],
-                                   inst->mlen, src[2].dw1.ud);
+                                   inst->mlen, src[2].ud);
          break;
 
       case SHADER_OPCODE_TYPED_ATOMIC:
          assert(src[2].file == BRW_IMMEDIATE_VALUE);
          brw_typed_atomic(p, dst, src[0], src[1],
-                          src[2].dw1.ud, inst->mlen, !inst->dst.is_null());
+                          src[2].ud, inst->mlen, !inst->dst.is_null());
          break;
 
       case SHADER_OPCODE_TYPED_SURFACE_READ:
          assert(src[2].file == BRW_IMMEDIATE_VALUE);
          brw_typed_surface_read(p, dst, src[0], src[1],
-                                inst->mlen, src[2].dw1.ud);
+                                inst->mlen, src[2].ud);
          break;
 
       case SHADER_OPCODE_TYPED_SURFACE_WRITE:
          assert(src[2].file == BRW_IMMEDIATE_VALUE);
-         brw_typed_surface_write(p, src[0], src[1], inst->mlen, src[2].dw1.ud);
+         brw_typed_surface_write(p, src[0], src[1], inst->mlen, src[2].ud);
          break;
 
       case SHADER_OPCODE_MEMORY_FENCE:

@@ -558,7 +558,7 @@ brw_saturate_immediate(enum brw_reg_type type, struct brw_reg *reg)
       unsigned ud;
       int d;
       float f;
-   } imm = { reg->dw1.ud }, sat_imm = { 0 };
+   } imm = { reg->ud }, sat_imm = { 0 };
 
    switch (type) {
    case BRW_REGISTER_TYPE_UD:
@@ -589,7 +589,7 @@ brw_saturate_immediate(enum brw_reg_type type, struct brw_reg *reg)
    }
 
    if (imm.ud != sat_imm.ud) {
-      reg->dw1.ud = sat_imm.ud;
+      reg->ud = sat_imm.ud;
       return true;
    }
    return false;
@@ -601,17 +601,17 @@ brw_negate_immediate(enum brw_reg_type type, struct brw_reg *reg)
    switch (type) {
    case BRW_REGISTER_TYPE_D:
    case BRW_REGISTER_TYPE_UD:
-      reg->dw1.d = -reg->dw1.d;
+      reg->d = -reg->d;
       return true;
    case BRW_REGISTER_TYPE_W:
    case BRW_REGISTER_TYPE_UW:
-      reg->dw1.d = -(int16_t)reg->dw1.ud;
+      reg->d = -(int16_t)reg->ud;
       return true;
    case BRW_REGISTER_TYPE_F:
-      reg->dw1.f = -reg->dw1.f;
+      reg->f = -reg->f;
       return true;
    case BRW_REGISTER_TYPE_VF:
-      reg->dw1.ud ^= 0x80808080;
+      reg->ud ^= 0x80808080;
       return true;
    case BRW_REGISTER_TYPE_UB:
    case BRW_REGISTER_TYPE_B:
@@ -635,16 +635,16 @@ brw_abs_immediate(enum brw_reg_type type, struct brw_reg *reg)
 {
    switch (type) {
    case BRW_REGISTER_TYPE_D:
-      reg->dw1.d = abs(reg->dw1.d);
+      reg->d = abs(reg->d);
       return true;
    case BRW_REGISTER_TYPE_W:
-      reg->dw1.d = abs((int16_t)reg->dw1.ud);
+      reg->d = abs((int16_t)reg->ud);
       return true;
    case BRW_REGISTER_TYPE_F:
-      reg->dw1.f = fabsf(reg->dw1.f);
+      reg->f = fabsf(reg->f);
       return true;
    case BRW_REGISTER_TYPE_VF:
-      reg->dw1.ud &= ~0x80808080;
+      reg->ud &= ~0x80808080;
       return true;
    case BRW_REGISTER_TYPE_UB:
    case BRW_REGISTER_TYPE_B:
@@ -694,7 +694,7 @@ backend_reg::is_zero() const
    if (file != IMM)
       return false;
 
-   return fixed_hw_reg.dw1.d == 0;
+   return fixed_hw_reg.d == 0;
 }
 
 bool
@@ -704,8 +704,8 @@ backend_reg::is_one() const
       return false;
 
    return type == BRW_REGISTER_TYPE_F
-          ? fixed_hw_reg.dw1.f == 1.0
-          : fixed_hw_reg.dw1.d == 1;
+          ? fixed_hw_reg.f == 1.0
+          : fixed_hw_reg.d == 1;
 }
 
 bool
@@ -716,9 +716,9 @@ backend_reg::is_negative_one() const
 
    switch (type) {
    case BRW_REGISTER_TYPE_F:
-      return fixed_hw_reg.dw1.f == -1.0;
+      return fixed_hw_reg.f == -1.0;
    case BRW_REGISTER_TYPE_D:
-      return fixed_hw_reg.dw1.d == -1;
+      return fixed_hw_reg.d == -1;
    default:
       return false;
    }
