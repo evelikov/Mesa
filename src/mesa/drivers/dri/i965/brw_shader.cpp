@@ -694,7 +694,7 @@ backend_reg::is_zero() const
    if (file != IMM)
       return false;
 
-   return fixed_hw_reg.d == 0;
+   return d == 0;
 }
 
 bool
@@ -704,8 +704,8 @@ backend_reg::is_one() const
       return false;
 
    return type == BRW_REGISTER_TYPE_F
-          ? fixed_hw_reg.f == 1.0
-          : fixed_hw_reg.d == 1;
+          ? f == 1.0
+          : d == 1;
 }
 
 bool
@@ -716,9 +716,9 @@ backend_reg::is_negative_one() const
 
    switch (type) {
    case BRW_REGISTER_TYPE_F:
-      return fixed_hw_reg.f == -1.0;
+      return f == -1.0;
    case BRW_REGISTER_TYPE_D:
-      return fixed_hw_reg.d == -1;
+      return d == -1;
    default:
       return false;
    }
