@@ -728,8 +728,8 @@ bool
 backend_reg::is_null() const
 {
    return file == HW_REG &&
-          fixed_hw_reg.file == BRW_ARCHITECTURE_REGISTER_FILE &&
-          fixed_hw_reg.nr == BRW_ARF_NULL;
+          brw_reg::file == BRW_ARCHITECTURE_REGISTER_FILE &&
+          nr == BRW_ARF_NULL;
 }
 
 
@@ -737,8 +737,8 @@ bool
 backend_reg::is_accumulator() const
 {
    return file == HW_REG &&
-          fixed_hw_reg.file == BRW_ARCHITECTURE_REGISTER_FILE &&
-          fixed_hw_reg.nr == BRW_ARF_ACCUMULATOR;
+          brw_reg::file == BRW_ARCHITECTURE_REGISTER_FILE &&
+          nr == BRW_ARF_ACCUMULATOR;
 }
 
 bool
