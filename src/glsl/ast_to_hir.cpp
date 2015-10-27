@@ -2607,28 +2607,37 @@ validate_layout_qualifiers(const struct ast_type_qualifier *qual,
       validate_explicit_location(qual, var, state, loc);
 
       if (qual->flags.q.explicit_index) {
-         /* From the GLSL 4.30 specification, section 4.4.2 (Output
-          * Layout Qualifiers):
-          *
-          * "It is also a compile-time error if a fragment shader
-          *  sets a layout index to less than 0 or greater than 1."
-          *
-          * Older specifications don't mandate a behavior; we take
-          * this as a clarification and always generate the error.
-          */
-         unsigned qual_index;
-         if (process_qualifier_constant(state, loc, "index",
-                                        qual->index, &qual_index, 0) &&
-             qual_index > 1) {
-            _mesa_glsl_error(loc, state,
-                             "explicit index may only be 0 or 1");
+         /* Check if index was set for the uniform instead of the function */
+         if (qual->flags.q.subroutine) {
+            _mesa_glsl_error(loc, state, "an index qualifier can only be "
+                             "used with subroutine functions");
          } else {
-            var->data.explicit_index = true;
-            var->data.index = qual_index;
+
+            /* From the GLSL 4.30 specification, section 4.4.2 (Output
+             * Layout Qualifiers):
+             *
+             * "It is also a compile-time error if a fragment shader
+             *  sets a layout index to less than 0 or greater than 1."
+             *
+             * Older specifications don't mandate a behavior; we take
+             * this as a clarification and always generate the error.
+             */
+            unsigned qual_index;
+            if (process_qualifier_constant(state, loc, "index",
+                                           qual->index, &qual_index, 0) &&
+                qual_index > 1) {
+               _mesa_glsl_error(loc, state,
+                                "explicit index may only be 0 or 1");
+            } else {
+               var->data.explicit_index = true;
+               var->data.index = qual_index;
+            }
          }
       }
    } else if (qual->flags.q.explicit_index) {
-      _mesa_glsl_error(loc, state, "explicit index requires explicit location");
+      if (!qual->flags.q.subroutine_def)
+         _mesa_glsl_error(loc, state,
+                          "explicit index requires explicit location");
    }
 
    if (qual->flags.q.explicit_binding) {
@@ -4851,7 +4860,7 @@ ast_function::hir(exec_list *instructions,
    /* From page 56 (page 62 of the PDF) of the GLSL 1.30 spec:
     * "No qualifier is allowed on the return type of a function."
     */
-   if (this->return_type->has_qualifiers()) {
+   if (this->return_type->has_qualifiers(state)) {
       YYLTYPE loc = this->get_location();
       _mesa_glsl_error(& loc, state,
                        "function `%s' return type has qualifiers", name);
@@ -4982,6 +4991,27 @@ ast_function::hir(exec_list *instructions,
 
    if (this->return_type->qualifier.flags.q.subroutine_def) {
       int idx;
+
+      if (this->return_type->qualifier.flags.q.explicit_index) {
+         unsigned qual_index;
+         if (process_qualifier_constant(state, &loc, "index",
+                                        this->return_type->qualifier.index,
+                                        &qual_index, 0)) {
+            if (!state->has_explicit_uniform_location()) {
+               _mesa_glsl_error(&loc, state, "subroutine index requires "
+                                "GL_ARB_explicit_uniform_location or "
+                                "GLSL 4.30");
+            } else if (qual_index > (MAX_SUBROUTINES - 1)) {
+               _mesa_glsl_error(&loc, state,
+                                "invalid subroutine index (%d) index must "
+                                "be a number between 0 and "
+                                "GL_MAX_SUBROUTINES - 1 (%d)", qual_index,
+                                MAX_SUBROUTINES - 1);
+            } else {
+               f->subroutine_index = qual_index;
+            }
+         }
+      }
 
       f->num_subroutine_types = this->return_type->qualifier.subroutine_list->declarations.length();
       f->subroutine_types = ralloc_array(state, const struct glsl_type *,
