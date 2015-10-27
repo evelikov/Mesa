@@ -1118,7 +1118,7 @@ fs_visitor::emit_percomp(const fs_builder &bld, const fs_inst &inst,
       fs_inst *new_inst = new(mem_ctx) fs_inst(inst);
       new_inst->dst = offset(new_inst->dst, bld, i);
       for (unsigned j = 0; j < new_inst->sources; j++)
-         if (new_inst->src[j].file == GRF)
+         if (new_inst->src[j].file == VGRF)
             new_inst->src[j] = offset(new_inst->src[j], bld, i);
 
       bld.emit(new_inst);
@@ -2275,7 +2275,7 @@ fs_visitor::nir_emit_intrinsic(const fs_builder &bld, nir_intrinsic_instr *instr
       fs_reg source = fs_reg(0);
 
       int mlen = 1 * reg_width;
-      fs_reg src_payload = fs_reg(GRF, alloc.allocate(mlen),
+      fs_reg src_payload = fs_reg(VGRF, alloc.allocate(mlen),
                                   BRW_REGISTER_TYPE_UD);
       bld.LOAD_PAYLOAD(src_payload, &source, 1, 0);
 
