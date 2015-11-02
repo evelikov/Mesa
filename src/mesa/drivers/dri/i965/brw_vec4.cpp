@@ -1715,11 +1715,6 @@ vec4_visitor::convert_to_hw_regs()
             reg.negate = src.negate;
             break;
 
-         case IMM:
-            reg = brw_imm_reg(src.type);
-            reg.ud = src.ud;
-            break;
-
          case UNIFORM:
             reg = stride(brw_vec4_grf(prog_data->base.dispatch_grf_start_reg +
                                       (src.nr + src.reg_offset) / 2,
@@ -1736,6 +1731,7 @@ vec4_visitor::convert_to_hw_regs()
 
          case ARF:
          case GRF:
+         case IMM:
             continue;
 
          case BAD_FILE:
