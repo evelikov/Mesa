@@ -391,7 +391,8 @@ fs_reg::fs_reg(struct brw_reg reg) :
 bool
 fs_reg::equals(const fs_reg &r) const
 {
-   return (memcmp((brw_reg *)this, (brw_reg *)&r, sizeof(brw_reg)) == 0 &&
+   return (v == r.v &&
+           d == r.d &&
            reg_offset == r.reg_offset &&
            subreg_offset == r.subreg_offset &&
            !reladdr && !r.reladdr &&
