@@ -33,10 +33,9 @@ class fs_reg : public backend_reg {
 public:
    DECLARE_RALLOC_CXX_OPERATORS(fs_reg)
 
-   void init();
-
    fs_reg();
    fs_reg(struct brw_reg reg);
+
    fs_reg(enum brw_reg_file file, int nr,
           enum brw_reg_type type = BRW_REGISTER_TYPE_F);
 

@@ -359,18 +359,12 @@ fs_inst::has_side_effects() const
    return this->eot || backend_instruction::has_side_effects();
 }
 
-void
-fs_reg::init()
-{
-   memset(this, 0, sizeof(*this));
-   stride = 1;
-}
-
 /** Generic unset register constructor. */
 fs_reg::fs_reg()
 {
-   init();
-   this->file = BAD_FILE;
+   this->subreg_offset = 0;
+   this->reladdr = NULL;
+   this->stride = 1;
 }
 
 fs_reg::fs_reg(struct brw_reg reg) :
@@ -895,11 +889,13 @@ fs_visitor::vgrf(const glsl_type *const type)
 
 fs_reg::fs_reg(enum brw_reg_file file, int nr, enum brw_reg_type type)
 {
-   init();
+   this->subreg_offset = 0;
+   this->reladdr = NULL;
+   this->stride = (file == UNIFORM ? 0 : 1);
+
    this->file = file;
    this->nr = nr;
    this->type = type;
-   this->stride = (file == UNIFORM ? 0 : 1);
 }
 
 /* For SIMD16, we need to follow from the uniform setup of SIMD8 dispatch.
