@@ -108,11 +108,11 @@ public:
            unsigned writemask) :
       dst_reg(file, nr, brw_type_for_base_type(type), writemask) {}
 
+   bool equals(const dst_reg &r) const;
+
    dst_reg(class vec4_visitor *v, const struct glsl_type *type);
 
    explicit dst_reg(const src_reg &reg);
-
-   bool equals(const dst_reg &r) const;
 
    src_reg *reladdr;
 };
