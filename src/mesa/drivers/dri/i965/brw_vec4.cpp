@@ -138,7 +138,6 @@ dst_reg::dst_reg(struct brw_reg reg) :
 dst_reg::dst_reg(const src_reg &reg) :
    backend_reg(static_cast<struct brw_reg>(reg))
 {
-   this->file = reg.file;
    this->reg_offset = reg.reg_offset;
    this->writemask = brw_mask_for_swizzle(reg.swizzle);
    this->reladdr = reg.reladdr;
