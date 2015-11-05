@@ -112,6 +112,7 @@ dst_reg::dst_reg(enum brw_reg_file file, int nr, const glsl_type *type,
 {
    init();
 
+   this->file = file;
    this->nr = nr;
    this->type = brw_type_for_base_type(type);
    this->writemask = writemask;
