@@ -1189,9 +1189,6 @@ fs_visitor::init()
    memset(&this->payload, 0, sizeof(this->payload));
    memset(this->outputs, 0, sizeof(this->outputs));
    memset(this->output_components, 0, sizeof(this->output_components));
-   for (unsigned i = 0; i < ARRAY_SIZE(this->outputs); i++) {
-      this->outputs[i].file = BAD_FILE;
-   }
    this->source_depth_to_render_target = false;
    this->runtime_check_aads_emit = false;
    this->first_non_payload_grf = 0;
