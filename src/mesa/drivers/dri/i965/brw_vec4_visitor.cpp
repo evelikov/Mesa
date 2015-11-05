@@ -628,32 +628,19 @@ type_size_vec4(const struct glsl_type *type)
    return 0;
 }
 
-src_reg::src_reg(class vec4_visitor *v, const struct glsl_type *type)
+src_reg::src_reg(class vec4_visitor *v, const struct glsl_type *type, int size)
 {
+   assert(size > 0);
    init();
 
    this->file = VGRF;
-   this->nr = v->alloc.allocate(type_size_vec4(type));
+   this->nr = v->alloc.allocate(type_size_vec4(type) * size);
 
    if (type->is_array() || type->is_record()) {
       this->swizzle = BRW_SWIZZLE_NOOP;
    } else {
       this->swizzle = brw_swizzle_for_size(type->vector_elements);
    }
-
-   this->type = brw_type_for_base_type(type);
-}
-
-src_reg::src_reg(class vec4_visitor *v, const struct glsl_type *type, int size)
-{
-   assert(size > 0);
-
-   init();
-
-   this->file = VGRF;
-   this->nr = v->alloc.allocate(type_size_vec4(type) * size);
-
-   this->swizzle = BRW_SWIZZLE_NOOP;
 
    this->type = brw_type_for_base_type(type);
 }
