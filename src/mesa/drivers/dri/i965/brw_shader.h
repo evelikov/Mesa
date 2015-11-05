@@ -41,8 +41,15 @@
 #ifdef __cplusplus
 struct backend_reg : public brw_reg
 {
-   backend_reg() {}
-   backend_reg(struct brw_reg reg) : brw_reg(reg) {}
+   backend_reg() {
+      v = 0;
+      d = 0;
+      file = BAD_FILE;
+      writemask = WRITEMASK_XYZW;
+
+      reg_offset = 0;
+   }
+   backend_reg(struct brw_reg reg) : brw_reg(reg), reg_offset(0) {}
 
    bool is_zero() const;
    bool is_one() const;
