@@ -37,8 +37,8 @@ public:
 
    fs_reg();
    fs_reg(struct brw_reg reg);
-   fs_reg(enum brw_reg_file file, int nr);
-   fs_reg(enum brw_reg_file file, int nr, enum brw_reg_type type);
+   fs_reg(enum brw_reg_file file, int nr,
+          enum brw_reg_type type = BRW_REGISTER_TYPE_F);
 
    bool equals(const fs_reg &r) const;
    bool is_contiguous() const;
