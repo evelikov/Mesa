@@ -103,12 +103,13 @@ public:
    void init();
 
    dst_reg();
-   dst_reg(enum brw_reg_file file, int nr);
    dst_reg(enum brw_reg_file file, int nr, const glsl_type *type,
            unsigned writemask);
-   dst_reg(enum brw_reg_file file, int nr, brw_reg_type type,
-           unsigned writemask);
+   dst_reg(enum brw_reg_file file, int nr,
+           brw_reg_type type = BRW_REGISTER_TYPE_UD,
+           unsigned writemask = WRITEMASK_XYZW);
    dst_reg(struct brw_reg reg);
+
    dst_reg(class vec4_visitor *v, const struct glsl_type *type);
 
    explicit dst_reg(const src_reg &reg);

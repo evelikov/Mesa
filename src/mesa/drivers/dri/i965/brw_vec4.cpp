@@ -99,14 +99,6 @@ dst_reg::dst_reg()
    init();
 }
 
-dst_reg::dst_reg(enum brw_reg_file file, int nr)
-{
-   init();
-
-   this->file = file;
-   this->nr = nr;
-}
-
 dst_reg::dst_reg(enum brw_reg_file file, int nr, const glsl_type *type,
                  unsigned writemask)
 {
