@@ -43,17 +43,9 @@ using namespace brw;
 
 namespace brw {
 
-void
-src_reg::init()
-{
-   memset(this, 0, sizeof(*this));
-
-   this->file = BAD_FILE;
-}
-
 src_reg::src_reg(enum brw_reg_file file, int nr, const glsl_type *type)
 {
-   init();
+   this->reladdr = NULL;
 
    this->file = file;
    this->nr = nr;
@@ -65,42 +57,19 @@ src_reg::src_reg(enum brw_reg_file file, int nr, const glsl_type *type)
       this->type = brw_type_for_base_type(type);
 }
 
-/** Generic unset register constructor. */
-src_reg::src_reg()
-{
-   init();
-}
-
-src_reg::src_reg(struct brw_reg reg) :
-   backend_reg(reg)
-{
-   this->reladdr = NULL;
-}
-
 src_reg::src_reg(const dst_reg &reg) :
    backend_reg(static_cast<struct brw_reg>(reg))
 {
    this->reladdr = reg.reladdr;
+
+   this->reg_offset = reg.reg_offset;
    this->swizzle = brw_swizzle_for_mask(reg.writemask);
-}
-
-void
-dst_reg::init()
-{
-   memset(this, 0, sizeof(*this));
-   this->file = BAD_FILE;
-   this->writemask = WRITEMASK_XYZW;
-}
-
-dst_reg::dst_reg()
-{
-   init();
 }
 
 dst_reg::dst_reg(enum brw_reg_file file, int nr, brw_reg_type type,
                  unsigned writemask)
 {
-   init();
+   this->reladdr = NULL;
 
    this->file = file;
    this->nr = nr;
@@ -108,18 +77,13 @@ dst_reg::dst_reg(enum brw_reg_file file, int nr, brw_reg_type type,
    this->writemask = writemask;
 }
 
-dst_reg::dst_reg(struct brw_reg reg) :
-   backend_reg(reg)
-{
-   this->reladdr = NULL;
-}
-
 dst_reg::dst_reg(const src_reg &reg) :
    backend_reg(static_cast<struct brw_reg>(reg))
 {
+   this->reladdr = reg.reladdr;
+
    this->reg_offset = reg.reg_offset;
    this->writemask = brw_mask_for_swizzle(reg.swizzle);
-   this->reladdr = reg.reladdr;
 }
 
 bool

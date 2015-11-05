@@ -37,11 +37,9 @@ class src_reg : public backend_reg
 public:
    DECLARE_RALLOC_CXX_OPERATORS(src_reg)
 
-   void init();
-
+   src_reg() : reladdr(NULL) {}
+   src_reg(struct brw_reg reg) : backend_reg(reg), reladdr(NULL) {}
    src_reg(enum brw_reg_file file, int nr, const glsl_type *type);
-   src_reg();
-   src_reg(struct brw_reg reg);
 
    bool equals(const src_reg &r) const;
 
@@ -99,9 +97,8 @@ class dst_reg : public backend_reg
 public:
    DECLARE_RALLOC_CXX_OPERATORS(dst_reg)
 
-   void init();
-
-   dst_reg();
+   dst_reg() : reladdr(NULL) {}
+   dst_reg(struct brw_reg reg) : backend_reg(reg), reladdr(NULL) {}
 
    dst_reg(enum brw_reg_file file, int nr,
            brw_reg_type type = BRW_REGISTER_TYPE_UD,
@@ -110,8 +107,6 @@ public:
    dst_reg(enum brw_reg_file file, int nr, const glsl_type *type,
            unsigned writemask) :
       dst_reg(file, nr, brw_type_for_base_type(type), writemask) {}
-
-   dst_reg(struct brw_reg reg);
 
    dst_reg(class vec4_visitor *v, const struct glsl_type *type);
 
