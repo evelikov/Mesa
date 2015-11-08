@@ -297,7 +297,6 @@ static bool match_layout_qualifier(const char *s1, const char *s2,
 %type <node> conditionopt
 %type <node> for_init_statement
 %type <for_rest_statement> for_rest_statement
-%type <n> integer_constant
 %type <node> layout_defaults
 
 %right THEN ELSE
@@ -1139,11 +1138,6 @@ layout_qualifier_id_list:
    }
    ;
 
-integer_constant:
-   INTCONSTANT { $$ = $1; }
-   | UINTCONSTANT { $$ = $1; }
-   ;
-
 layout_qualifier_id:
    any_identifier
    {
@@ -1440,9 +1434,18 @@ layout_qualifier_id:
          YYERROR;
       }
    }
-   | any_identifier '=' integer_constant
+   | any_identifier '=' constant_expression
    {
       memset(& $$, 0, sizeof($$));
+      void *ctx = state;
+
+      if ($3->oper != ast_int_constant &&
+          $3->oper != ast_uint_constant &&
+          !state->has_enhanced_layouts()) {
+         _mesa_glsl_error(& @1, state,
+                          "compile-time constant expressions require "
+                          "GLSL 4.40 or ARB_enhanced_layouts");
+      }
 
       if (match_layout_qualifier("location", $1, state) == 0) {
          $$.flags.q.explicit_location = 1;
@@ -1477,7 +1480,7 @@ layout_qualifier_id:
 
       if (match_layout_qualifier("max_vertices", $1, state) == 0) {
          $$.flags.q.max_vertices = 1;
-         $$.max_vertices = $3;
+         $$.max_vertices = new(ctx) ast_layout_expression(@1, $3);
 
          if (!state->is_version(150, 0)) {
             _mesa_glsl_error(& @1, state,
@@ -1511,7 +1514,7 @@ layout_qualifier_id:
                YYERROR;
             } else {
                $$.flags.q.local_size |= (1 << i);
-               $$.local_size[i] = $3;
+               $$.local_size[i] = new(ctx) ast_layout_expression(@1, $3);
             }
             break;
          }
@@ -1519,7 +1522,7 @@ layout_qualifier_id:
 
       if (match_layout_qualifier("invocations", $1, state) == 0) {
          $$.flags.q.invocations = 1;
-         $$.invocations = $3;
+         $$.invocations = new(ctx) ast_layout_expression(@1, $3);
          if (!state->is_version(400, 0) &&
              !state->ARB_gpu_shader5_enable) {
             _mesa_glsl_error(& @1, state,
@@ -1531,7 +1534,7 @@ layout_qualifier_id:
       /* Layout qualifiers for tessellation control shaders. */
       if (match_layout_qualifier("vertices", $1, state) == 0) {
          $$.flags.q.vertices = 1;
-         $$.vertices = $3;
+         $$.vertices = new(ctx) ast_layout_expression(@1, $3);
          if (!state->ARB_tessellation_shader_enable &&
              !state->is_version(400, 0)) {
             _mesa_glsl_error(& @1, state,

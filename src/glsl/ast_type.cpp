@@ -168,41 +168,23 @@ ast_type_qualifier::merge_qualifier(YYLTYPE *loc,
    }
 
    if (q.flags.q.max_vertices) {
-      if (this->flags.q.max_vertices && this->max_vertices != q.max_vertices) {
-	 _mesa_glsl_error(loc, state,
-			  "geometry shader set conflicting max_vertices "
-			  "(%d and %d)", this->max_vertices, q.max_vertices);
-	 return false;
+      if (this->max_vertices) {
+         this->max_vertices->merge_qualifier(q.max_vertices);
+      } else {
+         this->max_vertices = q.max_vertices;
       }
-      this->max_vertices = q.max_vertices;
    }
 
    if (q.flags.q.invocations) {
-      if (this->flags.q.invocations && this->invocations != q.invocations) {
-         _mesa_glsl_error(loc, state,
-                          "geometry shader set conflicting invocations "
-                          "(%d and %d)", this->invocations, q.invocations);
-         return false;
+      if (this->invocations) {
+         this->invocations->merge_qualifier(q.invocations);
+      } else {
+         this->invocations = q.invocations;
       }
-      this->invocations = q.invocations;
    }
 
    if (state->stage == MESA_SHADER_GEOMETRY &&
        state->has_explicit_attrib_stream()) {
-      if (q.flags.q.stream && q.stream >= state->ctx->Const.MaxVertexStreams) {
-         _mesa_glsl_error(loc, state,
-                          "`stream' value is larger than MAX_VERTEX_STREAMS - 1 "
-                          "(%d > %d)",
-                          q.stream, state->ctx->Const.MaxVertexStreams - 1);
-      }
-      if (this->flags.q.explicit_stream &&
-          this->stream >= state->ctx->Const.MaxVertexStreams) {
-         _mesa_glsl_error(loc, state,
-                          "`stream' value is larger than MAX_VERTEX_STREAMS - 1 "
-                          "(%d > %d)",
-                          this->stream, state->ctx->Const.MaxVertexStreams - 1);
-      }
-
       if (!this->flags.q.explicit_stream) {
          if (q.flags.q.stream) {
             this->flags.q.stream = 1;
@@ -221,14 +203,11 @@ ast_type_qualifier::merge_qualifier(YYLTYPE *loc,
    }
 
    if (q.flags.q.vertices) {
-      if (this->flags.q.vertices && this->vertices != q.vertices) {
-	 _mesa_glsl_error(loc, state,
-			  "tessellation control shader set conflicting "
-			  "vertices (%d and %d)",
-			  this->vertices, q.vertices);
-	 return false;
+      if (this->vertices) {
+         this->vertices->merge_qualifier(q.vertices);
+      } else {
+         this->vertices = q.vertices;
       }
-      this->vertices = q.vertices;
    }
 
    if (q.flags.q.vertex_spacing) {
@@ -265,14 +244,6 @@ ast_type_qualifier::merge_qualifier(YYLTYPE *loc,
 
    for (int i = 0; i < 3; i++) {
       if (q.flags.q.local_size & (1 << i)) {
-         if ((this->flags.q.local_size & (1 << i)) &&
-             this->local_size[i] != q.local_size[i]) {
-            _mesa_glsl_error(loc, state,
-                             "compute shader set conflicting values for "
-                             "local_size_%c (%d and %d)", 'x' + i,
-                             this->local_size[i], q.local_size[i]);
-            return false;
-         }
          this->local_size[i] = q.local_size[i];
       }
    }
@@ -310,10 +281,9 @@ ast_type_qualifier::merge_out_qualifier(YYLTYPE *loc,
 {
    void *mem_ctx = state;
    const bool r = this->merge_qualifier(loc, state, q);
-   this->loc = loc;
 
    if (state->stage == MESA_SHADER_TESS_CTRL) {
-      node = new(mem_ctx) ast_tcs_output_layout(*loc, q.vertices);
+      node = new(mem_ctx) ast_tcs_output_layout(*loc);
    }
 
    return r;
@@ -330,7 +300,6 @@ ast_type_qualifier::merge_in_qualifier(YYLTYPE *loc,
    bool create_cs_ast = false;
    ast_type_qualifier valid_in_mask;
    valid_in_mask.flags.i = 0;
-   this->loc = loc;
 
    switch (state->stage) {
    case MESA_SHADER_TESS_EVAL:
@@ -418,15 +387,13 @@ ast_type_qualifier::merge_in_qualifier(YYLTYPE *loc,
       state->in_qualifier->prim_type = q.prim_type;
    }
 
-   if (this->flags.q.invocations &&
-       q.flags.q.invocations &&
-       this->invocations != q.invocations) {
-      _mesa_glsl_error(loc, state,
-                       "conflicting invocations counts specified");
-      return false;
-   } else if (q.flags.q.invocations) {
+   if (q.flags.q.invocations) {
       this->flags.q.invocations = 1;
-      this->invocations = q.invocations;
+      if (this->invocations) {
+         this->invocations->merge_qualifier(q.invocations);
+      } else {
+         this->invocations = q.invocations;
+      }
    }
 
    if (q.flags.q.early_fragment_tests) {
@@ -470,12 +437,16 @@ ast_type_qualifier::merge_in_qualifier(YYLTYPE *loc,
       node = new(mem_ctx) ast_gs_input_layout(*loc, q.prim_type);
    } else if (create_cs_ast) {
       /* Infer a local_size of 1 for every unspecified dimension */
-      unsigned local_size[3];
+      ast_layout_expression *local_size[3];
       for (int i = 0; i < 3; i++) {
          if (q.flags.q.local_size & (1 << i))
             local_size[i] = q.local_size[i];
-         else
-            local_size[i] = 1;
+         else {
+            ast_expression *const_expr = new(mem_ctx)
+               ast_expression(ast_uint_constant, NULL, NULL, NULL);
+            const_expr->primary_expression.uint_constant = 1;
+            local_size[i]->layout_const_expressions.push_tail(&const_expr->link);
+         }
       }
       node = new(mem_ctx) ast_cs_input_layout(*loc, local_size);
    }

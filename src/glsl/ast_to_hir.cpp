@@ -2319,7 +2319,8 @@ static bool
 validate_binding_qualifier(struct _mesa_glsl_parse_state *state,
                            YYLTYPE *loc,
                            const glsl_type *type,
-                           const ast_type_qualifier *qual)
+                           const ast_type_qualifier *qual,
+                           unsigned qual_binding)
 {
    if (!qual->flags.q.uniform && !qual->flags.q.buffer) {
       _mesa_glsl_error(loc, state,
@@ -2328,14 +2329,9 @@ validate_binding_qualifier(struct _mesa_glsl_parse_state *state,
       return false;
    }
 
-   if (qual->binding < 0) {
-      _mesa_glsl_error(loc, state, "binding values must be >= 0");
-      return false;
-   }
-
    const struct gl_context *const ctx = state->ctx;
    unsigned elements = type->is_array() ? type->arrays_of_arrays_size() : 1;
-   unsigned max_index = qual->binding + elements - 1;
+   unsigned max_index = qual_binding + elements - 1;
    const glsl_type *base_type = type->without_array();
 
    if (base_type->is_interface()) {
@@ -2351,9 +2347,9 @@ validate_binding_qualifier(struct _mesa_glsl_parse_state *state,
        */
       if (qual->flags.q.uniform &&
          max_index >= ctx->Const.MaxUniformBufferBindings) {
-         _mesa_glsl_error(loc, state, "layout(binding = %d) for %d UBOs exceeds "
+         _mesa_glsl_error(loc, state, "layout(binding = %u) for %d UBOs exceeds "
                           "the maximum number of UBO binding points (%d)",
-                          qual->binding, elements,
+                          qual_binding, elements,
                           ctx->Const.MaxUniformBufferBindings);
          return false;
       }
@@ -2369,9 +2365,9 @@ validate_binding_qualifier(struct _mesa_glsl_parse_state *state,
        */
       if (qual->flags.q.buffer &&
          max_index >= ctx->Const.MaxShaderStorageBufferBindings) {
-         _mesa_glsl_error(loc, state, "layout(binding = %d) for %d SSBOs exceeds "
+         _mesa_glsl_error(loc, state, "layout(binding = %u) for %d SSBOs exceeds "
                           "the maximum number of SSBO binding points (%d)",
-                          qual->binding, elements,
+                          qual_binding, elements,
                           ctx->Const.MaxShaderStorageBufferBindings);
          return false;
       }
@@ -2386,18 +2382,18 @@ validate_binding_qualifier(struct _mesa_glsl_parse_state *state,
       unsigned limit = ctx->Const.MaxCombinedTextureImageUnits;
 
       if (max_index >= limit) {
-         _mesa_glsl_error(loc, state, "layout(binding = %d) for %d samplers "
+         _mesa_glsl_error(loc, state, "layout(binding = %u) for %d samplers "
                           "exceeds the maximum number of texture image units "
-                          "(%d)", qual->binding, elements, limit);
+                          "(%d)", qual_binding, elements, limit);
 
          return false;
       }
    } else if (base_type->contains_atomic()) {
       assert(ctx->Const.MaxAtomicBufferBindings <= MAX_COMBINED_ATOMIC_BUFFERS);
-      if (unsigned(qual->binding) >= ctx->Const.MaxAtomicBufferBindings) {
+      if (qual_binding >= ctx->Const.MaxAtomicBufferBindings) {
          _mesa_glsl_error(loc, state, "layout(binding = %d) exceeds the "
                           " maximum number of atomic counter buffer bindings"
-                          "(%d)", qual->binding,
+                          "(%u)", qual_binding,
                           ctx->Const.MaxAtomicBufferBindings);
 
          return false;
@@ -2467,11 +2463,11 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
                            YYLTYPE *loc)
 {
    bool fail = false;
+   unsigned qual_location;
 
-   if (qual->location < 0) {
-       _mesa_glsl_error(loc, state, "invalid location %d specified",
-                        qual->location);
-       return;
+   if (!process_qualifier_constant(state, loc, "location",
+                                   qual->location, &qual_location, 0)) {
+      return;
    }
 
    /* Checks for GL_ARB_explicit_uniform_location. */
@@ -2480,7 +2476,7 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
          return;
 
       const struct gl_context *const ctx = state->ctx;
-      unsigned max_loc = qual->location + var->type->uniform_locations() - 1;
+      unsigned max_loc = qual_location + var->type->uniform_locations() - 1;
 
       if (max_loc >= ctx->Const.MaxUserAssignableUniformLocations) {
          _mesa_glsl_error(loc, state, "location(s) consumed by uniform %s "
@@ -2490,7 +2486,7 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
       }
 
       var->data.explicit_location = true;
-      var->data.location = qual->location;
+      var->data.location = qual_location;
       return;
    }
 
@@ -2575,23 +2571,23 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
       switch (state->stage) {
       case MESA_SHADER_VERTEX:
          var->data.location = (var->data.mode == ir_var_shader_in)
-            ? (qual->location + VERT_ATTRIB_GENERIC0)
-            : (qual->location + VARYING_SLOT_VAR0);
+            ? (qual_location + VERT_ATTRIB_GENERIC0)
+            : (qual_location + VARYING_SLOT_VAR0);
          break;
 
       case MESA_SHADER_TESS_CTRL:
       case MESA_SHADER_TESS_EVAL:
       case MESA_SHADER_GEOMETRY:
          if (var->data.patch)
-            var->data.location = qual->location + VARYING_SLOT_PATCH0;
+            var->data.location = qual_location + VARYING_SLOT_PATCH0;
          else
-            var->data.location = qual->location + VARYING_SLOT_VAR0;
+            var->data.location = qual_location + VARYING_SLOT_VAR0;
          break;
 
       case MESA_SHADER_FRAGMENT:
          var->data.location = (var->data.mode == ir_var_shader_out)
-            ? (qual->location + FRAG_RESULT_DATA0)
-            : (qual->location + VARYING_SLOT_VAR0);
+            ? (qual_location + FRAG_RESULT_DATA0)
+            : (qual_location + VARYING_SLOT_VAR0);
          break;
       case MESA_SHADER_COMPUTE:
          assert(!"Unexpected shader type");
@@ -2620,22 +2616,30 @@ validate_layout_qualifiers(const struct ast_type_qualifier *qual,
           * Older specifications don't mandate a behavior; we take
           * this as a clarification and always generate the error.
           */
-         if (qual->index < 0 || qual->index > 1) {
+         unsigned qual_index;
+         if (process_qualifier_constant(state, loc, "index",
+                                        qual->index, &qual_index, 0) &&
+             qual_index > 1) {
             _mesa_glsl_error(loc, state,
                              "explicit index may only be 0 or 1");
          } else {
             var->data.explicit_index = true;
-            var->data.index = qual->index;
+            var->data.index = qual_index;
          }
       }
    } else if (qual->flags.q.explicit_index) {
       _mesa_glsl_error(loc, state, "explicit index requires explicit location");
    }
 
-   if (qual->flags.q.explicit_binding &&
-       validate_binding_qualifier(state, loc, var->type, qual)) {
-      var->data.explicit_binding = true;
-      var->data.binding = qual->binding;
+   if (qual->flags.q.explicit_binding) {
+      unsigned qual_binding;
+      if (process_qualifier_constant(state, loc, "binding",
+                                     qual->binding, &qual_binding, 0) &&
+          validate_binding_qualifier(state, loc, var->type, qual,
+                                     qual_binding)) {
+         var->data.explicit_binding = true;
+         var->data.binding = qual_binding;
+      }
    }
 
    if (var->type->contains_atomic()) {
@@ -2839,7 +2843,12 @@ apply_type_qualifier_to_variable(const struct ast_type_qualifier *qual,
 
    if (state->stage == MESA_SHADER_GEOMETRY &&
        qual->flags.q.out && qual->flags.q.stream) {
-      var->data.stream = qual->stream;
+      unsigned qual_stream;
+      if (process_qualifier_constant(state, loc, "stream", qual->stream,
+                                     &qual_stream, 0)) {
+         validate_stream_qualifier(loc, state, qual_stream);
+         var->data.stream = qual_stream;
+      }
    }
 
    if (qual->flags.q.patch)
@@ -3598,15 +3607,16 @@ static void
 handle_tess_ctrl_shader_output_decl(struct _mesa_glsl_parse_state *state,
                                     YYLTYPE loc, ir_variable *var)
 {
-   int num_vertices = 0;
+   unsigned num_vertices = 0;
 
    if (state->tcs_output_vertices_specified) {
-      num_vertices = state->out_qualifier->vertices;
-      if (num_vertices <= 0) {
-         _mesa_glsl_error(&loc, state, "invalid vertices (%d) specified",
-                          num_vertices);
+      if (!state->out_qualifier->vertices->
+             process_qualifier_constant(state, "vertices",
+                                        &num_vertices, 0)) {
          return;
-      } else if ((unsigned) num_vertices > state->Const.MaxPatchVertices) {
+      }
+
+      if (num_vertices > state->Const.MaxPatchVertices) {
          _mesa_glsl_error(&loc, state, "vertices (%d) exceeds "
                           "GL_MAX_PATCH_VERTICES", num_vertices);
          return;
@@ -3624,8 +3634,7 @@ handle_tess_ctrl_shader_output_decl(struct _mesa_glsl_parse_state *state,
    if (var->data.patch)
       return;
 
-   validate_layout_qualifier_vertex_count(state, loc, var,
-                                          (unsigned) num_vertices,
+   validate_layout_qualifier_vertex_count(state, loc, var, num_vertices,
                                           &state->tcs_output_size,
                                           "tessellation control shader output");
 }
@@ -3881,9 +3890,19 @@ ast_declarator_list::hir(exec_list *instructions,
     */
    if (decl_type && decl_type->contains_atomic()) {
       if (type->qualifier.flags.q.explicit_binding &&
-          type->qualifier.flags.q.explicit_offset)
-         state->atomic_counter_offsets[type->qualifier.binding] =
-            type->qualifier.offset;
+          type->qualifier.flags.q.explicit_offset) {
+         unsigned qual_binding;
+         if (process_qualifier_constant(state, &loc, "binding",
+                                        type->qualifier.binding,
+                                        &qual_binding, 0)) {
+            unsigned qual_offset;
+            if (process_qualifier_constant(state, &loc, "offset",
+                                           type->qualifier.offset,
+                                           &qual_offset, 0)) {
+               state->atomic_counter_offsets[qual_binding] = qual_offset;
+            }
+         }
+      }
    }
 
    if (this->declarations.is_empty()) {
@@ -5917,7 +5936,8 @@ ast_process_structure_or_interface_block(exec_list *instructions,
                                          enum glsl_matrix_layout matrix_layout,
                                          bool allow_reserved_names,
                                          ir_variable_mode var_mode,
-                                         ast_type_qualifier *layout)
+                                         ast_type_qualifier *layout,
+                                         unsigned *block_stream)
 {
    unsigned decl_count = 0;
 
@@ -5927,6 +5947,15 @@ ast_process_structure_or_interface_block(exec_list *instructions,
    if (layout && layout->flags.q.read_only && layout->flags.q.write_only) {
       _mesa_glsl_error(&loc, state,
                        "Interface block sets both readonly and writeonly");
+   }
+
+   bool block_stream_processed = false;
+   if (layout) {
+      if (process_qualifier_constant(state, &loc, "stream", layout->stream,
+                                     block_stream, 0)) {
+         block_stream_processed = true;
+         validate_stream_qualifier(&loc, state, *block_stream);
+      }
    }
 
    /* Make an initial pass over the list of fields to determine how
@@ -6011,8 +6040,12 @@ ast_process_structure_or_interface_block(exec_list *instructions,
          const struct ast_type_qualifier *const qual =
             & decl_list->type->qualifier;
 
-         if (qual->flags.q.explicit_binding)
-            validate_binding_qualifier(state, &loc, decl_type, qual);
+         unsigned qual_binding;
+         if (qual->flags.q.explicit_binding &&
+             process_qualifier_constant(state, &loc, "binding",
+                                        qual->binding, &qual_binding, 0))
+            validate_binding_qualifier(state, &loc, decl_type,
+                                       qual, qual_binding);
 
          if (qual->flags.q.std140 ||
              qual->flags.q.std430 ||
@@ -6050,12 +6083,17 @@ ast_process_structure_or_interface_block(exec_list *instructions,
           *   the specified stream must match the stream associated with the
           *   containing block."
           */
-         if (qual->flags.q.explicit_stream &&
-             qual->stream != layout->stream) {
-            _mesa_glsl_error(&loc, state, "stream layout qualifier on "
-                             "interface block member `%s' does not match "
-                             "the interface block (%d vs %d)",
-                             fields[i].name, qual->stream, layout->stream);
+         if (qual->flags.q.explicit_stream && block_stream_processed) {
+            unsigned qual_stream;
+            if (process_qualifier_constant(state, &loc, "stream",
+                                           qual->stream, &qual_stream, 0)) {
+               if (qual_stream != *block_stream) {
+                  _mesa_glsl_error(&loc, state, "stream layout qualifier on "
+                                   "interface block member `%s' does not "
+                                   "match the interface block (%d vs %d)",
+                                   fields[i].name, qual_stream, *block_stream);
+               }
+            }
          }
 
          if (qual->flags.q.row_major || qual->flags.q.column_major) {
@@ -6198,6 +6236,7 @@ ast_struct_specifier::hir(exec_list *instructions,
                                                GLSL_MATRIX_LAYOUT_INHERITED,
                                                false /* allow_reserved_names */,
                                                ir_var_auto,
+                                               NULL,
                                                NULL);
 
    validate_identifier(this->name, loc, state);
@@ -6344,6 +6383,7 @@ ast_interface_block::hir(exec_list *instructions,
     */
    state->struct_specifier_depth++;
 
+   unsigned qual_stream;
    unsigned int num_variables =
       ast_process_structure_or_interface_block(&declared_variables,
                                                state,
@@ -6354,7 +6394,8 @@ ast_interface_block::hir(exec_list *instructions,
                                                matrix_layout,
                                                redeclaring_per_vertex,
                                                var_mode,
-                                               &this->layout);
+                                               &this->layout,
+                                               &qual_stream);
 
    state->struct_specifier_depth--;
 
@@ -6494,8 +6535,12 @@ ast_interface_block::hir(exec_list *instructions,
                                         num_variables,
                                         packing,
                                         this->block_name);
-   if (this->layout.flags.q.explicit_binding)
-      validate_binding_qualifier(state, &loc, block_type, &this->layout);
+   unsigned qual_binding;
+   if (this->layout.flags.q.explicit_binding &&
+       process_qualifier_constant(state, &loc, "binding", this->layout.binding,
+                                  &qual_binding, 0))
+      validate_binding_qualifier(state, &loc, block_type,
+                                 &this->layout, qual_binding);
 
    if (!state->symbols->add_interface(block_type->name, block_type, var_mode)) {
       YYLTYPE loc = this->get_location();
@@ -6626,9 +6671,13 @@ ast_interface_block::hir(exec_list *instructions,
                              "not allowed");
          }
 
-         if (this->layout.flags.q.explicit_binding)
+         unsigned qual_binding;
+         if (this->layout.flags.q.explicit_binding &&
+             process_qualifier_constant(state, &loc, "binding",
+                                        this->layout.binding, &qual_binding,
+                                        0))
             validate_binding_qualifier(state, &loc, block_array_type,
-                                       &this->layout);
+                                       &this->layout, qual_binding);
 
          var = new(state) ir_variable(block_array_type,
                                       this->instance_name,
@@ -6696,9 +6745,15 @@ ast_interface_block::hir(exec_list *instructions,
           * has an instance name.  This is ugly.
           */
          var->data.explicit_binding = this->layout.flags.q.explicit_binding;
-         var->data.binding = this->layout.binding;
+         unsigned qual_binding;
+         if (this->layout.flags.q.explicit_binding &&
+             process_qualifier_constant(state, &loc, "binding",
+                                        this->layout.binding,
+                                        &qual_binding, 0)) {
+            var->data.binding = qual_binding;
+         }
 
-         var->data.stream = this->layout.stream;
+         var->data.stream = qual_stream;
 
          state->symbols->add_variable(var);
          instructions->push_tail(var);
@@ -6718,7 +6773,7 @@ ast_interface_block::hir(exec_list *instructions,
          var->data.centroid = fields[i].centroid;
          var->data.sample = fields[i].sample;
          var->data.patch = fields[i].patch;
-         var->data.stream = this->layout.stream;
+         var->data.stream = qual_stream;
          var->init_interface_type(block_type);
 
          if (var_mode == ir_var_shader_in || var_mode == ir_var_uniform)
@@ -6769,7 +6824,13 @@ ast_interface_block::hir(exec_list *instructions,
           * has an instance name.  This is ugly.
           */
          var->data.explicit_binding = this->layout.flags.q.explicit_binding;
-         var->data.binding = this->layout.binding;
+         unsigned qual_binding;
+         if (this->layout.flags.q.explicit_binding &&
+             process_qualifier_constant(state, &loc, "binding",
+                                        this->layout.binding,
+                                        &qual_binding, 0)) {
+            var->data.binding = qual_binding;
+         }
 
          if (var->type->is_unsized_array()) {
             if (var->is_in_shader_storage_block()) {
@@ -6851,14 +6912,10 @@ ast_tcs_output_layout::hir(exec_list *instructions,
 {
    YYLTYPE loc = this->get_location();
 
-   /* If any tessellation control output layout declaration preceded this
-    * one, make sure it was consistent with this one.
-    */
-   if (state->tcs_output_vertices_specified &&
-       state->out_qualifier->vertices != this->vertices) {
-      _mesa_glsl_error(&loc, state,
-		       "tessellation control shader output layout does not "
-		       "match previous declaration");
+   unsigned num_vertices;
+   if (!state->out_qualifier->vertices->
+          process_qualifier_constant(state, "vertices", &num_vertices, 1)) {
+      /* return here to stop cascading incorrect error messages */
       return NULL;
    }
 
@@ -6866,8 +6923,8 @@ ast_tcs_output_layout::hir(exec_list *instructions,
     * array size, make sure the size they specified is consistent with the
     * primitive type.
     */
-   unsigned num_vertices = this->vertices;
-   if (state->tcs_output_size != 0 && state->tcs_output_size != num_vertices) {
+   if (state->tcs_output_size != 0 &&
+       state->tcs_output_size != num_vertices) {
       _mesa_glsl_error(&loc, state,
 		       "this tessellation control shader output layout "
 		       "specifies %u vertices, but a previous output "
@@ -6893,7 +6950,7 @@ ast_tcs_output_layout::hir(exec_list *instructions,
       if (var->data.max_array_access >= num_vertices) {
 	 _mesa_glsl_error(&loc, state,
 			  "this tessellation control shader output layout "
-			  "specifies %u vertices, but an access to element "
+			  "specifies %d vertices, but an access to element "
 			  "%u of output `%s' already exists", num_vertices,
 			  var->data.max_array_access, var->name);
       } else {
@@ -6974,20 +7031,6 @@ ast_cs_input_layout::hir(exec_list *instructions,
 {
    YYLTYPE loc = this->get_location();
 
-   /* If any compute input layout declaration preceded this one, make sure it
-    * was consistent with this one.
-    */
-   if (state->cs_input_local_size_specified) {
-      for (int i = 0; i < 3; i++) {
-         if (state->cs_input_local_size[i] != this->local_size[i]) {
-            _mesa_glsl_error(&loc, state,
-                             "compute shader input layout does not match"
-                             " previous declaration");
-            return NULL;
-         }
-      }
-   }
-
    /* From the ARB_compute_shader specification:
     *
     *     If the local size of the shader in any dimension is greater
@@ -7000,22 +7043,26 @@ ast_cs_input_layout::hir(exec_list *instructions,
     * report it at compile time as well.
     */
    GLuint64 total_invocations = 1;
+   unsigned qual_local_size[3];
    for (int i = 0; i < 3; i++) {
-      if (this->local_size[i] <= 0) {
-         _mesa_glsl_error(state->in_qualifier->loc, state,
-                          "invalid local_size_%c of %d specified",
-                          'x' + i, this->local_size[i]);
+      char *local_size_str = ralloc_asprintf(NULL, "invalid local_size_%c",
+                                             'x' + i);
+      if (!this->local_size[i]->
+             process_qualifier_constant(state, local_size_str,
+                                        &qual_local_size[i], 1)) {
+         ralloc_free(local_size_str);
          break;
       }
+      ralloc_free(local_size_str);
 
-      if (this->local_size[i] > state->ctx->Const.MaxComputeWorkGroupSize[i]) {
+      if (qual_local_size[i] > state->ctx->Const.MaxComputeWorkGroupSize[i]) {
          _mesa_glsl_error(&loc, state,
                           "local_size_%c exceeds MAX_COMPUTE_WORK_GROUP_SIZE"
                           " (%d)", 'x' + i,
                           state->ctx->Const.MaxComputeWorkGroupSize[i]);
          break;
       }
-      total_invocations *= this->local_size[i];
+      total_invocations *= qual_local_size[i];
       if (total_invocations >
           state->ctx->Const.MaxComputeWorkGroupInvocations) {
          _mesa_glsl_error(&loc, state,
@@ -7026,9 +7073,23 @@ ast_cs_input_layout::hir(exec_list *instructions,
       }
    }
 
+   /* If any compute input layout declaration preceded this one, make sure it
+    * was consistent with this one.
+    */
+   if (state->cs_input_local_size_specified) {
+      for (int i = 0; i < 3; i++) {
+         if (state->cs_input_local_size[i] != qual_local_size[i]) {
+            _mesa_glsl_error(&loc, state,
+                             "compute shader input layout does not match"
+                             " previous declaration");
+            return NULL;
+         }
+      }
+   }
+
    state->cs_input_local_size_specified = true;
    for (int i = 0; i < 3; i++)
-      state->cs_input_local_size[i] = this->local_size[i];
+      state->cs_input_local_size[i] = qual_local_size[i];
 
    /* We may now declare the built-in constant gl_WorkGroupSize (see
     * builtin_variable_generator::generate_constants() for why we didn't
@@ -7043,7 +7104,7 @@ ast_cs_input_layout::hir(exec_list *instructions,
    ir_constant_data data;
    memset(&data, 0, sizeof(data));
    for (int i = 0; i < 3; i++)
-      data.u[i] = this->local_size[i];
+      data.u[i] = qual_local_size[i];
    var->constant_value = new(var) ir_constant(glsl_type::uvec3_type, &data);
    var->constant_initializer =
       new(var) ir_constant(glsl_type::uvec3_type, &data);

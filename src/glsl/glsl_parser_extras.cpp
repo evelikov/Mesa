@@ -1652,8 +1652,13 @@ set_shader_inout_layout(struct gl_shader *shader,
    switch (shader->Stage) {
    case MESA_SHADER_TESS_CTRL:
       shader->TessCtrl.VerticesOut = 0;
-      if (state->tcs_output_vertices_specified)
-         shader->TessCtrl.VerticesOut = state->out_qualifier->vertices;
+      if (state->tcs_output_vertices_specified) {
+         unsigned vertices;
+         if (state->out_qualifier->vertices->
+               process_qualifier_constant(state, "vertices", &vertices, 0)) {
+            shader->TessCtrl.VerticesOut = vertices;
+         }
+      }
       break;
    case MESA_SHADER_TESS_EVAL:
       shader->TessEval.PrimitiveMode = PRIM_UNKNOWN;
@@ -1675,12 +1680,12 @@ set_shader_inout_layout(struct gl_shader *shader,
    case MESA_SHADER_GEOMETRY:
       shader->Geom.VerticesOut = 0;
       if (state->out_qualifier->flags.q.max_vertices) {
-         if (state->out_qualifier->max_vertices < 0) {
-            _mesa_glsl_error(state->out_qualifier->loc, state,
-                             "invalid max_vertices %d specified",
-                             state->out_qualifier->max_vertices);
+         unsigned qual_max_vertices;
+         if (state->out_qualifier->max_vertices->
+               process_qualifier_constant(state, "max_vertices",
+                                          &qual_max_vertices, 0)) {
+            shader->Geom.VerticesOut = qual_max_vertices;
          }
-         shader->Geom.VerticesOut = state->out_qualifier->max_vertices;
       }
 
       if (state->gs_input_prim_type_specified) {
@@ -1697,18 +1702,20 @@ set_shader_inout_layout(struct gl_shader *shader,
 
       shader->Geom.Invocations = 0;
       if (state->in_qualifier->flags.q.invocations) {
-         if (state->in_qualifier->invocations <= 0) {
-            _mesa_glsl_error(state->in_qualifier->loc, state,
-                             "invalid invocations %d specified",
-                             state->in_qualifier->invocations);
-         } else if (state->in_qualifier->invocations >
-                    MAX_GEOMETRY_SHADER_INVOCATIONS) {
-            _mesa_glsl_error(state->in_qualifier->loc, state,
-                             "invocations (%d) exceeds "
-                             "GL_MAX_GEOMETRY_SHADER_INVOCATIONS",
-                             state->in_qualifier->invocations);
+         unsigned invocations;
+         if (state->in_qualifier->invocations->
+               process_qualifier_constant(state, "invocations",
+                                          &invocations, 1)) {
+
+            YYLTYPE loc = state->in_qualifier->invocations->get_location();
+            if (invocations > MAX_GEOMETRY_SHADER_INVOCATIONS) {
+               _mesa_glsl_error(&loc, state,
+                                "invocations (%d) exceeds "
+                                "GL_MAX_GEOMETRY_SHADER_INVOCATIONS",
+                                invocations);
+            }
+            shader->Geom.Invocations = invocations;
          }
-         shader->Geom.Invocations = state->in_qualifier->invocations;
       }
       break;
 
