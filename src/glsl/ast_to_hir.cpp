@@ -2303,6 +2303,18 @@ process_qualifier_constant(struct _mesa_glsl_parse_state *state,
    return true;
 }
 
+static void
+validate_stream_qualifier(YYLTYPE *loc, struct _mesa_glsl_parse_state *state,
+                          unsigned stream)
+{
+   if (stream >= state->ctx->Const.MaxVertexStreams) {
+      _mesa_glsl_error(loc, state,
+                       "invalid stream specified %d is larger than "
+                       "MAX_VERTEX_STREAMS - 1 (%d).",
+                       stream, state->ctx->Const.MaxVertexStreams - 1);
+   }
+}
+
 static bool
 validate_binding_qualifier(struct _mesa_glsl_parse_state *state,
                            YYLTYPE *loc,
