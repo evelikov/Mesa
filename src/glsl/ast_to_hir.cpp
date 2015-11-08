@@ -2414,6 +2414,12 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
 {
    bool fail = false;
 
+   if (qual->location < 0) {
+       _mesa_glsl_error(loc, state, "invalid location %d specified",
+                        qual->location);
+       return;
+   }
+
    /* Checks for GL_ARB_explicit_uniform_location. */
    if (qual->flags.q.uniform) {
       if (!state->check_explicit_uniform_location_allowed(loc, var))
@@ -2537,6 +2543,18 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
          assert(!"Unexpected shader type");
          break;
       }
+   }
+}
+
+static void
+validate_layout_qualifiers(const struct ast_type_qualifier *qual,
+                           ir_variable *var,
+                           struct _mesa_glsl_parse_state *state,
+                           YYLTYPE *loc)
+{
+   if (qual->flags.q.explicit_location) {
+
+      validate_explicit_location(qual, var, state, loc);
 
       if (qual->flags.q.explicit_index) {
          /* From the GLSL 4.30 specification, section 4.4.2 (Output
@@ -2555,6 +2573,38 @@ validate_explicit_location(const struct ast_type_qualifier *qual,
             var->data.explicit_index = true;
             var->data.index = qual->index;
          }
+      }
+   } else if (qual->flags.q.explicit_index) {
+      _mesa_glsl_error(loc, state, "explicit index requires explicit location");
+   }
+
+   if (qual->flags.q.explicit_binding &&
+       validate_binding_qualifier(state, loc, var->type, qual)) {
+      var->data.explicit_binding = true;
+      var->data.binding = qual->binding;
+   }
+
+   if (var->type->contains_atomic()) {
+      if (var->data.mode == ir_var_uniform) {
+         if (var->data.explicit_binding) {
+            unsigned *offset =
+               &state->atomic_counter_offsets[var->data.binding];
+
+            if (*offset % ATOMIC_COUNTER_SIZE)
+               _mesa_glsl_error(loc, state,
+                                "misaligned atomic counter offset");
+
+            var->data.atomic.offset = *offset;
+            *offset += var->type->atomic_size();
+
+         } else {
+            _mesa_glsl_error(loc, state,
+                             "atomic counters require explicit binding point");
+         }
+      } else if (var->data.mode != ir_var_function_in) {
+         _mesa_glsl_error(loc, state, "atomic counters may only be declared as "
+                          "function parameters or uniform-qualified "
+                          "global variables");
       }
    }
 }
@@ -2935,41 +2985,7 @@ apply_type_qualifier_to_variable(const struct ast_type_qualifier *qual,
          state->fs_redeclares_gl_fragcoord_with_no_layout_qualifiers;
    }
 
-   if (qual->flags.q.explicit_location) {
-      validate_explicit_location(qual, var, state, loc);
-   } else if (qual->flags.q.explicit_index) {
-      _mesa_glsl_error(loc, state, "explicit index requires explicit location");
-   }
-
-   if (qual->flags.q.explicit_binding &&
-       validate_binding_qualifier(state, loc, var->type, qual)) {
-      var->data.explicit_binding = true;
-      var->data.binding = qual->binding;
-   }
-
-   if (var->type->contains_atomic()) {
-      if (var->data.mode == ir_var_uniform) {
-         if (var->data.explicit_binding) {
-            unsigned *offset =
-               &state->atomic_counter_offsets[var->data.binding];
-
-            if (*offset % ATOMIC_COUNTER_SIZE)
-               _mesa_glsl_error(loc, state,
-                                "misaligned atomic counter offset");
-
-            var->data.atomic.offset = *offset;
-            *offset += var->type->atomic_size();
-
-         } else {
-            _mesa_glsl_error(loc, state,
-                             "atomic counters require explicit binding point");
-         }
-      } else if (var->data.mode != ir_var_function_in) {
-         _mesa_glsl_error(loc, state, "atomic counters may only be declared as "
-                          "function parameters or uniform-qualified "
-                          "global variables");
-      }
-   }
+   validate_layout_qualifiers(qual, var, state, loc);
 
    /* Does the declaration use the deprecated 'attribute' or 'varying'
     * keywords?
@@ -6921,6 +6937,13 @@ ast_cs_input_layout::hir(exec_list *instructions,
     */
    GLuint64 total_invocations = 1;
    for (int i = 0; i < 3; i++) {
+      if (this->local_size[i] <= 0) {
+         _mesa_glsl_error(state->in_qualifier->loc, state,
+                          "invalid local_size_%c of %d specified",
+                          'x' + i, this->local_size[i]);
+         break;
+      }
+
       if (this->local_size[i] > state->ctx->Const.MaxComputeWorkGroupSize[i]) {
          _mesa_glsl_error(&loc, state,
                           "local_size_%c exceeds MAX_COMPUTE_WORK_GROUP_SIZE"

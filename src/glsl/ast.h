@@ -553,6 +553,8 @@ struct ast_type_qualifier {
       uint64_t i;
    } flags;
 
+   struct YYLTYPE *loc;
+
    /** Precision of the type (highp/medium/lowp). */
    unsigned precision:2;
 
