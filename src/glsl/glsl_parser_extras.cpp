@@ -947,6 +947,14 @@ _mesa_ast_process_interface_block(YYLTYPE *locp,
 
    if (state->stage == MESA_SHADER_GEOMETRY &&
        state->has_explicit_attrib_stream()) {
+
+      if (state->out_qualifier->flags.q.explicit_stream) {
+         if (state->out_qualifier->stream < 0) {
+            _mesa_glsl_error(locp, state, "invalid stream %d specified",
+                             state->out_qualifier->stream);
+         }
+      }
+
       /* Assign global layout's stream value. */
       block->layout.flags.q.stream = 1;
       block->layout.flags.q.explicit_stream = 0;
@@ -1615,7 +1623,7 @@ void ast_subroutine_list::print(void) const
 
 static void
 set_shader_inout_layout(struct gl_shader *shader,
-		     struct _mesa_glsl_parse_state *state)
+                        struct _mesa_glsl_parse_state *state)
 {
    /* Should have been prevented by the parser. */
    if (shader->Stage == MESA_SHADER_TESS_CTRL) {
@@ -1666,8 +1674,14 @@ set_shader_inout_layout(struct gl_shader *shader,
       break;
    case MESA_SHADER_GEOMETRY:
       shader->Geom.VerticesOut = 0;
-      if (state->out_qualifier->flags.q.max_vertices)
+      if (state->out_qualifier->flags.q.max_vertices) {
+         if (state->out_qualifier->max_vertices < 0) {
+            _mesa_glsl_error(state->out_qualifier->loc, state,
+                             "invalid max_vertices %d specified",
+                             state->out_qualifier->max_vertices);
+         }
          shader->Geom.VerticesOut = state->out_qualifier->max_vertices;
+      }
 
       if (state->gs_input_prim_type_specified) {
          shader->Geom.InputType = state->in_qualifier->prim_type;
@@ -1682,8 +1696,20 @@ set_shader_inout_layout(struct gl_shader *shader,
       }
 
       shader->Geom.Invocations = 0;
-      if (state->in_qualifier->flags.q.invocations)
+      if (state->in_qualifier->flags.q.invocations) {
+         if (state->in_qualifier->invocations <= 0) {
+            _mesa_glsl_error(state->in_qualifier->loc, state,
+                             "invalid invocations %d specified",
+                             state->in_qualifier->invocations);
+         } else if (state->in_qualifier->invocations >
+                    MAX_GEOMETRY_SHADER_INVOCATIONS) {
+            _mesa_glsl_error(state->in_qualifier->loc, state,
+                             "invocations (%d) exceeds "
+                             "GL_MAX_GEOMETRY_SHADER_INVOCATIONS",
+                             state->in_qualifier->invocations);
+         }
          shader->Geom.Invocations = state->in_qualifier->invocations;
+      }
       break;
 
    case MESA_SHADER_COMPUTE:
@@ -1796,14 +1822,15 @@ _mesa_glsl_compile_shader(struct gl_context *ctx, struct gl_shader *shader,
       ralloc_free(shader->InfoLog);
 
    shader->symbols = new(shader->ir) glsl_symbol_table;
-   shader->CompileStatus = !state->error;
-   shader->InfoLog = state->info_log;
    shader->Version = state->language_version;
    shader->IsES = state->es_shader;
    shader->uses_builtin_functions = state->uses_builtin_functions;
 
    if (!state->error)
       set_shader_inout_layout(shader, state);
+
+   shader->CompileStatus = !state->error;
+   shader->InfoLog = state->info_log;
 
    /* Retain any live IR, but trash the rest. */
    reparent_ir(shader->ir, shader->ir);

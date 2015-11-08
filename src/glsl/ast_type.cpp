@@ -310,6 +310,7 @@ ast_type_qualifier::merge_out_qualifier(YYLTYPE *loc,
 {
    void *mem_ctx = state;
    const bool r = this->merge_qualifier(loc, state, q);
+   this->loc = loc;
 
    if (state->stage == MESA_SHADER_TESS_CTRL) {
       node = new(mem_ctx) ast_tcs_output_layout(*loc, q.vertices);
@@ -329,6 +330,7 @@ ast_type_qualifier::merge_in_qualifier(YYLTYPE *loc,
    bool create_cs_ast = false;
    ast_type_qualifier valid_in_mask;
    valid_in_mask.flags.i = 0;
+   this->loc = loc;
 
    switch (state->stage) {
    case MESA_SHADER_TESS_EVAL:

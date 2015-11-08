@@ -3544,10 +3544,19 @@ static void
 handle_tess_ctrl_shader_output_decl(struct _mesa_glsl_parse_state *state,
                                     YYLTYPE loc, ir_variable *var)
 {
-   unsigned num_vertices = 0;
+   int num_vertices = 0;
 
    if (state->tcs_output_vertices_specified) {
       num_vertices = state->out_qualifier->vertices;
+      if (num_vertices <= 0) {
+         _mesa_glsl_error(&loc, state, "invalid vertices (%d) specified",
+                          num_vertices);
+         return;
+      } else if ((unsigned) num_vertices > state->Const.MaxPatchVertices) {
+         _mesa_glsl_error(&loc, state, "vertices (%d) exceeds "
+                          "GL_MAX_PATCH_VERTICES", num_vertices);
+         return;
+      }
    }
 
    if (!var->type->is_array() && !var->data.patch) {
@@ -3561,7 +3570,8 @@ handle_tess_ctrl_shader_output_decl(struct _mesa_glsl_parse_state *state,
    if (var->data.patch)
       return;
 
-   validate_layout_qualifier_vertex_count(state, loc, var, num_vertices,
+   validate_layout_qualifier_vertex_count(state, loc, var,
+                                          (unsigned) num_vertices,
                                           &state->tcs_output_size,
                                           "tessellation control shader output");
 }
