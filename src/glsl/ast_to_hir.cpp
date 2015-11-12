@@ -6367,6 +6367,7 @@ ast_interface_block::hir(exec_list *instructions,
     * with this uniform block.
     */
    enum glsl_interface_packing packing;
+   // XXX: BUG? Seems like we "allow" multiple layouts to be used only to parse them them in specific order
    if (this->layout.flags.q.shared) {
       packing = GLSL_INTERFACE_PACKING_SHARED;
    } else if (this->layout.flags.q.packed) {
