@@ -3166,6 +3166,7 @@ apply_type_qualifier_to_variable(const struct ast_type_qualifier *qual,
    else
        var->data.depth_layout = ir_depth_layout_none;
 
+   // XXX: Duplicate hunk - consolidate
    if (qual->flags.q.std140 ||
        qual->flags.q.std430 ||
        qual->flags.q.packed ||
