@@ -952,7 +952,7 @@ link_cross_validate_uniform_block(void *mem_ctx,
  * shaders).
  */
 static void
-link_update_uniform_buffer_variables(struct gl_shader *shader)
+update_uniform_buffer_variables(struct gl_shader *shader)
 {
    foreach_in_list(ir_instruction, node, shader->ir) {
       ir_variable *const var = node->as_variable();
@@ -1011,10 +1011,10 @@ link_update_uniform_buffer_variables(struct gl_shader *shader)
 }
 
 static void
-link_set_image_access_qualifiers(struct gl_shader_program *prog,
-                                 gl_shader *sh, unsigned shader_stage,
-                                 ir_variable *var, const glsl_type *type,
-                                 char **name, size_t name_length)
+set_image_access_qualifiers(struct gl_shader_program *prog,
+                            gl_shader *sh, unsigned shader_stage,
+                            ir_variable *var, const glsl_type *type,
+                            char **name, size_t name_length)
 {
    /* Handle arrays of arrays */
    if (type->is_array() && type->fields.array->is_array()) {
@@ -1024,9 +1024,9 @@ link_set_image_access_qualifiers(struct gl_shader_program *prog,
 	 /* Append the subscript to the current variable name */
 	 ralloc_asprintf_rewrite_tail(name, &new_length, "[%u]", i);
 
-         link_set_image_access_qualifiers(prog, sh, shader_stage, var,
-                                          type->fields.array, name,
-                                          new_length);
+         set_image_access_qualifiers(prog, sh, shader_stage, var,
+                                     type->fields.array, name,
+                                     new_length);
       }
    } else {
       unsigned id = 0;
@@ -1101,7 +1101,7 @@ link_assign_uniform_locations(struct gl_shader_program *prog,
       memset(sh->SamplerUnits, 0, sizeof(sh->SamplerUnits));
       memset(sh->ImageUnits, 0, sizeof(sh->ImageUnits));
 
-      link_update_uniform_buffer_variables(sh);
+      update_uniform_buffer_variables(sh);
 
       /* Reset various per-shader target counts.
        */
@@ -1320,8 +1320,8 @@ link_assign_uniform_locations(struct gl_shader_program *prog,
          if (var && var->data.mode == ir_var_uniform &&
              var->type->contains_image()) {
             char *name_copy = ralloc_strdup(NULL, var->name);
-            link_set_image_access_qualifiers(prog, sh, i, var, var->type,
-                                             &name_copy, strlen(var->name));
+            set_image_access_qualifiers(prog, sh, i, var, var->type,
+                                        &name_copy, strlen(var->name));
             ralloc_free(name_copy);
          }
       }
