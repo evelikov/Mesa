@@ -466,6 +466,20 @@ link_uniform_blocks_are_compatible(const gl_uniform_block *a,
 
       if (a->Uniforms[i].RowMajor != b->Uniforms[i].RowMajor)
 	 return false;
+
+      /* The ARB_enhanced_layouts spec states:
+       *
+       *     "Two blocks linked together in the same program with the same
+       *     block name must have the exact same set of members qualified with
+       *     *offset* and their integral-constant-expression values must be the
+       *     same, or a link-time error results."
+       *
+       * We follow the exact same logic when assigning offsets thus we can
+       * compare them all, rather than worrying about which is explicit and
+       * which is not.
+       */
+      if (a->Uniforms[i].Offset != b->Uniforms[i].Offset)
+	 return false;
    }
 
    return true;
