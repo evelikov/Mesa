@@ -6368,20 +6368,6 @@ ast_interface_block::hir(exec_list *instructions,
     * need to turn those into ir_variables with an association
     * with this uniform block.
     */
-   enum glsl_interface_packing packing;
-   // XXX: BUG? Seems like we "allow" multiple layouts to be used only to parse them them in specific order
-   if (this->layout.flags.q.shared) {
-      packing = GLSL_INTERFACE_PACKING_SHARED;
-   } else if (this->layout.flags.q.packed) {
-      packing = GLSL_INTERFACE_PACKING_PACKED;
-   } else if (this->layout.flags.q.std430) {
-      packing = GLSL_INTERFACE_PACKING_STD430;
-   } else {
-      /* The default layout is std140.
-       */
-      packing = GLSL_INTERFACE_PACKING_STD140;
-   }
-
    ir_variable_mode var_mode;
    const char *iface_type_name;
    if (this->layout.flags.q.in) {
@@ -6562,6 +6548,20 @@ ast_interface_block::hir(exec_list *instructions,
                           "appear before any use of any member of the "
                           "interface block");
       }
+   }
+
+   enum glsl_interface_packing packing;
+   // XXX: BUG? Seems like we "allow" multiple layouts to be used only to parse them them in specific order
+   if (this->layout.flags.q.shared) {
+      packing = GLSL_INTERFACE_PACKING_SHARED;
+   } else if (this->layout.flags.q.packed) {
+      packing = GLSL_INTERFACE_PACKING_PACKED;
+   } else if (this->layout.flags.q.std430) {
+      packing = GLSL_INTERFACE_PACKING_STD430;
+   } else {
+      /* The default layout is std140.
+       */
+      packing = GLSL_INTERFACE_PACKING_STD140;
    }
 
    const glsl_type *block_type =
