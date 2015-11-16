@@ -5957,6 +5957,8 @@ ast_type_specifier::hir(exec_list *instructions,
  * The number of fields processed.  A pointer to the array structure fields is
  * stored in \c *fields_ret.
  */
+// XXX: the loc variable below gets shadowed through the function.
+// Where used directly it seems to be initialised to 0
 unsigned
 ast_process_structure_or_interface_block(exec_list *instructions,
                                          struct _mesa_glsl_parse_state *state,
