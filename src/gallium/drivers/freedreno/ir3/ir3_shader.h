@@ -29,8 +29,9 @@
 #ifndef IR3_SHADER_H_
 #define IR3_SHADER_H_
 
+#include "compiler/shader_enums.h"
+
 #include "pipe/p_state.h"
-#include "glsl/nir/shader_enums.h"
 
 #include "ir3.h"
 #include "disasm.h"

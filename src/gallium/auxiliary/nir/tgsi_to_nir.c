@@ -22,12 +22,13 @@
  * IN THE SOFTWARE.
  */
 
+#include "compiler/shader_enums.h"
+
 #include "util/ralloc.h"
 #include "glsl/nir/nir.h"
 #include "glsl/nir/nir_control_flow.h"
 #include "glsl/nir/nir_builder.h"
 #include "glsl/list.h"
-#include "glsl/nir/shader_enums.h"
 
 #include "nir/tgsi_to_nir.h"
 #include "tgsi/tgsi_parse.h"
