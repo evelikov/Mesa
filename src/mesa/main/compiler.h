@@ -41,11 +41,6 @@
 #include "c99_compat.h" /* inline, __func__, etc. */
 
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
-
 /**
   * Sun compilers define __i386 instead of the gcc-style __i386__
  */
@@ -90,11 +85,6 @@ extern "C" {
 
 
 #define IEEE_ONE 0x3f800000
-
-
-#ifdef __cplusplus
-}
-#endif
 
 
 #endif /* COMPILER_H */
