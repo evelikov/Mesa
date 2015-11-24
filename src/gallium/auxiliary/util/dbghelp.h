@@ -6,6 +6,9 @@
 #ifndef _DBGHELP_
 #define _DBGHELP_
 
+#include <pshpack4.h>
+#include <poppack.h>
+
 #ifdef _WIN64
 #ifndef _IMAGEHLP64
 #define _IMAGEHLP64
@@ -897,8 +900,6 @@ extern "C" {
 #define IMAGEHLP_SYMBOL_THUNK SYMF_THUNK
 #define IMAGEHLP_SYMBOL_INFO_TLSRELATIVE SYMF_TLSREL
 
-#include <pshpack4.h>
-
 #define MINIDUMP_SIGNATURE ('PMDM')
 #define MINIDUMP_VERSION (42899)
   typedef DWORD RVA;
@@ -1256,8 +1257,6 @@ extern "C" {
 
   BOOL WINAPI MiniDumpWriteDump(HANDLE hProcess,DWORD ProcessId,HANDLE hFile,MINIDUMP_TYPE DumpType,CONST PMINIDUMP_EXCEPTION_INFORMATION ExceptionParam,CONST PMINIDUMP_USER_STREAM_INFORMATION UserStreamParam,CONST PMINIDUMP_CALLBACK_INFORMATION CallbackParam);
   BOOL WINAPI MiniDumpReadDumpStream(PVOID BaseOfDump,ULONG StreamNumber,PMINIDUMP_DIRECTORY *Dir,PVOID *StreamPointer,ULONG *StreamSize);
-
-#include <poppack.h>
 
 #ifdef __cplusplus
 }
