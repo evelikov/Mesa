@@ -25,8 +25,8 @@
  *
  */
 
+#include "compiler/nir_types.h"
 #include "nir.h"
-#include "nir_types.h"
 
 /*
  * Lowers all copy intrinsics to sequences of load/store intrinsics.
