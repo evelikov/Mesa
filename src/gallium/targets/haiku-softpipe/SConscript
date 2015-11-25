@@ -8,6 +8,7 @@ env.Prepend(LIBS = [
     mesautil,
     mesa,
     glsl,
+    compiler,
     gallium
 ])
 
