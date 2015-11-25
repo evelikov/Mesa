@@ -24,9 +24,10 @@ SUBDIRS = . gtest util mapi/glapi/gen mapi
 # XXX: conditionally include
 SUBDIRS += compiler
 SUBDIRS += compiler/nir
+SUBDIRS += compiler/glsl
 
 if NEED_OPENGL_COMMON
-SUBDIRS += glsl mesa
+SUBDIRS += mesa
 endif
 
 SUBDIRS += loader

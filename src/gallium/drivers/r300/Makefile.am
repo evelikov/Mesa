@@ -5,7 +5,6 @@ AM_CFLAGS = \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/src/mesa/program \
 	-I$(top_srcdir)/src/mesa \
-	-I$(top_srcdir)/src/glsl \
 	-I$(top_srcdir)/src/mapi \
 	$(GALLIUM_DRIVER_CFLAGS) \
 	$(LLVM_CFLAGS) \

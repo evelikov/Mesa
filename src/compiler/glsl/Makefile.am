@@ -26,7 +26,7 @@ AM_CPPFLAGS = \
 	-I$(top_srcdir)/src/mesa/ \
 	-I$(top_srcdir)/src/gallium/include \
 	-I$(top_srcdir)/src/gallium/auxiliary \
-	-I$(top_srcdir)/src/glsl/glcpp \
+	-I$(top_builddir)/src/compiler/glsl/glcpp \
 	-I$(top_srcdir)/src/gtest/include \
 	$(DEFINES)
 AM_CFLAGS = \
@@ -71,7 +71,7 @@ noinst_PROGRAMS = glsl_compiler
 tests_blob_test_SOURCES =				\
 	tests/blob_test.c
 tests_blob_test_LDADD =					\
-	$(top_builddir)/src/glsl/libglsl.la
+	libglsl.la
 
 tests_general_ir_test_SOURCES =		\
 	standalone_scaffolding.cpp			\
@@ -82,9 +82,9 @@ tests_general_ir_test_SOURCES =		\
 tests_general_ir_test_CFLAGS =				\
 	$(PTHREAD_CFLAGS)
 tests_general_ir_test_LDADD =				\
-	$(top_builddir)/src/gtest/libgtest.la		\
-	$(top_builddir)/src/glsl/libglsl.la		\
+	libglsl.la		\
 	$(top_builddir)/src/libglsl_util.la		\
+	$(top_builddir)/src/gtest/libgtest.la		\
 	$(PTHREAD_LIBS)
 
 tests_uniform_initializer_test_SOURCES =		\
@@ -95,9 +95,9 @@ tests_uniform_initializer_test_SOURCES =		\
 tests_uniform_initializer_test_CFLAGS =			\
 	$(PTHREAD_CFLAGS)
 tests_uniform_initializer_test_LDADD =			\
-	$(top_builddir)/src/gtest/libgtest.la		\
-	$(top_builddir)/src/glsl/libglsl.la		\
+	libglsl.la		\
 	$(top_builddir)/src/libglsl_util.la		\
+	$(top_builddir)/src/gtest/libgtest.la		\
 	$(PTHREAD_LIBS)
 
 tests_sampler_types_test_SOURCES =			\
@@ -105,9 +105,9 @@ tests_sampler_types_test_SOURCES =			\
 tests_sampler_types_test_CFLAGS =			\
 	$(PTHREAD_CFLAGS)
 tests_sampler_types_test_LDADD =			\
-	$(top_builddir)/src/gtest/libgtest.la		\
-	$(top_builddir)/src/glsl/libglsl.la		\
+	libglsl.la		\
 	$(top_builddir)/src/libglsl_util.la		\
+	$(top_builddir)/src/gtest/libgtest.la		\
 	$(PTHREAD_LIBS)
 
 libglcpp_la_LIBADD =					\

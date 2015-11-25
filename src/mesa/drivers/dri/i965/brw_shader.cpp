@@ -25,7 +25,7 @@
 #include "brw_cfg.h"
 #include "brw_eu.h"
 #include "brw_nir.h"
-#include "glsl/glsl_parser_extras.h"
+#include "compiler/glsl/glsl_parser_extras.h"
 #include "main/shaderobj.h"
 #include "main/uniforms.h"
 #include "util/debug.h"

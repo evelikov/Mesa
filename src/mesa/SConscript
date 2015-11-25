@@ -15,7 +15,6 @@ env.MSVC2013Compat()
 env.Append(CPPPATH = [
     '#/src',
     '#/src/mapi',
-    '#/src/glsl',
     '#/src/mesa',
     '#/src/gallium/include',
     '#/src/gallium/auxiliary',

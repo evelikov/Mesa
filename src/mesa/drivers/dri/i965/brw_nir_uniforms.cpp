@@ -21,9 +21,9 @@
  * IN THE SOFTWARE.
  */
 
+#include "compiler/glsl/ir_uniform.h"
 #include "brw_shader.h"
 #include "brw_nir.h"
-#include "glsl/ir_uniform.h"
 
 static void
 brw_nir_setup_glsl_builtin_uniform(nir_variable *var,

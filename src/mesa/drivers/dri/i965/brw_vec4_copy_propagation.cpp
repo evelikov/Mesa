@@ -406,7 +406,7 @@ vec4_visitor::opt_copy_propagation(bool do_constant_prop)
        * scratch.
        *
        * This should really be fixed by using a structure like in
-       * src/glsl/opt_copy_propagation.cpp to track available copies.
+       * src/compiler/glsl/opt_copy_propagation.cpp to track available copies.
        */
       if (!is_dominated_by_previous_instruction(inst)) {
 	 memset(&entries, 0, sizeof(entries));

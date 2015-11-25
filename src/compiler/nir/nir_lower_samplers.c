@@ -23,7 +23,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "glsl/ir_uniform.h"
+#include "compiler/glsl/ir_uniform.h"
 #include "main/compiler.h"
 #include "main/mtypes.h"
 #include "program/prog_parameter.h"

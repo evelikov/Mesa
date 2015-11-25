@@ -28,7 +28,7 @@
 #include "compiler/nir/nir_builder.h"
 
 #include "util/ralloc.h"
-#include "glsl/list.h"
+#include "compiler/glsl/list.h"
 
 #include "nir/tgsi_to_nir.h"
 #include "tgsi/tgsi_parse.h"

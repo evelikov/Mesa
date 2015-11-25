@@ -33,7 +33,7 @@
 #include "brw_ir_vec4.h"
 #endif
 
-#include "glsl/ir.h"
+#include "compiler/glsl/ir.h"
 
 
 #ifdef __cplusplus

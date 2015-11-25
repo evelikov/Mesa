@@ -25,9 +25,9 @@
  *
  */
 
-#include "glsl/ir_visitor.h"
-#include "glsl/ir_hierarchical_visitor.h"
-#include "glsl/ir.h"
+#include "compiler/glsl/ir_visitor.h"
+#include "compiler/glsl/ir_hierarchical_visitor.h"
+#include "compiler/glsl/ir.h"
 #include "glsl_to_nir.h"
 #include "main/imports.h"
 #include "nir_control_flow.h"

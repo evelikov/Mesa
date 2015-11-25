@@ -15,8 +15,6 @@ env.Prepend(CPPPATH = [
     '#src/mesa',
     '#src/gallium/include',
     '#src/gallium/auxiliary',
-    '#src/glsl',
-    '#src/glsl/glcpp',
 ])
 
 env.Prepend(LIBS = [mesautil])
