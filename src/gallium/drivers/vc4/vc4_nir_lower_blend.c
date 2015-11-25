@@ -35,10 +35,11 @@
  * Lowers fixed-function blending to a load of the destination color and a
  * series of ALU operations before the store of the output.
  */
+#include "compiler/nir/nir_builder.h"
+
 #include "util/u_format.h"
-#include "vc4_qir.h"
-#include "glsl/nir/nir_builder.h"
 #include "vc4_context.h"
+#include "vc4_qir.h"
 
 /** Emits a load of the previous fragment color from the tile buffer. */
 static nir_ssa_def *

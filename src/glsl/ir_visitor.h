@@ -26,6 +26,8 @@
 #ifndef IR_VISITOR_H
 #define IR_VISITOR_H
 
+#include <assert.h>
+
 #ifdef __cplusplus
 /**
  * Abstract base class of visitors of IR instruction trees

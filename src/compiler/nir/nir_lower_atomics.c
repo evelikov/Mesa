@@ -25,10 +25,10 @@
  *
  */
 
-#include "ir_uniform.h"
-#include "nir.h"
-#include "main/config.h"
 #include <assert.h>
+#include "glsl/ir_uniform.h"
+#include "main/config.h"
+#include "nir.h"
 
 typedef struct {
    const struct gl_shader_program *shader_program;

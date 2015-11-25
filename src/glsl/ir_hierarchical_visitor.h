@@ -26,6 +26,8 @@
 #ifndef IR_HIERARCHICAL_VISITOR_H
 #define IR_HIERARCHICAL_VISITOR_H
 
+#include <stddef.h>
+
 /**
  * Enumeration values returned by visit methods to guide processing
  */

@@ -2,6 +2,7 @@
 #
 # Copyright (C) 2010-2011 Chia-I Wu <olvaffe@gmail.com>
 # Copyright (C) 2010-2011 LunarG Inc.
+# Copyright (C) 2015 Intel Corporation
 #
 # Permission is hereby granted, free of charge, to any person obtaining a
 # copy of this software and associated documentation files (the "Software"),
@@ -21,21 +22,20 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 # DEALINGS IN THE SOFTWARE.
 
-# Android.mk for glsl
+# Android.mk for nir
 
 LOCAL_PATH := $(call my-dir)
 
 include $(LOCAL_PATH)/Makefile.sources
 
 # ---------------------------------------
-# Build libmesa_glsl
+# Build libmesa_nir
 # ---------------------------------------
 
 include $(CLEAR_VARS)
 
 LOCAL_SRC_FILES := \
-	$(LIBGLCPP_FILES) \
-	$(LIBGLSL_FILES)
+	$(NIR_FILES)
 
 LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/src/mapi \
@@ -43,33 +43,10 @@ LOCAL_C_INCLUDES := \
 	$(MESA_TOP)/src/gallium/include \
 	$(MESA_TOP)/src/gallium/auxiliary
 
-LOCAL_STATIC_LIBRARIES := libmesa_compiler libmesa_nir
+LOCAL_STATIC_LIBRARIES := libmesa_compiler
 
-LOCAL_MODULE := libmesa_glsl
+LOCAL_MODULE := libmesa_nir
 
 include $(LOCAL_PATH)/Android.gen.mk
 include $(MESA_COMMON_MK)
 include $(BUILD_STATIC_LIBRARY)
-
-# ---------------------------------------
-# Build glsl_compiler
-# ---------------------------------------
-
-include $(CLEAR_VARS)
-
-LOCAL_SRC_FILES := \
-	$(GLSL_COMPILER_CXX_FILES)
-
-LOCAL_C_INCLUDES := \
-	$(MESA_TOP)/src/mapi \
-	$(MESA_TOP)/src/mesa \
-	$(MESA_TOP)/src/gallium/include \
-	$(MESA_TOP)/src/gallium/auxiliary
-
-LOCAL_STATIC_LIBRARIES := libmesa_glsl libmesa_glsl_utils libmesa_util
-
-LOCAL_MODULE_TAGS := eng
-LOCAL_MODULE := glsl_compiler
-
-include $(MESA_COMMON_MK)
-include $(BUILD_EXECUTABLE)

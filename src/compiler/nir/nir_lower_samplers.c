@@ -23,15 +23,15 @@
  * DEALINGS IN THE SOFTWARE.
  */
 
-#include "nir.h"
-#include "nir_builder.h"
-#include "program/hash_table.h"
-#include "ir_uniform.h"
-
+#include "glsl/ir_uniform.h"
 #include "main/compiler.h"
 #include "main/mtypes.h"
 #include "program/prog_parameter.h"
 #include "program/program.h"
+#include "program/hash_table.h"
+
+#include "nir.h"
+#include "nir_builder.h"
 
 /* Calculate the sampler index based on array indicies and also
  * calculate the base uniform location for struct members.

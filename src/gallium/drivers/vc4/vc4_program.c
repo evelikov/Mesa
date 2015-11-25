@@ -23,6 +23,9 @@
  */
 
 #include <inttypes.h>
+#include "compiler/nir/nir.h"
+#include "compiler/nir/nir_builder.h"
+
 #include "util/u_format.h"
 #include "util/u_hash.h"
 #include "util/u_math.h"
@@ -32,8 +35,6 @@
 #include "tgsi/tgsi_dump.h"
 #include "tgsi/tgsi_lowering.h"
 #include "tgsi/tgsi_parse.h"
-#include "glsl/nir/nir.h"
-#include "glsl/nir/nir_builder.h"
 #include "nir/tgsi_to_nir.h"
 #include "vc4_context.h"
 #include "vc4_qpu.h"

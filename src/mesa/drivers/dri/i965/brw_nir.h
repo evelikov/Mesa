@@ -23,9 +23,9 @@
 
 #pragma once
 
+#include "compiler/nir/nir.h"
 #include "brw_context.h"
 #include "brw_reg.h"
-#include "glsl/nir/nir.h"
 
 #ifdef __cplusplus
 extern "C" {

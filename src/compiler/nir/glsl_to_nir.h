@@ -25,8 +25,8 @@
  *
  */
 
+#include "glsl/glsl_parser_extras.h"
 #include "nir.h"
-#include "../glsl_parser_extras.h"
 
 #ifdef __cplusplus
 extern "C" {

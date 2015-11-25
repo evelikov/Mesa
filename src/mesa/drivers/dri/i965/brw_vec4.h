@@ -24,6 +24,8 @@
 #ifndef BRW_VEC4_H
 #define BRW_VEC4_H
 
+#include "compiler/nir/nir.h"
+
 #include "brw_shader.h"
 #include "brw_program.h"
 
@@ -32,7 +34,6 @@
 #endif
 
 #include "glsl/ir.h"
-#include "glsl/nir/nir.h"
 
 
 #ifdef __cplusplus

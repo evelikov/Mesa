@@ -2347,6 +2347,7 @@ dnl Substitute the config
 AC_CONFIG_FILES([Makefile
 		src/Makefile
 		src/compiler/Makefile
+		src/compiler/nir/Makefile
 		src/egl/Makefile
 		src/egl/main/egl.pc
 		src/egl/wayland/wayland-drm/Makefile

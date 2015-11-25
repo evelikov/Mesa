@@ -23,11 +23,11 @@
  */
 
 #include "compiler/shader_enums.h"
+#include "compiler/nir/nir.h"
+#include "compiler/nir/nir_control_flow.h"
+#include "compiler/nir/nir_builder.h"
 
 #include "util/ralloc.h"
-#include "glsl/nir/nir.h"
-#include "glsl/nir/nir_control_flow.h"
-#include "glsl/nir/nir_builder.h"
 #include "glsl/list.h"
 
 #include "nir/tgsi_to_nir.h"
