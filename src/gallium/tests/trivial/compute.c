@@ -24,6 +24,8 @@
  *
  */
 
+#undef NDEBUG
+
 #include <fcntl.h>
 #include <stdio.h>
 #include <sys/stat.h>
