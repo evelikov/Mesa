@@ -17,11 +17,5 @@ check_PROGRAMS = compute tri quad-tex
 TESTS_ENVIRONMENT= \
 	export GALLIUM_PIPE_DRIVERS_PATH=\"$(PIPE_SRC_DIR)/.libs\"
 
-compute_SOURCES = compute.c
-
-tri_SOURCES = tri.c
-
-quad_tex_SOURCES = quad-tex.c
-
 clean-local:
 	-rm -f result.bmp
