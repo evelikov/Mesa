@@ -85,26 +85,34 @@ pipe_loader_find_module(struct pipe_loader_device *dev,
 {
    struct util_dl_library *lib;
    const char *next;
+   const char *paths[] = {
+      debug_get_option("GALLIUM_PIPE_DRIVERS_PATH", NULL),
+      debug_get_option("GALLIUM_PIPE_DRIVERS_LIB", NULL),
+      library_paths,
+   };
    char path[PATH_MAX];
-   int len, ret;
+   int len, ret, i;
 
-   for (next = library_paths; *next; library_paths = next + 1) {
-      next = util_strchrnul(library_paths, ':');
-      len = next - library_paths;
 
-      if (len)
-         ret = util_snprintf(path, sizeof(path), "%.*s/%s%s%s",
-                             len, library_paths,
-                             MODULE_PREFIX, dev->driver_name, UTIL_DL_EXT);
-      else
-         ret = util_snprintf(path, sizeof(path), "%s%s%s",
-                             MODULE_PREFIX, dev->driver_name, UTIL_DL_EXT);
+   for (i = 0; i < ARRAY_SIZE(paths) && paths[i]; i++) {
+      for (next = paths[i]; *next; paths[i] = next + 1) {
+          next = util_strchrnul(paths[i], ':');
+          len = next - paths[i];
 
-      if (ret > 0 && ret < sizeof(path)) {
-         lib = util_dl_open(path);
-         if (lib) {
-            return lib;
-         }
+          if (len)
+              ret = util_snprintf(path, sizeof(path), "%.*s/%s%s%s",
+                                  len, paths[i],
+                                  MODULE_PREFIX, dev->driver_name, UTIL_DL_EXT);
+          else
+              ret = util_snprintf(path, sizeof(path), "%s%s%s",
+                                  MODULE_PREFIX, dev->driver_name, UTIL_DL_EXT);
+
+          if (ret > 0 && ret < sizeof(path)) {
+              lib = util_dl_open(path);
+              if (lib) {
+                  return lib;
+              }
+          }
       }
    }
 
