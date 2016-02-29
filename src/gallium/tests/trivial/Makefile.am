@@ -11,7 +11,11 @@ LDADD = \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(GALLIUM_COMMON_LIB_DEPS)
 
-noinst_PROGRAMS = compute tri quad-tex
+TESTS = compute tri quad-tex
+check_PROGRAMS = compute tri quad-tex
+
+TESTS_ENVIRONMENT= \
+	export GALLIUM_PIPE_DRIVERS_PATH=\"$(PIPE_SRC_DIR)/.libs\"
 
 compute_SOURCES = compute.c
 
