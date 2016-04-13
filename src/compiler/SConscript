@@ -21,5 +21,5 @@ compiler = env.ConvenienceLibrary(
 )
 Export('compiler')
 
-SConscript('SConscript.glsl')
 SConscript('SConscript.nir')
+SConscript('SConscript.glsl')

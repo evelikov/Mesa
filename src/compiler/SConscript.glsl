@@ -19,7 +19,7 @@ env.Prepend(CPPPATH = [
     '#src/compiler/glsl/glcpp',
 ])
 
-env.Prepend(LIBS = [mesautil])
+env.Prepend(LIBS = [mesautil, nir])
 
 # Make glcpp-parse.h and glsl_parser.h reachable from the include path.
 env.Prepend(CPPPATH = [Dir('.').abspath, Dir('glsl').abspath])
