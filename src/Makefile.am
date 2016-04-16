@@ -24,6 +24,10 @@ SUBDIRS = . gtest util mapi/glapi/gen mapi
 # include only conditionally ?
 SUBDIRS += compiler
 
+if HAVE_INTEL_DRIVERS
+SUBDIRS += intel
+endif
+
 if NEED_OPENGL_COMMON
 SUBDIRS += mesa
 endif
@@ -56,8 +60,9 @@ EXTRA_DIST = \
 AM_CFLAGS = $(VISIBILITY_CFLAGS)
 AM_CXXFLAGS = $(VISIBILITY_CXXFLAGS)
 
-if HAVE_INTEL_DRIVERS
-SUBDIRS += intel
+# This explicitly comes later because it depends on the i965 compiler
+if HAVE_INTEL_VULKAN
+SUBDIRS += intel/vulkan
 endif
 
 AM_CPPFLAGS = \
