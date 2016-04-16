@@ -47,6 +47,16 @@
 extern "C" {
 #endif
 
+/* The restrict keyword is simply a hint to the optimizer and doesn't affect
+ * the caller of a function in any way.  We want it in the header for the sake
+ * of documentation but we can safely remove it to make C++ happy.
+ */
+#ifdef __cplusplus
+#define ISL_RESTRICT
+#else
+#define ISL_RESTRICT restrict
+#endif
+
 struct brw_device_info;
 struct brw_image_param;
 
@@ -927,7 +937,7 @@ isl_tiling_get_extent(const struct isl_device *dev,
                       struct isl_extent2d *e);
 bool
 isl_surf_choose_tiling(const struct isl_device *dev,
-                       const struct isl_surf_init_info *restrict info,
+                       const struct isl_surf_init_info *ISL_RESTRICT info,
                        enum isl_tiling *tiling);
 
 static inline bool
@@ -1006,7 +1016,7 @@ isl_extent4d(uint32_t width, uint32_t height, uint32_t depth,
 bool
 isl_surf_init_s(const struct isl_device *dev,
                 struct isl_surf *surf,
-                const struct isl_surf_init_info *restrict info);
+                const struct isl_surf_init_info *ISL_RESTRICT info);
 
 void
 isl_surf_get_tile_info(const struct isl_device *dev,
@@ -1019,7 +1029,7 @@ isl_surf_get_tile_info(const struct isl_device *dev,
 
 void
 isl_surf_fill_state_s(const struct isl_device *dev, void *state,
-                      const struct isl_surf_fill_state_info *restrict info);
+                      const struct isl_surf_fill_state_info *ISL_RESTRICT info);
 
 #define isl_buffer_fill_state(dev, state, ...) \
    isl_buffer_fill_state_s((dev), (state), \
@@ -1027,7 +1037,7 @@ isl_surf_fill_state_s(const struct isl_device *dev, void *state,
 
 void
 isl_buffer_fill_state_s(const struct isl_device *dev, void *state,
-                        const struct isl_buffer_fill_state_info *restrict info);
+                        const struct isl_buffer_fill_state_info *ISL_RESTRICT info);
 
 void
 isl_surf_fill_image_param(const struct isl_device *dev,
