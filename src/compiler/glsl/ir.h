@@ -33,9 +33,7 @@
 #include "compiler/glsl_types.h"
 #include "list.h"
 #include "ir_visitor.h"
-#if !defined NO_HIE_VIS
 #include "ir_hierarchical_visitor.h"
-#endif
 #include "main/mtypes.h"
 
 #ifdef __cplusplus

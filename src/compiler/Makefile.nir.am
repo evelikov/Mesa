@@ -25,7 +25,6 @@ noinst_LTLIBRARIES += nir/libnir.la
 
 nir_libnir_la_CPPFLAGS = \
 	$(AM_CPPFLAGS) \
-	-DNO_HIE_VIS \
 	-I$(top_builddir)/src/compiler/nir \
 	-I$(top_srcdir)/src/compiler/nir
 
