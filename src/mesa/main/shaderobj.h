@@ -76,8 +76,12 @@ _mesa_reference_shader_program(struct gl_context *ctx,
 }
 
 
-extern void
-_mesa_init_shader(struct gl_context *ctx, struct gl_shader *shader);
+static inline void
+_mesa_init_shader(struct gl_context *ctx, struct gl_shader *shader)
+{
+   shader->RefCount = 1;
+}
+
 
 extern struct gl_shader *
 _mesa_new_shader(struct gl_context *ctx, GLuint name, GLenum type);

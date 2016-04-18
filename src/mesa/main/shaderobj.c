@@ -88,12 +88,6 @@ _mesa_reference_shader(struct gl_context *ctx, struct gl_shader **ptr,
    }
 }
 
-void
-_mesa_init_shader(struct gl_context *ctx, struct gl_shader *shader)
-{
-   shader->RefCount = 1;
-}
-
 /**
  * Allocate a new gl_shader object, initialize it.
  * Called via ctx->Driver.NewShader()
