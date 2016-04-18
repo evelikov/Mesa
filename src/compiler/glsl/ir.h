@@ -1685,7 +1685,26 @@ public:
    /**
     * Determine the number of operands used by an expression
     */
-   static unsigned int get_num_operands(ir_expression_operation);
+   static unsigned int get_num_operands(ir_expression_operation op)
+   {
+      assert(op <= ir_last_opcode);
+
+      if (op <= ir_last_unop)
+         return 1;
+
+      if (op <= ir_last_binop)
+         return 2;
+
+      if (op <= ir_last_triop)
+         return 3;
+
+      if (op <= ir_last_quadop)
+         return 4;
+
+      assert(false);
+      return 0;
+    }
+
 
    /**
     * Determine the number of operands used by an expression
@@ -2505,8 +2524,14 @@ public:
 /**
  * Apply a visitor to each IR node in a list
  */
-void
-visit_exec_list(exec_list *list, ir_visitor *visitor);
+static inline void
+visit_exec_list(exec_list *list, ir_visitor *visitor)
+{
+   foreach_in_list_safe(ir_instruction, node, list) {
+      node->accept(visitor);
+   }
+}
+
 
 /**
  * Validate invariants on each IR node in a list

@@ -471,27 +471,6 @@ ir_expression::ir_expression(int op, ir_rvalue *op0, ir_rvalue *op1,
    }
 }
 
-unsigned int
-ir_expression::get_num_operands(ir_expression_operation op)
-{
-   assert(op <= ir_last_opcode);
-
-   if (op <= ir_last_unop)
-      return 1;
-
-   if (op <= ir_last_binop)
-      return 2;
-
-   if (op <= ir_last_triop)
-      return 3;
-
-   if (op <= ir_last_quadop)
-      return 4;
-
-   assert(false);
-   return 0;
-}
-
 static const char *const operator_strs[] = {
    "~",
    "!",
@@ -1837,15 +1816,6 @@ ir_rvalue::error_value(void *mem_ctx)
 
    v->type = glsl_type::error_type;
    return v;
-}
-
-
-void
-visit_exec_list(exec_list *list, ir_visitor *visitor)
-{
-   foreach_in_list_safe(ir_instruction, node, list) {
-      node->accept(visitor);
-   }
 }
 
 
