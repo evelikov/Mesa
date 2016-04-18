@@ -168,14 +168,18 @@ CLEANFILES = $(BUILT_SOURCES)
 libvulkan_intel_la_LIBADD = $(WAYLAND_LIBS) \
 	-lxcb -lxcb-dri3 -lxcb-present -lxcb-sync -lxshmfence \
 	$(top_builddir)/src/intel/isl/libisl.la \
+	$(top_builddir)/src/compiler/nir/libnir.la \
+	$(top_builddir)/src/util/libmesautil.la \
 	$(top_builddir)/src/mesa/drivers/dri/i965/libi965_compiler.la \
-	$(top_builddir)/src/mesa/libmesa.la \
-	$(top_builddir)/src/mesa/drivers/dri/common/libdri_test_stubs.la \
-	-lpthread -ldl -lstdc++ \
+	-lpthread -ldl -lstdc++ -lm \
         $(PER_GEN_LIBS)
 
 libvulkan_intel_la_LDFLAGS = \
-        -module -avoid-version -shared -shrext .so
+	-shared \
+	-no-undefined \
+	-avoid-version \
+	$(GC_SECTIONS) \
+	$(LD_NO_UNDEFINED)
 
 
 # Generate icd files. It would be nice to just be able to add these to
