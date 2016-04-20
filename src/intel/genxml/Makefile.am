@@ -30,3 +30,14 @@ BUILT_SOURCES =                                         \
 	$(AM_V_GEN) $(srcdir)/gen_pack_header.py $< > $@
 
 CLEANFILES = $(BUILT_SOURCES)
+
+EXTRA_DIST = \
+	gen6_pack.xml \
+	gen7_pack.xml \
+	gen75_pack.xml \
+	gen8_pack.xml \
+	gen9_pack.xml \
+	genX_pack.h \
+	gen_macros.h \
+	gen_pack_header.py \
+	README
