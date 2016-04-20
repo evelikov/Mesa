@@ -184,13 +184,7 @@ libvulkan_intel_la_LDFLAGS = \
 	$(LD_NO_UNDEFINED)
 
 
-# Generate icd files. It would be nice to just be able to add these to
-# AC_CONFIG_FILES, but @libdir@ typically expands to '${exec_prefix}/lib64',
-# which we can't put in the icd file. When running sed from the Makefile we
-# can use ${libdir}, which expands completely and we avoid putting Makefile
-# variables in the icd file.
-
-icdconfdir=$(sysconfdir)/vulkan/icd.d
+icdconfdir = @VULKAN_ICD_INSTALL_DIR@
 icdconf_DATA = intel_icd.json
 
 # Libvulkan with dummy gem. Used for unit tests.
@@ -206,6 +200,3 @@ libvulkan_test_la_CFLAGS =                              \
 libvulkan_test_la_LIBADD = $(libvulkan_intel_la_LIBADD)
 
 include $(top_srcdir)/install-lib-links.mk
-
-install-data-local:
-	$(INSTALL_DATA) -D $(srcdir)/intel_icd.json $(VULKAN_ICD_INSTALL_DIR)/intel_icd.json
