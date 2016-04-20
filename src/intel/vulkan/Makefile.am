@@ -188,12 +188,6 @@ libvulkan_intel_la_LDFLAGS = \
 icdconfdir=$(sysconfdir)/vulkan/icd.d
 icdconf_DATA = intel_icd.json
 
-%.json : %.json.in
-	$(AM_V_GEN) $(SED) \
-		-e "s#@build_libdir@#${abs_top_builddir}/${LIB_DIR}#" \
-		-e "s#@install_libdir@#${libdir}#" < $< > $@
-
-
 # Libvulkan with dummy gem. Used for unit tests.
 
 libvulkan_test_la_SOURCES =                             \
