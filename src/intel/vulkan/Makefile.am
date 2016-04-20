@@ -187,7 +187,6 @@ libvulkan_intel_la_LDFLAGS = \
 
 icdconfdir=$(sysconfdir)/vulkan/icd.d
 icdconf_DATA = intel_icd.json
-noinst_DATA = dev_icd.json
 
 %.json : %.json.in
 	$(AM_V_GEN) $(SED) \
