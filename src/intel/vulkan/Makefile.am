@@ -126,11 +126,9 @@ VULKAN_LIB_DEPS += \
 
 libvulkan_intel_la_SOURCES = $(VULKAN_GEM_FILES)
 
-anv_entrypoints.h : anv_entrypoints_gen.py $(vulkan_include_HEADERS)
-	$(AM_V_GEN) cat $(vulkan_include_HEADERS) | $(CPP) $(AM_CPPFLAGS) - | $(PYTHON2) $< header > $@
-
-anv_entrypoints.c : anv_entrypoints_gen.py $(vulkan_include_HEADERS)
-	$(AM_V_GEN) cat $(vulkan_include_HEADERS) | $(CPP) $(AM_CPPFLAGS) - | $(PYTHON2) $< code > $@
+anv_entrypoints.c anv_entrypoints.h : anv_entrypoints_gen.py $(vulkan_include_HEADERS)
+	$(AM_V_GEN) cat $(vulkan_include_HEADERS) | $(CPP) $(AM_CPPFLAGS) - | \
+	$(PYTHON2) $(srcdir)/anv_entrypoints_gen.py $(builddir)
 
 CLEANFILES = $(BUILT_SOURCES)
 

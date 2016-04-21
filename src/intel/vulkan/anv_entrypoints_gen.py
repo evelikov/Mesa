@@ -22,7 +22,7 @@
 # IN THE SOFTWARE.
 #
 
-import fileinput, re, sys
+import fileinput, re, sys, os
 
 # Each function typedef in the vulkan.h header is all on one line and matches
 # this regepx. We hope that won't change.
@@ -51,15 +51,21 @@ def hash(name):
 
     return h
 
-opt_header = False
-opt_code = False
+if len(sys.argv[1:]) != 1:
+    print "Usage: %s <output_directory>" % sys.argv[0]
+    exit(1)
 
-if (sys.argv[1] == "header"):
-    opt_header = True
-    sys.argv.pop()
-elif (sys.argv[1] == "code"):
-    opt_code = True
-    sys.argv.pop()
+output_dir = sys.argv[1]
+if not os.path.isdir(output_dir):
+    if os.path.exists(output_dir):
+        print "ERROR: Invalid output directory: %s" % output_dir
+        exit(1)
+
+sys.argv.pop()
+# Output path exists, now just run the template
+output_file = os.sep.join([output_dir, 'anv_entrypoints.c'])
+output_header = os.sep.join([output_dir, 'anv_entrypoints.h'])
+
 
 # Parse the entry points in the header
 
@@ -77,7 +83,11 @@ for line in fileinput.input():
 # For outputting entrypoints.h we generate a anv_EntryPoint() prototype
 # per entry point.
 
-if opt_header:
+def generate_header(output_header):
+    orig_stdout = sys.stdout
+    hdr = file(output_header, 'w')
+    sys.stdout = hdr
+
     print "/* This file generated from vk_gen.py, don't edit directly. */\n"
 
     print "struct anv_dispatch_table {"
@@ -100,9 +110,15 @@ if opt_header:
         print "%s gen8_%s%s;" % (type, name, args)
         print "%s gen9_%s%s;" % (type, name, args)
         print "%s anv_validate_%s%s;" % (type, name, args)
-    exit()
 
+    sys.stdout = orig_stdout
+    hdr.close()
 
+generate_header(output_header)
+
+orig_stdout = sys.stdout
+src = file(output_file, 'w')
+sys.stdout = src
 
 print """/*
  * Copyright © 2015 Intel Corporation
@@ -321,3 +337,6 @@ anv_lookup_entrypoint(const char *name)
    return anv_resolve_entrypoint(i);
 }
 """ % (prime_factor, prime_step, hash_mask)
+
+sys.stdout = orig_stdout
+src.close()
