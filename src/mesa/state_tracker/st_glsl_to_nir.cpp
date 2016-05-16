@@ -44,6 +44,7 @@
 #include "compiler/nir/nir.h"
 #include "compiler/nir/glsl_to_nir.h"
 #include "compiler/glsl_types.h"
+#include "compiler/glsl/ir.h"
 
 
 /* Depending on PIPE_CAP_TGSI_TEXCOORD (st->needs_texcoord_semantic) we
