@@ -167,6 +167,23 @@ out:
 }
 
 /**
+ * Get attribute about specific device
+ */
+EGLBoolean
+_eglQueryDeviceAttribEXT(_EGLDevice *device,
+                         EGLint attribute,
+                         EGLAttrib *value)
+{
+   if (!value)
+      return _eglError(EGL_BAD_PARAMETER, "eglQueryDeviceAttribEXT");
+
+   switch (attribute) {
+   default:
+      return _eglError(EGL_BAD_ATTRIBUTE, "eglQueryDeviceAttribEXT");
+   }
+}
+
+/**
  * Get string about a specific device.
  */
 const char *

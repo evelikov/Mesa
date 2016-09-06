@@ -1817,6 +1817,21 @@ eglExportDMABUFImageMESA(EGLDisplay dpy, EGLImage image,
    RETURN_EGL_EVAL(disp, ret);
 }
 
+static EGLBoolean EGLAPIENTRY
+eglQueryDeviceAttribEXT(EGLDeviceEXT device,
+                        EGLint attribute,
+                        EGLAttrib *value)
+{
+   _EGLDevice *dev;
+   EGLBoolean ret;
+
+   _EGL_CHECK_DEVICE(device, EGL_FALSE, dev);
+
+   ret = _eglQueryDeviceAttribEXT(dev, attribute, value);
+
+   RETURN_EGL_EVAL(NULL, ret);
+}
+
 static const char * EGLAPIENTRY
 eglQueryDeviceStringEXT(EGLDeviceEXT device,
                         EGLint name)
@@ -1922,6 +1937,7 @@ eglGetProcAddress(const char *procname)
       { "eglGetSyncValuesCHROMIUM", (_EGLProc) eglGetSyncValuesCHROMIUM },
       { "eglExportDMABUFImageQueryMESA", (_EGLProc) eglExportDMABUFImageQueryMESA },
       { "eglExportDMABUFImageMESA", (_EGLProc) eglExportDMABUFImageMESA },
+      { "eglQueryDeviceAttribEXT", (_EGLProc) eglQueryDeviceAttribEXT },
       { "eglQueryDeviceStringEXT", (_EGLProc) eglQueryDeviceStringEXT },
       { "eglQueryDevicesEXT", (_EGLProc) eglQueryDevicesEXT },
       { NULL, NULL }
