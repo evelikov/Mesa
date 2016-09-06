@@ -141,6 +141,28 @@ _eglFiniDevices(void)
 }
 
 /**
+ * Return EGL_TRUE if the given handle is a valid handle to a display.
+ */
+EGLBoolean
+_eglCheckDeviceHandle(EGLDeviceEXT device)
+{
+   EGLBoolean found = EGL_FALSE;
+
+   mtx_lock(_eglGlobal.Mutex);
+
+   for (int i = 0; i < _eglGlobal.DeviceList.num_devices; i++) {
+      if (_eglGlobal.DeviceList.devs[i] == (_EGLDevice *) device) {
+         found = EGL_TRUE;
+         goto out;
+      }
+   }
+
+out:
+   mtx_unlock(_eglGlobal.Mutex);
+   return found;
+}
+
+/**
  * Enumerate EGL devices.
  */
 EGLBoolean

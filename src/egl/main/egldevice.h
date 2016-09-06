@@ -47,6 +47,22 @@ _eglInitDevices(void);
 extern void
 _eglFiniDevices(void);
 
+extern EGLBoolean
+_eglCheckDeviceHandle(EGLDeviceEXT dev);
+
+/**
+ * Lookup a handle to find the linked device.
+ * Return NULL if the handle has no corresponding linked device.
+ */
+static inline _EGLDevice *
+_eglLookupDevice(EGLDeviceEXT device)
+{
+   _EGLDevice *dev = (_EGLDevice *) device;
+   if (!_eglCheckDeviceHandle(device))
+      dev = NULL;
+   return dev;
+}
+
 EGLBoolean
 _eglQueryDevicesEXT(EGLint max_devices, _EGLDevice **devices,
                     EGLint *num_devices);

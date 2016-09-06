@@ -157,6 +157,12 @@
 #define _EGL_CHECK_SYNC(disp, s, ret, drv) \
    _EGL_CHECK_OBJECT(disp, Sync, s, ret, drv)
 
+#define _EGL_CHECK_DEVICE(dev, ret, devptr)                     \
+   do {                                                         \
+      devptr = _eglLookupDevice(dev);                           \
+      if (!devptr)                                              \
+         RETURN_EGL_ERROR(NULL, EGL_BAD_DEVICE_EXT, ret);       \
+   } while (0)
 
 static inline _EGLDriver *
 _eglCheckDisplay(_EGLDisplay *disp, const char *msg)
