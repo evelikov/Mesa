@@ -93,6 +93,7 @@
 
 #include "eglglobals.h"
 #include "eglcontext.h"
+#include "egldevice.h"
 #include "egldisplay.h"
 #include "egltypedefs.h"
 #include "eglcurrent.h"
@@ -1810,6 +1811,18 @@ eglExportDMABUFImageMESA(EGLDisplay dpy, EGLImage image,
    RETURN_EGL_EVAL(disp, ret);
 }
 
+static EGLBoolean EGLAPIENTRY
+eglQueryDevicesEXT(EGLint max_devices,
+                   EGLDeviceEXT *devices,
+                   EGLint *num_devices)
+{
+   EGLBoolean ret;
+
+   ret = _eglQueryDevicesEXT(max_devices, (_EGLDevice **) devices, num_devices);
+
+   RETURN_EGL_EVAL(NULL, ret);
+}
+
 __eglMustCastToProperFunctionPointerType EGLAPIENTRY
 eglGetProcAddress(const char *procname)
 {
@@ -1889,6 +1902,7 @@ eglGetProcAddress(const char *procname)
       { "eglGetSyncValuesCHROMIUM", (_EGLProc) eglGetSyncValuesCHROMIUM },
       { "eglExportDMABUFImageQueryMESA", (_EGLProc) eglExportDMABUFImageQueryMESA },
       { "eglExportDMABUFImageMESA", (_EGLProc) eglExportDMABUFImageMESA },
+      { "eglQueryDevicesEXT", (_EGLProc) eglQueryDevicesEXT },
       { NULL, NULL }
    };
    EGLint i;

@@ -47,7 +47,8 @@ _eglInitDevices(void);
 extern void
 _eglFiniDevices(void);
 
-extern EGLBoolean
-_eglCheckDeviceHandle(EGLDeviceEXT dev);
+EGLBoolean
+_eglQueryDevicesEXT(EGLint max_devices, _EGLDevice **devices,
+                    EGLint *num_devices);
 
 #endif /* EGLDEVICE_INCLUDED */
