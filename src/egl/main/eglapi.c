@@ -546,6 +546,7 @@ eglQueryString(EGLDisplay dpy, EGLint name)
    _EGLDriver *drv;
 
    if (dpy == EGL_NO_DISPLAY && name == EGL_EXTENSIONS) {
+      _eglInitDevices();
       RETURN_EGL_SUCCESS(NULL, _eglGlobal.ClientExtensionString);
    }
 

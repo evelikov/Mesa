@@ -1,8 +1,7 @@
 /**************************************************************************
  *
- * Copyright 2008 VMware, Inc.
- * Copyright 2009-2010 Chia-I Wu <olvaffe@gmail.com>
- * Copyright 2010-2011 LunarG, Inc.
+ * Copyright 2015 Collabora
+ * Copyright © 2016 Intel Corporation
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -27,42 +26,51 @@
  *
  **************************************************************************/
 
-
-#ifndef EGLGLOBALS_INCLUDED
-#define EGLGLOBALS_INCLUDED
-
-#include <stdbool.h>
-#include "c11/threads.h"
-
+#include "egldevice.h"
+#include "eglglobals.h"
 #include "egltypedefs.h"
 
-
-/**
- * Global library data
- */
-struct _egl_global
-{
-   mtx_t *Mutex;
-
-   /* the list of all displays */
-   _EGLDisplay *DisplayList;
-
-   _EGLDeviceList DeviceList;
-
-   EGLint NumAtExitCalls;
-   void (*AtExitCalls[10])(void);
-
-   const char *ClientExtensionString;
+struct _egl_device {
+   void *data;
 };
 
+void
+_eglInitDevices(void)
+{
+   _EGLDevice *devs;
 
-extern struct _egl_global _eglGlobal;
+   mtx_lock(_eglGlobal.Mutex);
 
-extern const char *_egl_client_extensions;
-extern const char *_egl_client_and_device_extensions;
+   devs = _eglGlobal.DeviceList.devs;
+   if (!devs) {
+      const int num_devices = 0;
 
-extern void
-_eglAddAtExitCall(void (*func)(void));
+      if (num_devices <= 0)
+         goto out;
 
+      devs = calloc(num_devices, sizeof(_EGLDevice));
+      if (!devs)
+         goto out;
 
-#endif /* EGLGLOBALS_INCLUDED */
+      _eglGlobal.DeviceList.devs = devs;
+      _eglGlobal.DeviceList.num_devices = num_devices;
+      _eglGlobal.ClientExtensionString = _egl_client_and_device_extensions;
+   }
+
+out:
+   mtx_unlock(_eglGlobal.Mutex);
+}
+
+/**
+ * Finish device management.
+ */
+void
+_eglFiniDevices(void)
+{
+   /* atexit function is called with global mutex locked */
+   if (_eglGlobal.DeviceList.num_devices) {
+      free(_eglGlobal.DeviceList.devs);
+      _eglGlobal.DeviceList.devs = NULL;
+      _eglGlobal.DeviceList.num_devices = 0;
+   }
+}

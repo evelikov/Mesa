@@ -49,6 +49,10 @@ typedef struct _egl_config _EGLConfig;
 
 typedef struct _egl_context _EGLContext;
 
+typedef struct _egl_device _EGLDevice;
+
+typedef struct _egl_device_list _EGLDeviceList;
+
 typedef struct _egl_display _EGLDisplay;
 
 typedef struct _egl_driver _EGLDriver;

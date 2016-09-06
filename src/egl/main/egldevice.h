@@ -1,8 +1,7 @@
 /**************************************************************************
  *
- * Copyright 2008 VMware, Inc.
- * Copyright 2009-2010 Chia-I Wu <olvaffe@gmail.com>
- * Copyright 2010-2011 LunarG, Inc.
+ * Copyright 2015 Collabora
+ * Copyright © 2016 Intel Corporation
  * All Rights Reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
@@ -28,41 +27,27 @@
  **************************************************************************/
 
 
-#ifndef EGLGLOBALS_INCLUDED
-#define EGLGLOBALS_INCLUDED
+#ifndef EGLDEVICE_INCLUDED
+#define EGLDEVICE_INCLUDED
 
-#include <stdbool.h>
-#include "c11/threads.h"
 
 #include "egltypedefs.h"
 
+struct _egl_device;
 
-/**
- * Global library data
- */
-struct _egl_global
-{
-   mtx_t *Mutex;
-
-   /* the list of all displays */
-   _EGLDisplay *DisplayList;
-
-   _EGLDeviceList DeviceList;
-
-   EGLint NumAtExitCalls;
-   void (*AtExitCalls[10])(void);
-
-   const char *ClientExtensionString;
+struct _egl_device_list {
+   _EGLDevice *devs;
+   EGLint num_devices;
 };
 
 
-extern struct _egl_global _eglGlobal;
-
-extern const char *_egl_client_extensions;
-extern const char *_egl_client_and_device_extensions;
+void
+_eglInitDevices(void);
 
 extern void
-_eglAddAtExitCall(void (*func)(void));
+_eglFiniDevices(void);
 
+extern EGLBoolean
+_eglCheckDeviceHandle(EGLDeviceEXT dev);
 
-#endif /* EGLGLOBALS_INCLUDED */
+#endif /* EGLDEVICE_INCLUDED */
