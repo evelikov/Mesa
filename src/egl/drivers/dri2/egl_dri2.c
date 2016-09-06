@@ -2769,6 +2769,14 @@ dri2_interop_export_object(_EGLDisplay *dpy, _EGLContext *ctx,
    return dri2_dpy->interop->export_object(dri2_ctx->dri_context, in, out);
 }
 
+static const char *
+dri2_query_device_name(_EGLDisplay *disp)
+{
+   struct dri2_egl_display *dri2_dpy = disp->DriverData;
+
+   return dri2_dpy->device_name;
+}
+
 static void
 dri2_unload(_EGLDriver *drv)
 {
@@ -2888,6 +2896,7 @@ _eglBuiltInDriverDRI2(const char *args)
 
    dri2_drv->base.Name = "DRI2";
    dri2_drv->base.Unload = dri2_unload;
+   dri2_drv->base.QueryDeviceName = dri2_query_device_name;
 
    return &dri2_drv->base;
 }

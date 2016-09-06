@@ -31,7 +31,15 @@
 #include <xf86drm.h>
 #endif
 
+<<<<<<< HEAD
+=======
+#include <assert.h>
+#include <string.h>
+
+#include "eglcurrent.h"
+>>>>>>> e117682... egldevice: implement eglQueryDisplayAttribEXT
 #include "egldevice.h"
+#include "egldriver.h"
 #include "eglglobals.h"
 #include "egltypedefs.h"
 
@@ -199,6 +207,108 @@ _eglQueryDeviceStringEXT(_EGLDevice *device, EGLint name)
    };
 }
 
+<<<<<<< HEAD
+=======
+static EGLBoolean
+_eglQueryDeviceFromDisplay(_EGLDeviceInfo *info,
+                           _EGLDriver *drv,
+                           _EGLDisplay *disp,
+                           EGLAttrib *value)
+{
+#ifdef HAVE_LIBUDEV
+   const char *device_name = NULL;
+   _EGLDevice *dev;
+   UDEV_SYMBOL(const char *, udev_device_get_property_value,
+               (struct udev_device *, const char *));
+
+   if (dlsym_failed)
+      return EGL_FALSE;
+
+   if (!drv->QueryDeviceName)
+      return EGL_FALSE;
+
+   device_name = drv->QueryDeviceName(disp);
+
+   mtx_lock(_eglGlobal.Mutex);
+
+   assert(info->got_devices);
+
+   for (dev = info->devices; dev; dev = dev->Next) {
+      const char *devname = udev_device_get_property_value(
+         dev->Info, "DEVNAME");
+
+      if (!devname)
+         continue;
+
+      if (!strcmp(devname, device_name))
+         break;
+   }
+
+   mtx_unlock(_eglGlobal.Mutex);
+
+   *value = (EGLAttrib) dev;
+
+   return (dev) ? EGL_TRUE : EGL_FALSE;
+#else
+   return EGL_FALSE;
+#endif
+}
+
+EGLBoolean
+_eglQueryDisplayAttribEXT(_EGLDriver *drv,
+                          _EGLDisplay *disp,
+                          EGLint attribute,
+                          EGLAttrib *value)
+{
+   _EGLDeviceInfo *info;
+
+   info = _eglEnsureDeviceInfo(EGL_TRUE);
+   if (!info)
+      return _eglError(EGL_BAD_ALLOC, "eglQueryDisplayAttribEXT");
+
+   if (!value)
+      return _eglError(EGL_BAD_PARAMETER, "eglQueryDisplayAttribEXT");
+
+   switch (attribute) {
+   case EGL_DEVICE_EXT:
+      return _eglQueryDeviceFromDisplay(info, drv, disp, value);
+   default:
+      return _eglError(EGL_BAD_ATTRIBUTE, "eglQueryDisplayAttribEXT");
+   }
+}
+
+static EGLBoolean
+_eglFillDeviceList(_EGLDeviceInfo *info)
+{
+#ifdef HAVE_LIBDRM
+   info->num_drm_devices = drmGetDevices(NULL, 0);
+
+   if (info->num_drm_devices < 0) {
+      info->num_drm_devices = 0;
+      return EGL_FALSE;
+   }
+
+   info->drm_devices = calloc(info->num_drm_devices, sizeof(drmDevicePtr));
+   if (!info->drm_devices) {
+      info->num_drm_devices = 0;
+      return EGL_FALSE;
+   }
+
+   if (drmGetDevices(info->drm_devices, info->num_drm_devices) < 0) {
+      free(info->drm_devices);
+      info->num_drm_devices = 0;
+      return EGL_FALSE;
+   }
+
+   info->got_devices = EGL_TRUE;
+   return EGL_TRUE;
+#else
+   return EGL_FALSE;
+#endif
+}
+
+>>>>>>> 98aa78d... egldevice: implement eglQueryDeviceStringEXT
+>>>>>>> 30af732... egldevice: implement eglQueryDisplayAttribEXT
 /**
  * Enumerate EGL devices.
  */

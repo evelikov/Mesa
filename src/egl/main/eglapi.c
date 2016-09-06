@@ -1847,6 +1847,29 @@ eglQueryDeviceStringEXT(EGLDeviceEXT device,
 }
 
 static EGLBoolean EGLAPIENTRY
+<<<<<<< HEAD
+=======
+eglQueryDisplayAttribEXT(EGLDisplay dpy,
+                         EGLint attribute,
+                         EGLAttrib *value)
+{
+   _EGLDisplay *disp = _eglLockDisplay(dpy);
+   _EGLDriver *drv;
+   EGLBoolean ret;
+
+   _EGL_CHECK_DISPLAY(disp, EGL_FALSE, drv);
+
+   if (!disp->Initialized)
+      RETURN_EGL_ERROR(disp, EGL_NOT_INITIALIZED, EGL_FALSE);
+
+   ret = _eglQueryDisplayAttribEXT(drv, disp, attribute, value);
+
+   RETURN_EGL_EVAL(disp, ret);
+}
+
+>>>>>>> 010907d... egldevice: implement eglQueryDeviceStringEXT
+static EGLBoolean EGLAPIENTRY
+>>>>>>> 30af732... egldevice: implement eglQueryDisplayAttribEXT
 eglQueryDevicesEXT(EGLint max_devices,
                    EGLDeviceEXT *devices,
                    EGLint *num_devices)

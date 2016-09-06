@@ -87,6 +87,8 @@ struct _egl_driver
     */
    void (*Unload)(_EGLDriver *drv);
 
+   const char * (*QueryDeviceName)(_EGLDisplay *disp);
+
    _EGLAPI API;  /**< EGL API dispatch table */
 };
 
