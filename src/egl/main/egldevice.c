@@ -41,6 +41,7 @@ struct _egl_device {
 #else
    void *data;
 #endif
+   const char *extensions;
 };
 
 #define MIN(x,y) (((x)<(y))?(x):(y))
@@ -73,8 +74,11 @@ _eglFillDeviceData(_EGLDevice *devs, int num_devices)
       return EGL_FALSE;
    }
 
-   for (int i = 0; i < num_devices; i++)
+   for (int i = 0; i < num_devices; i++) {
       devs[i].data = data[i];
+      // Different devices can support different set of device extensions.
+      devs[i].extensions = "";
+   }
 
    return EGL_TRUE;
 #else
@@ -160,6 +164,22 @@ _eglCheckDeviceHandle(EGLDeviceEXT device)
 out:
    mtx_unlock(_eglGlobal.Mutex);
    return found;
+}
+
+/**
+ * Get string about a specific device.
+ */
+const char *
+_eglQueryDeviceStringEXT(_EGLDevice *device, EGLint name)
+{
+   switch (name) {
+   case EGL_EXTENSIONS:
+      return device->extensions;
+
+   default:
+      _eglError(EGL_BAD_PARAMETER, "eglQueryDeviceStringEXT");
+      return NULL;
+   };
 }
 
 /**
