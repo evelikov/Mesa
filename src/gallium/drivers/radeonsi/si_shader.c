@@ -1852,8 +1852,12 @@ static LLVMValueRef fetch_constant(
 		addr2 = lp_build_add(&bld_base->uint_bld, addr2,
 				     lp_build_const_int32(base->gallivm, idx * 4));
 
+<<<<<<< HEAD
 		result2 = buffer_load_const(base->gallivm->builder, ctx->const_buffers[buf],
 				   addr2, ctx->f32);
+=======
+		result2 = buffer_load_const(ctx, bufp, addr2);
+>>>>>>> 15a127b... radeonsi: fix FP64 UBO loads with indirect uniform block indexing
 
 		result = radeon_llvm_emit_fetch_double(bld_base,
 					               result, result2);
