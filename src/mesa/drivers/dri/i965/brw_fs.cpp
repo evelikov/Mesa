@@ -6453,6 +6453,191 @@ computed_depth_mode(const nir_shader *shader)
    return BRW_PSCDEPTH_OFF;
 }
 
+<<<<<<< HEAD
+=======
+/**
+ * Move load_interpolated_input with simple (payload-based) barycentric modes
+ * to the top of the program so we don't emit multiple PLNs for the same input.
+ *
+ * This works around CSE not being able to handle non-dominating cases
+ * such as:
+ *
+ *    if (...) {
+ *       interpolate input
+ *    } else {
+ *       interpolate the same exact input
+ *    }
+ *
+ * This should be replaced by global value numbering someday.
+ */
+void
+move_interpolation_to_top(nir_shader *nir)
+{
+   nir_foreach_function(f, nir) {
+      if (!f->impl)
+         continue;
+
+      nir_block *top = nir_start_block(f->impl);
+      exec_node *cursor_node = NULL;
+
+      nir_foreach_block(block, f->impl) {
+         if (block == top)
+            continue;
+
+         nir_foreach_instr_safe(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+            if (intrin->intrinsic != nir_intrinsic_load_interpolated_input)
+               continue;
+            nir_intrinsic_instr *bary_intrinsic =
+               nir_instr_as_intrinsic(intrin->src[0].ssa->parent_instr);
+            nir_intrinsic_op op = bary_intrinsic->intrinsic;
+
+            /* Leave interpolateAtSample/Offset() where they are. */
+            if (op == nir_intrinsic_load_barycentric_at_sample ||
+                op == nir_intrinsic_load_barycentric_at_offset)
+               continue;
+
+            nir_instr *move[3] = {
+               &bary_intrinsic->instr,
+               intrin->src[1].ssa->parent_instr,
+               instr
+            };
+
+            for (unsigned i = 0; i < ARRAY_SIZE(move); i++) {
+               if (move[i]->block != top) {
+                  move[i]->block = top;
+                  exec_node_remove(&move[i]->node);
+                  if (cursor_node) {
+                     exec_node_insert_after(cursor_node, &move[i]->node);
+                  } else {
+                     exec_list_push_head(&top->instr_list, &move[i]->node);
+                  }
+                  cursor_node = &move[i]->node;
+               }
+            }
+         }
+      }
+      nir_metadata_preserve(f->impl, (nir_metadata)
+                            ((unsigned) nir_metadata_block_index |
+                             (unsigned) nir_metadata_dominance));
+   }
+}
+
+/**
+ * Apply default interpolation settings to FS inputs which don't specify any.
+ */
+static void
+brw_nir_set_default_interpolation(const struct gen_device_info *devinfo,
+                                  struct nir_shader *nir,
+                                  bool api_flat_shade,
+                                  bool per_sample_interpolation)
+{
+   assert(nir->stage == MESA_SHADER_FRAGMENT);
+
+   nir_foreach_variable(var, &nir->inputs) {
+      /* Apply default interpolation mode.
+       *
+       * Everything defaults to smooth except for the legacy GL color
+       * built-in variables, which might be flat depending on API state.
+       */
+      if (var->data.interpolation == INTERP_MODE_NONE) {
+         const bool flat = api_flat_shade &&
+            (var->data.location == VARYING_SLOT_COL0 ||
+             var->data.location == VARYING_SLOT_COL1);
+
+         var->data.interpolation = flat ? INTERP_MODE_FLAT
+                                        : INTERP_MODE_SMOOTH;
+      }
+
+      /* Apply 'sample' if necessary for API state. */
+      if (per_sample_interpolation &&
+          var->data.interpolation != INTERP_MODE_FLAT) {
+         var->data.centroid = false;
+         var->data.sample = true;
+      }
+
+      /* On Ironlake and below, there is only one interpolation mode.
+       * Centroid interpolation doesn't mean anything on this hardware --
+       * there is no multisampling.
+       */
+      if (devinfo->gen < 6) {
+         var->data.centroid = false;
+         var->data.sample = false;
+      }
+   }
+
+   if (per_sample_interpolation) {
+      nir_foreach_block(block, nir_shader_get_entrypoint(nir)) {
+         nir_foreach_instr(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+            if (intrin->intrinsic != nir_intrinsic_interp_var_at_centroid)
+               continue;
+
+            nir_variable *var = intrin->variables[0]->var;
+            if (var->data.interpolation == INTERP_MODE_FLAT)
+               continue;
+
+            /* The description of the interpolateAtCentroid intrinsic is that
+             * it interpolates the variable as if it had the "centroid"
+             * qualifier.  When executing with per_sample_interpolation, this
+             * is equivalent to having the "sample" qualifier.  Just convert
+             * it to a load_var instead.
+             */
+            assert(var->data.sample);
+            intrin->intrinsic = nir_intrinsic_load_var;
+         }
+      }
+   }
+}
+
+/**
+ * Demote per-sample barycentric intrinsics to centroid.
+ *
+ * Useful when rendering to a non-multisampled buffer.
+ */
+static void
+demote_sample_qualifiers(nir_shader *nir)
+{
+   nir_foreach_function(f, nir) {
+      if (!f->impl)
+         continue;
+
+      nir_builder b;
+      nir_builder_init(&b, f->impl);
+
+      nir_foreach_block(block, f->impl) {
+         nir_foreach_instr_safe(instr, block) {
+            if (instr->type != nir_instr_type_intrinsic)
+               continue;
+
+            nir_intrinsic_instr *intrin = nir_instr_as_intrinsic(instr);
+            if (intrin->intrinsic != nir_intrinsic_load_barycentric_sample &&
+                intrin->intrinsic != nir_intrinsic_load_barycentric_at_sample)
+               continue;
+
+            b.cursor = nir_before_instr(instr);
+            nir_ssa_def *centroid =
+               nir_load_barycentric(&b, nir_intrinsic_load_barycentric_centroid,
+                                    nir_intrinsic_interp_mode(intrin));
+            nir_ssa_def_rewrite_uses(&intrin->dest.ssa,
+                                     nir_src_for_ssa(centroid));
+            nir_instr_remove(instr);
+         }
+      }
+
+      nir_metadata_preserve(f->impl, (nir_metadata)
+                            ((unsigned) nir_metadata_block_index |
+                             (unsigned) nir_metadata_dominance));
+   }
+}
+
+>>>>>>> 114874b... i965/fs: Use sample interpolation for interpolateAtCentroid in persample mode
 const unsigned *
 brw_compile_fs(const struct brw_compiler *compiler, void *log_data,
                void *mem_ctx,
