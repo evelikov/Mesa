@@ -38,7 +38,7 @@
 #include <dirent.h>
 
 #include "util/u_atomic.h"
-#include "util/mesa-sha1.h"
+#include "util/sha1.h"
 #include "util/ralloc.h"
 #include "main/errors.h"
 

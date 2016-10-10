@@ -21,7 +21,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "util/mesa-sha1.h"
+#include "util/sha1.h"
 #include "util/debug.h"
 #include "radv_private.h"
 

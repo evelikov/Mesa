@@ -25,7 +25,7 @@
  * IN THE SOFTWARE.
  */
 
-#include "util/mesa-sha1.h"
+#include "util/sha1.h"
 #include "radv_private.h"
 #include "nir/nir.h"
 #include "nir/nir_builder.h"
