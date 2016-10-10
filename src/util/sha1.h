@@ -29,15 +29,19 @@
 extern "C" {
 #endif
 
-struct mesa_sha1;
+struct mesa_sha1 {
+    unsigned char block[64];
+    unsigned int digest[5];
+    unsigned int msize;
+};
 
-struct mesa_sha1 *
-_mesa_sha1_init(void);
+void
+_mesa_sha1_init(struct mesa_sha1 *ctx);
 
 int
 _mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, int size);
 
-int
+void
 _mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20]);
 
 char *

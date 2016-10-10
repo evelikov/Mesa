@@ -26,20 +26,14 @@
 
 #include "sha1.h"
 
-struct mesa_sha1 {
-    unsigned char block[64];
-    unsigned int digest[5];
-    unsigned int msize;
-};
-
 static inline unsigned int
 mesa_sha1_shift(unsigned int val, int count)
 {
     return (val << count) | (val >> (32 - count));
 }
 
-static void
-mesa_sha1_init(struct mesa_sha1 *ctx)
+void
+_mesa_sha1_init(struct mesa_sha1 *ctx)
 {
     ctx->digest[0] = 0x67452301;
     ctx->digest[1] = 0xefcdab89;
@@ -110,8 +104,8 @@ mesa_sha1_handle_block(struct mesa_sha1 *ctx, const unsigned char *b)
     ctx->digest[4] += E;
 }
 
-static void
-mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20])
+void
+_mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20])
 {
     unsigned int offset = ctx->msize & 63;
 
@@ -131,19 +125,6 @@ mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20])
 
     for (unsigned int i = 0; i < 20; i++)
 	result[i] = ctx->digest[i >> 2] >> (28 - 8 * (i & 3));
-}
-
-struct mesa_sha1 *
-_mesa_sha1_init(void)
-{
-    struct mesa_sha1 *ctx = malloc(sizeof(*ctx));
-
-    if (!ctx)
-        return NULL;
-
-    mesa_sha1_init(ctx);
-
-    return ctx;
 }
 
 int
@@ -174,24 +155,14 @@ _mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, int size)
     return 1;
 }
 
-int
-_mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20])
-{
-    mesa_sha1_final(ctx, result);
-
-    free(ctx);
-
-    return 1;
-}
-
 void
 _mesa_sha1_compute(const void *data, size_t size, unsigned char result[20])
 {
     struct mesa_sha1 ctx;
 
-    mesa_sha1_init(&ctx);
+    _mesa_sha1_init(&ctx);
     _mesa_sha1_update(&ctx, data, size);
-    mesa_sha1_final(&ctx, result);
+    _mesa_sha1_final(&ctx, result);
 }
 
 char *
