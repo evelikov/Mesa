@@ -127,7 +127,7 @@ _mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20])
 	result[i] = ctx->digest[i >> 2] >> (28 - 8 * (i & 3));
 }
 
-int
+void
 _mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, int size)
 {
     const unsigned char *pdata = (const unsigned char *)data;
@@ -151,8 +151,6 @@ _mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, int size)
 
     if (size)
         memcpy(ctx->block, pdata, size);
-
-    return 1;
 }
 
 void
@@ -165,7 +163,7 @@ _mesa_sha1_compute(const void *data, size_t size, unsigned char result[20])
     _mesa_sha1_final(&ctx, result);
 }
 
-char *
+void
 _mesa_sha1_format(char *buf, const unsigned char *sha1)
 {
     static const char hex_digits[] = "0123456789abcdef";
@@ -176,6 +174,4 @@ _mesa_sha1_format(char *buf, const unsigned char *sha1)
         buf[i + 1] = hex_digits[sha1[i >> 1] & 0x0f];
     }
     buf[i] = '\0';
-
-    return buf;
 }

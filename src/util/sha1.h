@@ -38,13 +38,13 @@ struct mesa_sha1 {
 void
 _mesa_sha1_init(struct mesa_sha1 *ctx);
 
-int
+void
 _mesa_sha1_update(struct mesa_sha1 *ctx, const void *data, int size);
 
 void
 _mesa_sha1_final(struct mesa_sha1 *ctx, unsigned char result[20]);
 
-char *
+void
 _mesa_sha1_format(char *buf, const unsigned char *sha1);
 
 void
