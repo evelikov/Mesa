@@ -69,6 +69,7 @@
 #include <sys/stat.h>
 #include <stdarg.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 #ifdef HAVE_LIBUDEV
 #include <assert.h>
@@ -315,7 +316,10 @@ int loader_get_user_preferred_fd(int default_fd, int *different_device)
       /* Hmm... detection for 2-7 seems to be broken. Oh well ...
        * Pick the first render device that is not our own.
        */
+      printf("PRIME\n");
       for (i = 0; i < num_devices; i++) {
+         printf("%s\n", devices[i]->nodes[DRM_NODE_RENDER]);
+
          if (devices[i]->available_nodes & 1 << DRM_NODE_RENDER &&
              !drm_device_matches_tag(devices[i], default_tag)) {
 
@@ -324,7 +328,9 @@ int loader_get_user_preferred_fd(int default_fd, int *different_device)
          }
       }
    } else {
+      printf("DEVICE ID %s\n", prime);
       for (i = 0; i < num_devices; i++) {
+         printf("%s\n", devices[i]->nodes[DRM_NODE_RENDER]);
          if (devices[i]->available_nodes & 1 << DRM_NODE_RENDER &&
             drm_device_matches_tag(devices[i], prime)) {
 
@@ -339,6 +345,7 @@ int loader_get_user_preferred_fd(int default_fd, int *different_device)
       goto err;
    }
 
+   printf("OPENING %s\n", devices[i]->nodes[DRM_NODE_RENDER]);
    fd = loader_open_device(devices[i]->nodes[DRM_NODE_RENDER]);
    drmFreeDevices(devices, num_devices);
    if (fd < 0)
