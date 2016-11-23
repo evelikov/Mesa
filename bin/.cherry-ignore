@@ -3,3 +3,8 @@
 
 # Commit was reverted shortly after it landed in master
 a39ad185932eab4f25a0cb2b112c10d8700ef242 configure.ac: honour LLVM_LIBDIR when linking against LLVM
+
+# Commit depends on the refactoring d33e2ad67c3 (anv: Move
+# INTERFACE_DESCRIPTOR_DATA setup to the pipeline) which in itself depends on
+# other refactoring/cleanups - 623e1e06d8c and likely others.
+054e48ee0ead7e5a81d28220e3890c7dfc410188 anv/cmd_buffer: Re-emit MEDIA_CURBE_LOAD when CS push constants are dirty
