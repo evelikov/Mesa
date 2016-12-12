@@ -28,6 +28,10 @@
 #include "glsl_symbol_table.h"
 #include "program.h"
 #include "util/string_to_uint_map.h"
+<<<<<<< HEAD
+=======
+#include "ir_array_refcount.h"
+>>>>>>> 5085b64031... glsl: Use simpler visitor to determine which UBO and SSBO blocks are used
 
 /**
  * \file link_uniforms.cpp
@@ -882,6 +886,18 @@ public:
    unsigned shader_shadow_samplers;
 };
 
+<<<<<<< HEAD
+=======
+static bool
+variable_is_referenced(ir_array_refcount_visitor &v, ir_variable *var)
+{
+   ir_array_refcount_entry *const entry = v.get_variable_entry(var);
+
+   return entry->is_referenced;
+
+}
+
+>>>>>>> 5085b64031... glsl: Use simpler visitor to determine which UBO and SSBO blocks are used
 /**
  * Walks the IR and update the references to uniform blocks in the
  * ir_variables to point at linked shader's list (previously, they
@@ -891,6 +907,13 @@ public:
 static void
 link_update_uniform_buffer_variables(struct gl_linked_shader *shader)
 {
+<<<<<<< HEAD
+=======
+   ir_array_refcount_visitor v;
+
+   v.run(shader->ir);
+
+>>>>>>> 5085b64031... glsl: Use simpler visitor to determine which UBO and SSBO blocks are used
    foreach_in_list(ir_instruction, node, shader->ir) {
       ir_variable *const var = node->as_variable();
 
