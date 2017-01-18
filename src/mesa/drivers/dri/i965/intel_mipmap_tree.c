@@ -996,19 +996,6 @@ intel_miptree_reference(struct intel_mipmap_tree **dst,
    *dst = src;
 }
 
-static void
-intel_miptree_hiz_buffer_free(struct intel_miptree_hiz_buffer *hiz_buf)
-{
-   if (hiz_buf == NULL)
-      return;
-
-   if (hiz_buf->mt)
-      intel_miptree_release(&hiz_buf->mt);
-   else
-      drm_intel_bo_unreference(hiz_buf->aux_base.bo);
-
-   free(hiz_buf);
-}
 
 void
 intel_miptree_release(struct intel_mipmap_tree **mt)
@@ -1025,7 +1012,6 @@ intel_miptree_release(struct intel_mipmap_tree **mt)
       drm_intel_bo_unreference((*mt)->bo);
       intel_miptree_release(&(*mt)->stencil_mt);
       intel_miptree_release(&(*mt)->r8stencil_mt);
-<<<<<<< HEAD
       if ((*mt)->hiz_buf) {
          if ((*mt)->hiz_buf->mt)
             intel_miptree_release(&(*mt)->hiz_buf->mt);
@@ -1034,13 +1020,6 @@ intel_miptree_release(struct intel_mipmap_tree **mt)
          free((*mt)->hiz_buf);
       }
       intel_miptree_release(&(*mt)->mcs_mt);
-=======
-      intel_miptree_hiz_buffer_free((*mt)->hiz_buf);
-      if ((*mt)->mcs_buf) {
-         drm_intel_bo_unreference((*mt)->mcs_buf->bo);
-         free((*mt)->mcs_buf);
-      }
->>>>>>> 42011be1e2... i965/mt: Disable HiZ when sharing depth buffer externally (v2)
       intel_resolve_map_clear(&(*mt)->hiz_map);
 
       intel_miptree_release(&(*mt)->plane[0]);
@@ -2160,16 +2139,9 @@ intel_miptree_resolve_color(struct brw_context *brw,
  * process or another miptree.
  *
  * Fast color clears are unsafe with shared buffers, so we need to resolve and
-<<<<<<< HEAD
  * then discard the MCS buffer, if present.  We also set the fast_clear_state
  * to INTEL_FAST_CLEAR_STATE_NO_MCS to ensure that no MCS buffer gets
  * allocated in the future.
-=======
- * then discard the MCS buffer, if present.  We also set the no_ccs flag to
- * ensure that no MCS buffer gets allocated in the future.
- *
- * HiZ is similarly unsafe with shared buffers.
->>>>>>> 42011be1e2... i965/mt: Disable HiZ when sharing depth buffer externally (v2)
  */
 void
 intel_miptree_make_shareable(struct brw_context *brw,
@@ -2186,12 +2158,6 @@ intel_miptree_make_shareable(struct brw_context *brw,
       intel_miptree_resolve_color(brw, mt, 0);
       intel_miptree_release(&mt->mcs_mt);
       mt->fast_clear_state = INTEL_FAST_CLEAR_STATE_NO_MCS;
-   }
-
-   if (mt->hiz_buf) {
-      intel_miptree_all_slices_resolve_depth(brw, mt);
-      intel_miptree_hiz_buffer_free(mt->hiz_buf);
-      mt->hiz_buf = NULL;
    }
 
    mt->disable_aux_buffers = true;
