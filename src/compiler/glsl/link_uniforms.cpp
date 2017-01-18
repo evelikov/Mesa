@@ -901,45 +901,6 @@ link_update_uniform_buffer_variables(struct gl_linked_shader *shader)
              var->data.mode == ir_var_shader_storage);
 
       if (var->is_interface_instance()) {
-<<<<<<< HEAD
-=======
-         const ir_array_refcount_entry *const entry = v.get_variable_entry(var);
-
-         if (entry->is_referenced) {
-            /* Since this is an interface instance, the instance type will be
-             * same as the array-stripped variable type.  If the variable type
-             * is an array, then the block names will be suffixed with [0]
-             * through [n-1].  Unlike for non-interface instances, there will
-             * not be structure types here, so the only name sentinel that we
-             * have to worry about is [.
-             */
-            assert(var->type->without_array() == var->get_interface_type());
-            const char sentinel = var->type->is_array() ? '[' : '\0';
-
-            const ptrdiff_t len = strlen(var->get_interface_type()->name);
-            for (unsigned i = 0; i < num_blocks; i++) {
-               const char *const begin = blks[i]->Name;
-               const char *const end = strchr(begin, sentinel);
-
-               if (end == NULL)
-                  continue;
-
-               if (len != (end - begin))
-                  continue;
-
-               /* Even when a match is found, do not "break" here.  This could
-                * be an array of instances, and all elements of the array need
-                * to be marked as referenced.
-                */
-               if (strncmp(begin, var->get_interface_type()->name, len) == 0 &&
-                   (!var->type->is_array() ||
-                    entry->is_linearized_index_referenced(blks[i]->linearized_array_index))) {
-                  blks[i]->stageref |= 1U << stage;
-               }
-            }
-         }
-
->>>>>>> ceea514d91... linker: Accurately mark a uniform block instance array element as used in a stage
          var->data.location = 0;
          continue;
       }
