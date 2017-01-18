@@ -2410,10 +2410,12 @@ intel_miptree_map_blit(struct brw_context *brw,
     * temporary buffer back out.
     */
    if (!(map->mode & GL_MAP_INVALIDATE_RANGE_BIT)) {
-      if (!intel_miptree_copy(brw,
-                              mt, level, slice, map->x, map->y,
-                              map->linear_mt, 0, 0, 0, 0,
-                              map->w, map->h)) {
+      if (!intel_miptree_blit(brw,
+                              mt, level, slice,
+                              map->x, map->y, false,
+                              map->linear_mt, 0, 0,
+                              0, 0, false,
+                              map->w, map->h, GL_COPY)) {
          fprintf(stderr, "Failed to blit\n");
          goto fail;
       }
@@ -2446,10 +2448,12 @@ intel_miptree_unmap_blit(struct brw_context *brw,
    intel_miptree_unmap_raw(map->linear_mt);
 
    if (map->mode & GL_MAP_WRITE_BIT) {
-      bool ok = intel_miptree_copy(brw,
-                                   map->linear_mt, 0, 0, 0, 0,
-                                   mt, level, slice, map->x, map->y,
-                                   map->w, map->h);
+      bool ok = intel_miptree_blit(brw,
+                                   map->linear_mt, 0, 0,
+                                   0, 0, false,
+                                   mt, level, slice,
+                                   map->x, map->y, false,
+                                   map->w, map->h, GL_COPY);
       WARN_ONCE(!ok, "Failed to blit from linear temporary mapping");
    }
 
