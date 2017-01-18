@@ -220,23 +220,16 @@ static void process_block_array_leaf(char **name, gl_uniform_block *blocks,
                                      const struct link_uniform_block_active *const b,
                                      unsigned *block_index,
                                      unsigned *binding_offset,
-                                     unsigned linearized_index,
                                      struct gl_context *ctx,
                                      struct gl_shader_program *prog);
 
-/**
- *
- * \param first_index Value of \c block_index for the first element of the
- *                    array.
- */
 static void
 process_block_array(struct uniform_block_array_elements *ub_array, char **name,
                     size_t name_length, gl_uniform_block *blocks,
                     ubo_visitor *parcel, gl_uniform_buffer_variable *variables,
                     const struct link_uniform_block_active *const b,
                     unsigned *block_index, unsigned *binding_offset,
-                    struct gl_context *ctx, struct gl_shader_program *prog,
-                    unsigned first_index)
+                    struct gl_context *ctx, struct gl_shader_program *prog)
 {
       for (unsigned j = 0; j < ub_array->num_array_elements; j++) {
          size_t new_length = name_length;
@@ -245,7 +238,6 @@ process_block_array(struct uniform_block_array_elements *ub_array, char **name,
          ralloc_asprintf_rewrite_tail(name, &new_length, "[%u]",
                                       ub_array->array_elements[j]);
 
-<<<<<<< HEAD
          if (ub_array->array) {
             process_block_array(ub_array->array, name, new_length, blocks,
                                 parcel, variables, b, block_index,
@@ -255,17 +247,6 @@ process_block_array(struct uniform_block_array_elements *ub_array, char **name,
                                      parcel, variables, b, block_index,
                                      binding_offset, ctx, prog);
          }
-=======
-      if (ub_array->array) {
-         process_block_array(ub_array->array, name, new_length, blocks,
-                             parcel, variables, b, block_index,
-                             binding_offset, ctx, prog, first_index);
-      } else {
-         process_block_array_leaf(name, blocks,
-                                  parcel, variables, b, block_index,
-                                  binding_offset, *block_index - first_index,
-                                  ctx, prog);
->>>>>>> d56bd07bb3... glsl: Track the linearized array index for each UBO instance array element
       }
 }
 
@@ -275,7 +256,6 @@ process_block_array_leaf(char **name,
                          ubo_visitor *parcel, gl_uniform_buffer_variable *variables,
                          const struct link_uniform_block_active *const b,
                          unsigned *block_index, unsigned *binding_offset,
-                         unsigned linearized_index,
                          struct gl_context *ctx, struct gl_shader_program *prog)
 {
       unsigned i = *block_index;
@@ -294,15 +274,8 @@ process_block_array_leaf(char **name,
        */
       blocks[i].Binding = (b->has_binding) ? b->binding + *binding_offset : 0;
 
-<<<<<<< HEAD
       blocks[i].UniformBufferSize = 0;
       blocks[i]._Packing = gl_uniform_block_packing(type->interface_packing);
-=======
-   blocks[i].UniformBufferSize = 0;
-   blocks[i]._Packing = gl_uniform_block_packing(type->interface_packing);
-   blocks[i]._RowMajor = type->get_interface_row_major();
-   blocks[i].linearized_array_index = linearized_index;
->>>>>>> d56bd07bb3... glsl: Track the linearized array index for each UBO instance array element
 
       parcel->process(type, blocks[i].Name);
 
@@ -400,8 +373,7 @@ create_buffer_blocks(void *mem_ctx, struct gl_context *ctx,
 
             assert(b->has_instance_name);
             process_block_array(b->array, &name, name_length, blocks, &parcel,
-                                variables, b, &i, &binding_offset, ctx, prog,
-                                i);
+                                variables, b, &i, &binding_offset, ctx, prog);
             ralloc_free(name);
          } else {
             blocks[i].Name = ralloc_strdup(blocks, block_type->name);
