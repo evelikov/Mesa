@@ -39,6 +39,7 @@
 #include "main/uniforms.h"
 #include "program/program.h"
 #include "program/prog_parameter.h"
+#include "util/u_atomic.h"
 #include "util/ralloc.h"
 #include "util/string_to_uint_map.h"
 
