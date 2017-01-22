@@ -1358,7 +1358,7 @@ surf_get_intratile_offset_px(struct brw_blorp_surface_info *info,
                              uint32_t *tile_x_px, uint32_t *tile_y_px)
 {
    if (info->surf.msaa_layout == ISL_MSAA_LAYOUT_INTERLEAVED) {
-      struct isl_extent2d px_size_sa =
+      const struct isl_extent2d px_size_sa =
          isl_get_interleaved_msaa_px_size_sa(info->surf.samples);
       assert(info->tile_x_sa % px_size_sa.width == 0);
       assert(info->tile_y_sa % px_size_sa.height == 0);
@@ -1678,7 +1678,7 @@ try_blorp_blit(struct blorp_batch *batch,
        * If it's UMS, then we have no choice but to set up the rendering
        * pipeline as multisampled.
        */
-      struct isl_extent2d px_size_sa =
+      const struct isl_extent2d px_size_sa =
          isl_get_interleaved_msaa_px_size_sa(params->dst.surf.samples);
       params->x0 = ROUND_DOWN_TO(params->x0, 2) * px_size_sa.width;
       params->y0 = ROUND_DOWN_TO(params->y0, 2) * px_size_sa.height;

@@ -1172,7 +1172,7 @@ isl_tiling_is_std_y(enum isl_tiling tiling)
    return (1u << tiling) & ISL_TILING_STD_Y_MASK;
 }
 
-struct isl_extent2d ATTRIBUTE_CONST
+const struct isl_extent2d ATTRIBUTE_CONST
 isl_get_interleaved_msaa_px_size_sa(uint32_t samples);
 
 static inline bool

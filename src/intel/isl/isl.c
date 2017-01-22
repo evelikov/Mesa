@@ -329,7 +329,7 @@ isl_choose_msaa_layout(const struct isl_device *dev,
    }
 }
 
-struct isl_extent2d
+const struct isl_extent2d
 isl_get_interleaved_msaa_px_size_sa(uint32_t samples)
 {
    assert(isl_is_pow2(samples));
@@ -342,7 +342,7 @@ isl_get_interleaved_msaa_px_size_sa(uint32_t samples)
     *    MSFMT_DEPTH_STENCIL, W_L and H_L must be adjusted as follows before
     *    proceeding: [...]
     */
-   return (struct isl_extent2d) {
+   return (const struct isl_extent2d) {
       .width = 1 << ((ffs(samples) - 0) / 2),
       .height = 1 << ((ffs(samples) - 1) / 2),
    };
