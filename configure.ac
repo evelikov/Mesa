@@ -1001,7 +1001,6 @@ llvm_set_environment_variables() {
             LLVM_VERSION_INT="${LLVM_VERSION_MAJOR}${LLVM_VERSION_MINOR}"
         fi
 
-        DEFINES="${DEFINES} -DHAVE_LLVM=0x0$LLVM_VERSION_INT -DMESA_LLVM_VERSION_PATCH=$LLVM_VERSION_PATCH"
         FOUND_LLVM=yes
         USE_LLVM=no
     else
@@ -1775,6 +1774,7 @@ if test -n "$with_vulkan_drivers"; then
             PKG_CHECK_MODULES([AMDGPU], [libdrm_amdgpu >= $LIBDRM_AMDGPU_REQUIRED])
             radeon_llvm_check $LLVM_REQUIRED_RADV "radv"
             HAVE_RADEON_VULKAN=yes;
+            DEFINES="${DEFINES} -DHAVE_LLVM_RADV=0x0$LLVM_VERSION_INT -DMESA_LLVM_VERSION_PATCH=$LLVM_VERSION_PATCH"
             ;;
         *)
             AC_MSG_ERROR([Vulkan driver '$driver' does not exist])
@@ -2407,6 +2407,7 @@ if test "x$enable_gallium_llvm" == "xyes"; then
     llvm_add_default_components "gallium"
 
     USE_LLVM_GALLIUM=yes
+    DEFINES="${DEFINES} -DHAVE_LLVM=0x0$LLVM_VERSION_INT -DMESA_LLVM_VERSION_PATCH=$LLVM_VERSION_PATCH"
 else
     USE_LLVM_GALLIUM=no
 fi

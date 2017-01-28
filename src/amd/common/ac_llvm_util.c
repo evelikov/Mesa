@@ -22,6 +22,7 @@
  * of the Software.
  *
  */
+
 /* based on pieces from si_pipe.c and radeon_llvm_emit.c */
 #include "ac_llvm_util.h"
 
@@ -37,7 +38,7 @@
 
 static void ac_init_llvm_target()
 {
-#if HAVE_LLVM < 0x0307
+#if MESA_LLVM_VERSION < 0x0307
 	LLVMInitializeR600TargetInfo();
 	LLVMInitializeR600Target();
 	LLVMInitializeR600TargetMC();
@@ -99,7 +100,7 @@ static const char *ac_get_llvm_processor_name(enum radeon_family family)
 		return "iceland";
 	case CHIP_CARRIZO:
 		return "carrizo";
-#if HAVE_LLVM <= 0x0307
+#if MESA_LLVM_VERSION <= 0x0307
 	case CHIP_FIJI:
 		return "tonga";
 	case CHIP_STONEY:
@@ -110,7 +111,7 @@ static const char *ac_get_llvm_processor_name(enum radeon_family family)
 	case CHIP_STONEY:
 		return "stoney";
 #endif
-#if HAVE_LLVM <= 0x0308
+#if MESA_LLVM_VERSION <= 0x0308
 	case CHIP_POLARIS10:
 		return "tonga";
 	case CHIP_POLARIS11:
@@ -166,7 +167,7 @@ ac_llvm_context_init(struct ac_llvm_context *ctx, LLVMContextRef context)
 	ctx->fpmath_md_2p5_ulp = LLVMMDNodeInContext(ctx->context, args, 1);
 }
 
-#if HAVE_LLVM < 0x0400
+#if MESA_LLVM_VERSION < 0x0400
 static LLVMAttribute ac_attr_to_llvm_attr(enum ac_func_attr attr)
 {
    switch (attr) {
@@ -209,7 +210,7 @@ ac_add_function_attr(LLVMValueRef function,
                      enum ac_func_attr attr)
 {
 
-#if HAVE_LLVM < 0x0400
+#if MESA_LLVM_VERSION < 0x0400
    LLVMAttribute llvm_attr = ac_attr_to_llvm_attr(attr);
    if (attr_idx == -1) {
       LLVMAddFunctionAttr(function, llvm_attr);
@@ -329,7 +330,7 @@ build_cube_intrinsic(struct ac_llvm_context *ctx,
 {
 	LLVMBuilderRef builder = ctx->builder;
 
-	if (HAVE_LLVM >= 0x0309) {
+	if (MESA_LLVM_VERSION >= 0x0309) {
 		LLVMTypeRef f32 = ctx->f32;
 
 		out->stc[1] = ac_emit_llvm_intrinsic(ctx, "llvm.amdgcn.cubetc",

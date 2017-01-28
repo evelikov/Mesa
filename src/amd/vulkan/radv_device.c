@@ -861,7 +861,7 @@ VkResult radv_CreateDevice(
 		}
 	}
 
-#if HAVE_LLVM < 0x0400
+#if MESA_LLVM_VERSION < 0x0400
 	device->llvm_supports_spill = false;
 #else
 	device->llvm_supports_spill = true;

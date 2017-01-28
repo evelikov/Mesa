@@ -24,6 +24,20 @@
  */
 #pragma once
 
+/*
+ * Since HAVE_LLVM means --enable-gallium-llvm and we cannot change that we
+ * need to indicate/track the LLVM version in a separate way (HAVE_LLVM_RADV).
+ *
+ * Strictly speaking we could get away with HAVE_LLVM_RADV alone, but things
+ * are quite fragile and on their way out since this work is mostly -stable
+ * fixes to get all the crazy permutations building again.
+ */
+#if defined(HAVE_LLVM)
+#  define MESA_LLVM_VERSION HAVE_LLVM
+#elif defined(HAVE_LLVM_RADV)
+#  define MESA_LLVM_VERSION HAVE_LLVM_RADV
+#endif
+
 #include <stdbool.h>
 #include <llvm-c/TargetMachine.h>
 

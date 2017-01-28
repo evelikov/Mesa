@@ -26,7 +26,7 @@
 /* based on Marek's patch to lp_bld_misc.cpp */
 
 // Workaround http://llvm.org/PR23628
-#if HAVE_LLVM >= 0x0307
+#if MESA_LLVM_VERSION >= 0x0307
 #  pragma push_macro("DEBUG")
 #  undef DEBUG
 #endif

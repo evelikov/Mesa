@@ -2661,7 +2661,7 @@ static void get_image_intr_name(const char *base_name,
         build_type_name_for_intr(coords_type, coords_type_name,
                             sizeof(coords_type_name));
 
-        if (HAVE_LLVM <= 0x0309) {
+        if (MESA_LLVM_VERSION <= 0x0309) {
                 snprintf(out_name, out_len, "%s.%s", base_name, coords_type_name);
         } else {
                 char data_type_name[8];
@@ -2710,7 +2710,7 @@ static LLVMValueRef visit_image_load(struct nir_to_llvm_context *ctx,
 		params[0] = get_image_coords(ctx, instr);
 		params[1] = get_sampler_desc(ctx, instr->variables[0], DESC_IMAGE);
 		params[2] = LLVMConstInt(ctx->i32, 15, false); /* dmask */
-		if (HAVE_LLVM <= 0x0309) {
+		if (MESA_LLVM_VERSION <= 0x0309) {
 			params[3] = LLVMConstInt(ctx->i1, 0, false);  /* r128 */
 			params[4] = da;
 			params[5] = glc;
@@ -2769,7 +2769,7 @@ static void visit_image_store(struct nir_to_llvm_context *ctx,
 		params[1] = get_image_coords(ctx, instr); /* coords */
 		params[2] = get_sampler_desc(ctx, instr->variables[0], DESC_IMAGE);
 		params[3] = LLVMConstInt(ctx->i32, 15, false); /* dmask */
-		if (HAVE_LLVM <= 0x0309) {
+		if (MESA_LLVM_VERSION <= 0x0309) {
 			params[4] = i1false;  /* r128 */
 			params[5] = da;
 			params[6] = glc;
