@@ -106,7 +106,7 @@ script:
         --with-gallium-drivers=i915,nouveau,r300,r600,freedreno,svga,swrast,vc4,virgl,etnaviv,imx
         --disable-llvm-shared-libs
         ;
-      make -j2 && make -j2 check;
+      make && make check;
     elif test x$BUILD = xscons; then
       scons;
     fi
