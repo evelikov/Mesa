@@ -41,9 +41,10 @@
 #endif
 #include "loader.h"
 
+#include <unistd.h>
+
 #ifdef HAVE_LIBDRM
 #include <stdlib.h>
-#include <unistd.h>
 #include <xf86drm.h>
 #ifdef USE_DRICONF
 #include "xmlconfig.h"
