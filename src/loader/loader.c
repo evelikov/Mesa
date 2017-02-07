@@ -41,9 +41,12 @@
 #endif
 #include "loader.h"
 
+#ifdef HAVE_UNISTD_H
+#include <unistd.h>
+#endif
+
 #ifdef HAVE_LIBDRM
 #include <stdlib.h>
-#include <unistd.h>
 #include <xf86drm.h>
 #ifdef USE_DRICONF
 #include "xmlconfig.h"
@@ -350,11 +353,13 @@ loader_get_driver_for_fd(int fd)
     * user's problem, but this allows vc4 simulator to run on an i965 host,
     * and may be useful for some touch testing of i915 on an i965 host.
     */
+#ifdef HAVE_UNISTD_H
    if (geteuid() == getuid()) {
       driver = getenv("MESA_LOADER_DRIVER_OVERRIDE");
       if (driver)
          return strdup(driver);
    }
+#endif
 
    if (!loader_get_pci_id_for_fd(fd, &vendor_id, &chip_id)) {
 

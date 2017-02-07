@@ -142,6 +142,7 @@ test_c99_compat_h(const void * restrict a,
 #  ifndef _WIN32
 #    define HAVE_PTHREAD
 #    define HAVE_POSIX_MEMALIGN
+#    define HAVE_UNISTD_H
 #  endif
 
 #  ifdef __GNUC__
