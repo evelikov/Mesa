@@ -44,15 +44,12 @@
 #include "blorp/blorp.h"
 
 #ifdef __cplusplus
-extern "C" {
-	/* Evil hack for using libdrm in a c++ compiler. */
         #define virtual virt
 #endif
 
 #include <intel_bufmgr.h>
 #ifdef __cplusplus
 	#undef virtual
-}
 #endif
 
 #ifdef __cplusplus
