@@ -48,6 +48,10 @@
 #include "compiler/glsl/list.h"
 #include "util/bitscan.h"
 
+/* This has to be included here. */
+#include "dd.h"
+
+
 
 #ifdef __cplusplus
 extern "C" {
@@ -4080,10 +4084,6 @@ struct gl_matrix_stack
 /*@}*/
 
 
-
-
-/* This has to be included here. */
-#include "dd.h"
 
 
 /**
