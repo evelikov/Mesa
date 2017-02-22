@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 # This script is used to generate the list of fixed bugs that
 # appears in the release notes files, with HTML formatting.
