@@ -1,4 +1,4 @@
-#! /usr/bin/env python2
+#! /usr/bin/env python
 
 template = """\
 /* Copyright (C) 2015 Broadcom
