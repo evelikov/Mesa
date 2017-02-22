@@ -1,4 +1,4 @@
-#!/bin/env python
+#!/bin/env python2
 
 # (C) Copyright IBM Corporation 2005, 2006
 # All Rights Reserved.
