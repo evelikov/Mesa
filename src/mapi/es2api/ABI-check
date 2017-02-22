@@ -5,6 +5,10 @@
 # GL_EXT_multi_draw_arrays
 # GL_OES_EGL_image
 
+# FIXME: checking only for T symbols in incomplete/wrong.
+# At the same time checking for all brings platform specific symbols 
+# such as _edata and friends.
+
 FUNCS=$(nm -D --defined-only ${1-.libs/libGLESv2.so.2} | grep -o 'T gl.*' | cut -c 3- | while read func; do
 ( grep -q "^$func$" || echo $func )  <<EOF
 glActiveTexture
