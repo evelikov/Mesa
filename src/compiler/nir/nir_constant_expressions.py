@@ -1,4 +1,4 @@
-#! /usr/bin/python2
+#! /bin/env python2
 
 def type_has_size(type_):
     return type_[-1:].isdigit()

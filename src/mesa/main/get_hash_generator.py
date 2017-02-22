@@ -1,4 +1,4 @@
-#!/usr/bin/python2
+#!/bin/env python2
 # coding=utf-8
 # -*- Mode: Python; py-indent-offset: 4 -*-
 #
