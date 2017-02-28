@@ -30,7 +30,7 @@
 
 #include "brw_context.h"
 #include "brw_state.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "intel_batchbuffer.h"
 #include "intel_buffer_objects.h"
 #include "main/transformfeedback.h"

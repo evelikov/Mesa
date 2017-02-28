@@ -35,7 +35,7 @@
 #include "intel_fbo.h"
 #include "brw_context.h"
 #include "brw_state.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "brw_wm.h"
 #include "compiler/nir/nir.h"
 

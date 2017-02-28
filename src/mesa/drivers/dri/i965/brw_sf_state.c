@@ -37,7 +37,7 @@
 #include "main/viewport.h"
 #include "brw_context.h"
 #include "brw_state.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "brw_sf.h"
 
 static void upload_sf_vp(struct brw_context *brw)

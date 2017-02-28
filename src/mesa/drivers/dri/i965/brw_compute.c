@@ -31,7 +31,7 @@
 #include "brw_state.h"
 #include "intel_batchbuffer.h"
 #include "intel_buffer_objects.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 
 
 static void

@@ -5,7 +5,7 @@
 #include "main/mipmap.h"
 #include "drivers/common/meta.h"
 #include "brw_context.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "intel_buffer_objects.h"
 #include "intel_mipmap_tree.h"
 #include "intel_tex.h"

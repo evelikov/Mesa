@@ -24,7 +24,7 @@
 #include <stdbool.h>
 #include "program/program.h"
 #include "brw_state.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "brw_wm.h"
 #include "intel_batchbuffer.h"
 

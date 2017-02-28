@@ -31,7 +31,7 @@
 #include "vbo/vbo.h"
 
 #include "brw_context.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "brw_draw.h"
 
 #include "intel_batchbuffer.h"

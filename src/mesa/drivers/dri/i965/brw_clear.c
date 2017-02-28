@@ -36,7 +36,7 @@
 
 #include "brw_context.h"
 #include "brw_blorp.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 
 #define FILE_DEBUG_FLAG DEBUG_BLIT
 

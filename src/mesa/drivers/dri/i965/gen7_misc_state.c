@@ -27,7 +27,7 @@
 #include "intel_fbo.h"
 #include "brw_context.h"
 #include "brw_state.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 
 void
 gen7_emit_depth_stencil_hiz(struct brw_context *brw,

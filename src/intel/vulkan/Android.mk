@@ -220,7 +220,7 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_anv_gen75 \
 	libmesa_anv_gen8 \
 	libmesa_anv_gen9 \
-	libmesa_i965_compiler \
+	libmesa_intel_compiler \
 	libmesa_anv_entrypoints
 
 LOCAL_SHARED_LIBRARIES := \

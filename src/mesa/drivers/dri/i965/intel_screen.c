@@ -35,7 +35,7 @@
 #include "main/version.h"
 #include "swrast/s_renderbuffer.h"
 #include "util/ralloc.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "compiler/nir/nir.h"
 
 #include "utils.h"

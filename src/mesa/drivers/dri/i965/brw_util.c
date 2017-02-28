@@ -31,7 +31,7 @@
 
 
 #include "brw_util.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 
 GLuint brw_translate_blend_equation( GLenum mode )
 {

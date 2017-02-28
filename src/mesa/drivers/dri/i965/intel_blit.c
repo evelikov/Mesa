@@ -30,7 +30,7 @@
 #include "main/fbobject.h"
 
 #include "brw_context.h"
-#include "brw_defines.h"
+#include "compiler/brw_defines.h"
 #include "intel_blit.h"
 #include "intel_buffers.h"
 #include "intel_fbo.h"
