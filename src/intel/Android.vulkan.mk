@@ -52,15 +52,16 @@ intermediates := $(call local-generated-sources-dir)
 LOCAL_C_INCLUDES := \
 	$(VULKAN_COMMON_INCLUDES)
 
-LOCAL_GENERATED_SOURCES += $(intermediates)/anv_entrypoints.h
-LOCAL_GENERATED_SOURCES += $(intermediates)/dummy.c
+LOCAL_GENERATED_SOURCES += $(intermediates)/vulkan/anv_entrypoints.h
+LOCAL_GENERATED_SOURCES += $(intermediates)/vulkan/dummy.c
 
-$(intermediates)/dummy.c:
+$(intermediates)/vulkan/dummy.c:
 	@mkdir -p $(dir $@)
 	@echo "Gen Dummy: $(PRIVATE_MODULE) <= $(notdir $(@))"
 	$(hide) touch $@
 
-$(intermediates)/anv_entrypoints.h:
+$(intermediates)/vulkan/anv_entrypoints.h:
+	@mkdir -p $(dir $@)
 	$(hide) cat $(MESA_TOP)/src/vulkan/registry/vk.xml | $(VK_ENTRYPOINTS_SCRIPT) header > $@
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := \
@@ -85,7 +86,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_anv_gen7
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
-LOCAL_SRC_FILES := $(GEN7_FILES)
+LOCAL_SRC_FILES := $(VULKAN_GEN7_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=70
 
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
@@ -105,7 +106,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_anv_gen75
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
-LOCAL_SRC_FILES := $(GEN75_FILES)
+LOCAL_SRC_FILES := $(VULKAN_GEN75_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=75
 
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
@@ -125,7 +126,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_anv_gen8
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
-LOCAL_SRC_FILES := $(GEN8_FILES)
+LOCAL_SRC_FILES := $(VULKAN_GEN8_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=80
 
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
@@ -145,7 +146,7 @@ include $(CLEAR_VARS)
 LOCAL_MODULE := libmesa_anv_gen9
 LOCAL_MODULE_CLASS := STATIC_LIBRARIES
 
-LOCAL_SRC_FILES := $(GEN9_FILES)
+LOCAL_SRC_FILES := $(VULKAN_GEN9_FILES)
 LOCAL_CFLAGS := -DGEN_VERSIONx10=90
 
 LOCAL_C_INCLUDES := $(ANV_INCLUDES)
@@ -178,9 +179,10 @@ LOCAL_WHOLE_STATIC_LIBRARIES := \
 	libmesa_genxml \
 	libmesa_vulkan_util
 
-LOCAL_GENERATED_SOURCES += $(intermediates)/anv_entrypoints.c
+LOCAL_GENERATED_SOURCES += $(intermediates)/vulkan/anv_entrypoints.c
 
-$(intermediates)/anv_entrypoints.c:
+$(intermediates)/vulkan/anv_entrypoints.c:
+	@mkdir -p $(dir $@)
 	$(hide) cat $(MESA_TOP)/src/vulkan/registry/vk.xml | $(VK_ENTRYPOINTS_SCRIPT) code > $@
 
 LOCAL_SHARED_LIBRARIES := libdrm_intel
