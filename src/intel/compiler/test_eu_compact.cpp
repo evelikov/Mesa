@@ -287,7 +287,7 @@ run_tests(const struct gen_device_info *devinfo)
 int
 main(int argc, char **argv)
 {
-   struct gen_device_info *devinfo = calloc(1, sizeof(*devinfo));
+   struct gen_device_info *devinfo = (struct gen_device_info *)calloc(1, sizeof(*devinfo));
    devinfo->gen = 6;
    bool fail = false;
 
