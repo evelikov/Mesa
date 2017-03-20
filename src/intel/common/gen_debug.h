@@ -22,7 +22,9 @@
  * OF CONTRACT, TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION
  * WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
  */
-#pragma once
+
+#ifndef GEN_DEBUG_H
+#define GEN_DEBUG_H
 
 #include <stdint.h>
 #include "compiler/shader_enums.h"
@@ -132,3 +134,5 @@ extern void brw_process_intel_debug_variable(void);
 #ifdef __cplusplus
 }
 #endif
+
+#endif /* GEN_DEBUG_H */
