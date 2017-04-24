@@ -147,9 +147,6 @@ SConscript(
 ########################################################################
 # List all aliases
 
-print "running with -j", GetOption('num_jobs')
-SetOption('num_jobs', 2)
-
 try:
     from SCons.Node.Alias import default_ans
 except ImportError:
