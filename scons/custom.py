@@ -271,15 +271,21 @@ def parse_source_list(env, filename, names=None):
         srcs = []
         for f in val.split():
             if f:
+                print "list        ", f
+                print "cur_srcdir  ", cur_srcdir
                 # Process source paths
                 if f.startswith(top_builddir + '/src'):
                     # Automake puts build output on a `src` subdirectory, but
                     # SCons does not, so strip it here.
+                    print "start with TDB/src ", f
                     f = top_builddir + f[len(top_builddir + '/src'):]
+                    print "AFTER ", f
                 if f.startswith(cur_srcdir + '/'):
                     # Prefer relative source paths, as absolute files tend to
                     # cause duplicate actions.
+                    print "Conv to relative ", f
                     f = f[len(cur_srcdir + '/'):]
+                    print "AFTER ", f
                 # do not include any headers
                 if f.endswith(tuple(['.h','.hpp'])):
                     continue
