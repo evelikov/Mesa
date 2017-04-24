@@ -31,6 +31,7 @@ matrix:
     - env:
         - LABEL="scons SWR"
         - BUILD=scons
+        - SCONSFLAGS="-j4"
         - SCONS_TARGET="swr=1"
         - SCONS_CHECK_COMMAND="true"
         - LLVM_VERSION=3.9
