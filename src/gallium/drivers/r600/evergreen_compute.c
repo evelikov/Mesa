@@ -26,7 +26,6 @@
 
 #include <stdio.h>
 #include <errno.h>
-#include "ac_binary.h"
 #include "pipe/p_defines.h"
 #include "pipe/p_state.h"
 #include "pipe/p_context.h"
@@ -172,65 +171,6 @@ static void evergreen_cs_set_constant_buffer(struct r600_context *rctx,
 	rctx->b.b.set_constant_buffer(&rctx->b.b, PIPE_SHADER_COMPUTE, cb_index, &cb);
 }
 
-/* We need to define these R600 registers here, because we can't include
- * evergreend.h and r600d.h.
- */
-#define R_028868_SQ_PGM_RESOURCES_VS                 0x028868
-#define R_028850_SQ_PGM_RESOURCES_PS                 0x028850
-
-#ifdef HAVE_OPENCL
-
-static void r600_shader_binary_read_config(const struct ac_shader_binary *binary,
-					   struct r600_bytecode *bc,
-					   uint64_t symbol_offset,
-					   boolean *use_kill)
-{
-       unsigned i;
-       const unsigned char *config =
-               ac_shader_binary_config_start(binary, symbol_offset);
-
-       for (i = 0; i < binary->config_size_per_symbol; i+= 8) {
-               unsigned reg =
-                       util_le32_to_cpu(*(uint32_t*)(config + i));
-               unsigned value =
-                       util_le32_to_cpu(*(uint32_t*)(config + i + 4));
-               switch (reg) {
-               /* R600 / R700 */
-               case R_028850_SQ_PGM_RESOURCES_PS:
-               case R_028868_SQ_PGM_RESOURCES_VS:
-               /* Evergreen / Northern Islands */
-               case R_028844_SQ_PGM_RESOURCES_PS:
-               case R_028860_SQ_PGM_RESOURCES_VS:
-               case R_0288D4_SQ_PGM_RESOURCES_LS:
-                       bc->ngpr = MAX2(bc->ngpr, G_028844_NUM_GPRS(value));
-                       bc->nstack = MAX2(bc->nstack, G_028844_STACK_SIZE(value));
-                       break;
-               case R_02880C_DB_SHADER_CONTROL:
-                       *use_kill = G_02880C_KILL_ENABLE(value);
-                       break;
-               case R_0288E8_SQ_LDS_ALLOC:
-                       bc->nlds_dw = value;
-                       break;
-               }
-       }
-}
-
-static unsigned r600_create_shader(struct r600_bytecode *bc,
-				   const struct ac_shader_binary *binary,
-				   boolean *use_kill)
-
-{
-	assert(binary->code_size % 4 == 0);
-	bc->bytecode = CALLOC(1, binary->code_size);
-	memcpy(bc->bytecode, binary->code, binary->code_size);
-	bc->ndw = binary->code_size / 4;
-
-	r600_shader_binary_read_config(binary, bc, 0, use_kill);
-	return 0;
-}
-
-#endif
-
 static void r600_destroy_shader(struct r600_bytecode *bc)
 {
 	FREE(bc->bytecode);
@@ -241,27 +181,6 @@ static void *evergreen_create_compute_state(struct pipe_context *ctx,
 {
 	struct r600_context *rctx = (struct r600_context *)ctx;
 	struct r600_pipe_compute *shader = CALLOC_STRUCT(r600_pipe_compute);
-#ifdef HAVE_OPENCL
-	const struct pipe_llvm_program_header *header;
-	const char *code;
-	void *p;
-	boolean use_kill;
-
-	COMPUTE_DBG(rctx->screen, "*** evergreen_create_compute_state\n");
-	header = cso->prog;
-	code = cso->prog + sizeof(struct pipe_llvm_program_header);
-	radeon_shader_binary_init(&shader->binary);
-	ac_elf_read(code, header->num_bytes, &shader->binary);
-	r600_create_shader(&shader->bc, &shader->binary, &use_kill);
-
-	/* Upload code + ROdata */
-	shader->code_bo = r600_compute_buffer_alloc_vram(rctx->screen,
-							shader->bc.ndw * 4);
-	p = r600_buffer_map_sync_with_rings(&rctx->b, shader->code_bo, PIPE_TRANSFER_WRITE);
-	//TODO: use util_memcpy_cpu_to_le32 ?
-	memcpy(p, shader->bc.bytecode, shader->bc.ndw * 4);
-	rctx->b.ws->buffer_unmap(shader->code_bo->buf);
-#endif
 
 	shader->ctx = rctx;
 	shader->local_size = cso->req_local_mem;
@@ -589,15 +508,6 @@ static void evergreen_launch_grid(struct pipe_context *ctx,
 				  const struct pipe_grid_info *info)
 {
 	struct r600_context *rctx = (struct r600_context *)ctx;
-#ifdef HAVE_OPENCL
-	struct r600_pipe_compute *shader = rctx->cs_shader_state.shader;
-	boolean use_kill;
-
-	rctx->cs_shader_state.pc = info->pc;
-	/* Get the config information for this kernel. */
-	r600_shader_binary_read_config(&shader->binary, &shader->bc,
-                                  info->pc, &use_kill);
-#endif
 
 	COMPUTE_DBG(rctx->screen, "*** evergreen_launch_grid: pc = %u\n", info->pc);
 

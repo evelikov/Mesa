@@ -25,11 +25,6 @@ AM_CFLAGS += \
 
 endif
 
-if HAVE_GALLIUM_COMPUTE
-AM_CFLAGS += \
-	-DHAVE_OPENCL
-endif
-
 EXTRA_DIST = \
 	sb/notes.markdown \
 	sb/sb_bc_fmt_def.inc

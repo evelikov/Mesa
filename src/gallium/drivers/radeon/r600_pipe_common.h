@@ -34,8 +34,6 @@
 
 #include <stdio.h>
 
-#include "amd/common/ac_binary.h"
-
 #include "radeon/radeon_winsys.h"
 
 #include "util/disk_cache.h"
