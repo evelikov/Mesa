@@ -825,23 +825,13 @@ AC_CHECK_FUNC([posix_memalign], [DEFINES="$DEFINES -DHAVE_POSIX_MEMALIGN"])
 dnl Check for zlib
 PKG_CHECK_MODULES([ZLIB], [zlib >= $ZLIB_REQUIRED])
 
-dnl Check for pthreads
-AX_PTHREAD
-if test "x$ax_pthread_ok" = xno; then
-    AC_MSG_ERROR([Building mesa on this platform requires pthreads])
-fi
-dnl AX_PTHREADS leaves PTHREAD_LIBS empty for gcc and sets PTHREAD_CFLAGS
-dnl to -pthread, which causes problems if we need -lpthread to appear in
-dnl pkgconfig files.  Since Android doesn't have a pthread lib, this check
-dnl is not valid for that platform.
-if test "x$android" = xno; then
-    test -z "$PTHREAD_LIBS" && PTHREAD_LIBS="-lpthread"
-fi
 dnl According to the manual when using pthreads, one should add -pthread to
 dnl both compile and link-time arguments.
 dnl In practise that should be sufficient for all platforms, since any
 dnl platforms build with GCC and Clang support the flag.
-PTHREAD_LIBS="$PTHREAD_LIBS -pthread"
+PTHREAD_CFLAGS="-pthread"
+PTHREAD_LIBS="-pthread"
+DEFINES="$DEFINES -DHAVE_PTHREAD"
 
 dnl pthread-stubs is mandatory on BSD platforms, due to the nature of the
 dnl project. Even then there's a notable issue as described in the project README
