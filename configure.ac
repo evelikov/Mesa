@@ -267,11 +267,7 @@ _SAVE_CPPFLAGS="$CPPFLAGS"
 dnl Compiler macros
 DEFINES="-D__STDC_CONSTANT_MACROS -D__STDC_FORMAT_MACROS -D__STDC_LIMIT_MACROS"
 AC_SUBST([DEFINES])
-android=no
 case "$host_os" in
-*-android*)
-    android=yes
-    ;;
 linux*|*-gnu*|gnu*|cygwin*)
     DEFINES="$DEFINES -D_GNU_SOURCE"
     ;;
@@ -279,8 +275,6 @@ solaris*)
     DEFINES="$DEFINES -DSVR4"
     ;;
 esac
-
-AM_CONDITIONAL(HAVE_ANDROID, test "x$android" = xyes)
 
 dnl Add flags for gcc and g++
 if test "x$GCC" = xyes; then
