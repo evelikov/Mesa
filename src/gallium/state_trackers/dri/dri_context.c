@@ -37,6 +37,7 @@
 #include "state_tracker/drm_driver.h"
 
 #include "pipe/p_context.h"
+#include "pipe-loader/pipe_loader.h"
 #include "state_tracker/st_context.h"
 
 GLboolean
@@ -160,7 +161,7 @@ dri_create_context(gl_api api, const struct gl_config * visual,
 
    /* Do this last. */
    if (ctx->st->start_thread &&
-         driQueryOptionb(&screen->optionCache, "mesa_glthread")) {
+         driQueryOptionb(&screen->dev->option_cache, "mesa_glthread")) {
 
       if (backgroundCallable && backgroundCallable->base.version >= 2 &&
             backgroundCallable->isThreadSafe) {
