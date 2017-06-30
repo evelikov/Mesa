@@ -19,11 +19,9 @@
 # FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS
 # IN THE SOFTWARE.
 
-SUBDIRS = xmlpool
-
 include Makefile.sources
 
-EXTRA_DIST = drirc xmlpool.h SConscript
+EXTRA_DIST = SConscript
 
 AM_CFLAGS = \
 	-I$(top_srcdir)/include \
@@ -34,20 +32,12 @@ AM_CFLAGS = \
 	-I$(top_srcdir)/src/gallium/auxiliary \
 	$(LIBDRM_CFLAGS) \
 	$(DEFINES) \
-	-DSYSCONFDIR=\"$(sysconfdir)\" \
 	$(VISIBILITY_CFLAGS)
 
 noinst_LTLIBRARIES = \
 	libdricommon.la \
-	libxmlconfig.la \
 	libmegadriver_stub.la
 
 libdricommon_la_SOURCES = $(DRI_COMMON_FILES)
 
-libxmlconfig_la_SOURCES = $(XMLCONFIG_FILES)
-libxmlconfig_la_CFLAGS = $(AM_CFLAGS) $(EXPAT_CFLAGS)
-libxmlconfig_la_LIBADD = $(EXPAT_LIBS) -lm
-
 libmegadriver_stub_la_SOURCES = $(megadriver_stub_FILES)
-
-sysconf_DATA = drirc

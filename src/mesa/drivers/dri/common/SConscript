@@ -7,7 +7,6 @@ drienv = env.Clone()
 
 drienv.Replace(CPPPATH = [
     '#src/mesa/drivers/dri/common',
-    xmlpool_options.dir.dir, # Dir to generated xmlpool/options.h
     '#include',
     '#include/GL/internal',
     '#src',
@@ -28,11 +27,7 @@ drienv.Replace(CPPPATH = [
     '#src/egl/drivers/dri',
 ])
 
-drienv.AppendUnique(LIBS = [
-    'expat',
-])
-
-sources = drienv.ParseSourceList('Makefile.sources', ['DRI_COMMON_FILES', 'XMLCONFIG_FILES' ])
+sources = drienv.ParseSourceList('Makefile.sources', ['DRI_COMMON_FILES'])
 
 dri_common = drienv.ConvenienceLibrary(
 	target = 'dri_common',
