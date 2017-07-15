@@ -1,4 +1,8 @@
+import common
+
 Import('*')
+
+from sys import executable as python_cmd
 
 env = env.Clone()
 
@@ -11,20 +15,18 @@ env.Prepend(CPPPATH = [
     '#src/mesa',
     '#src/gallium/include',
     '#src/gallium/auxiliary',
+    '#src/compiler/nir',
 ])
 
 # Make generated headers reachable from the include path.
 env.Prepend(CPPPATH = [Dir('.').abspath, Dir('glsl').abspath])
 env.Prepend(CPPPATH = [Dir('.').abspath, Dir('nir').abspath])
 
-sources = env.ParseSourceList('Makefile.sources', 'LIBCOMPILER_FILES')
+# SPIR-V generated sources
 
-compiler = env.ConvenienceLibrary(
-    target = 'compiler',
-    source = sources
+spirv_info_c = env.CodeGenerate(
+    target = 'spirv/spirv_info.c',
+    script = 'spirv/spirv_info_c.py',
+    source = [],
+    command = python_cmd + ' $SCRIPT > $TARGET'
 )
-Export('compiler')
-
-SConscript('SConscript.glsl')
-SConscript('SConscript.spirv')
-SConscript('SConscript.nir')

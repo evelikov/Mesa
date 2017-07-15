@@ -29,6 +29,7 @@ nir_libnir_la_LIBADD = \
 nir_libnir_la_SOURCES =					\
 	$(NIR_FILES)					\
 	$(SPIRV_FILES)					\
+	$(SPIRV_GENERATED_FILES) 			\
 	$(NIR_GENERATED_FILES)
 
 nir/nir_builder_opcodes.h: nir/nir_opcodes.py nir/nir_builder_opcodes_h.py
