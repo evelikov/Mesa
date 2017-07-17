@@ -63,5 +63,3 @@ PYTHON_GEN = $(AM_V_GEN)$(PYTHON2) $(PYTHON_FLAGS)
 include Makefile.glsl.am
 
 include Makefile.nir.am
-
-include Makefile.spirv.am
