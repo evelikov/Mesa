@@ -25,26 +25,18 @@ AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-dri \
 	--enable-dri3 \
 	--enable-egl \
-	--enable-gallium-tests \
-	--enable-gallium-osmesa \
 	--enable-llvm \
 	--enable-gbm \
 	--enable-gles1 \
 	--enable-gles2 \
 	--enable-glx \
 	--enable-glx-tls \
-	--enable-nine \
-	--enable-opencl \
 	--enable-opengl \
 	--enable-va \
-	--enable-vdpau \
-	--enable-xa \
-	--enable-xvmc \
-	--enable-llvm-shared-libs \
 	--with-platforms=x11,wayland,drm,surfaceless \
-	--with-dri-drivers=i915,i965,nouveau,radeon,r200,swrast \
-	--with-gallium-drivers=i915,nouveau,r300,pl111,r600,radeonsi,freedreno,svga,swrast,vc4,virgl,swr,etnaviv,imx \
-	--with-vulkan-drivers=intel,radeon
+	--with-dri-drivers=i915 \
+	--without-gallium-drivers \
+	--without-vulkan-drivers
 
 ACLOCAL_AMFLAGS = -I m4
 
