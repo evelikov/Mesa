@@ -184,7 +184,6 @@ struct dri2_egl_display
    int                       ref_count;
 
    bool                      own_device;
-   bool                      invalidate_available;
    int                       min_swap_interval;
    int                       max_swap_interval;
    int                       default_swap_interval;
@@ -200,7 +199,6 @@ struct dri2_egl_display
 #ifdef HAVE_X11_PLATFORM
    xcb_connection_t         *conn;
    xcb_screen_t             *screen;
-   bool                     swap_available;
 #ifdef HAVE_DRI3
    struct loader_dri3_extensions loader_dri3_ext;
 #endif

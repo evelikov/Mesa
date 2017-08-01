@@ -859,7 +859,7 @@ dri2_x11_swap_buffers_msc(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *draw,
    if (draw->Type == EGL_PIXMAP_BIT || draw->Type == EGL_PBUFFER_BIT)
       return 0;
 
-   if (draw->SwapBehavior == EGL_BUFFER_PRESERVED || !dri2_dpy->swap_available)
+   if (draw->SwapBehavior == EGL_BUFFER_PRESERVED)
       return dri2_copy_region(drv, disp, draw, dri2_surf->region) ? 0 : -1;
 
    dri2_flush_drawable_for_swapbuffers(disp, draw);
@@ -956,8 +956,7 @@ dri2_x11_swap_interval(_EGLDriver *drv, _EGLDisplay *disp, _EGLSurface *surf,
    struct dri2_egl_display *dri2_dpy = dri2_egl_display(disp);
    struct dri2_egl_surface *dri2_surf = dri2_egl_surface(surf);
 
-   if (dri2_dpy->swap_available)
-      xcb_dri2_swap_interval(dri2_dpy->conn, dri2_surf->drawable, interval);
+   xcb_dri2_swap_interval(dri2_dpy->conn, dri2_surf->drawable, interval);
 
    return EGL_TRUE;
 }
@@ -1271,9 +1270,6 @@ dri2_x11_setup_swap_interval(struct dri2_egl_display *dri2_dpy)
    dri2_dpy->min_swap_interval = 0;
    dri2_dpy->max_swap_interval = 0;
 
-   if (!dri2_dpy->swap_available)
-      return;
-
    /* If we do have swapbuffers, then we can support pretty much any swap
     * interval, but we allow driconf to override applications.
     */
@@ -1335,9 +1331,6 @@ dri2_initialize_x11_dri3(_EGLDriver *drv, _EGLDisplay *disp)
       goto cleanup;
 
    dri2_dpy->loader_extensions = dri3_image_loader_extensions;
-
-   dri2_dpy->swap_available = true;
-   dri2_dpy->invalidate_available = true;
 
    if (!dri2_create_screen(disp))
       goto cleanup;
@@ -1418,9 +1411,6 @@ dri2_initialize_x11_dri2(_EGLDriver *drv, _EGLDisplay *disp)
       goto cleanup;
 
    dri2_dpy->loader_extensions = dri2_loader_extensions;
-
-   dri2_dpy->swap_available = true;
-   dri2_dpy->invalidate_available = true;
 
    if (!dri2_create_screen(disp))
       goto cleanup;
