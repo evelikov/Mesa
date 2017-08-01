@@ -1000,6 +1000,9 @@ _eglCreatePixmapSurfaceCommon(_EGLDisplay *disp, EGLConfig config,
    _EGLSurface *surf;
    EGLSurface ret;
 
+   if (native_pixmap == NULL)
+      RETURN_EGL_ERROR(disp, EGL_BAD_NATIVE_PIXMAP, EGL_NO_SURFACE);
+
 #if HAVE_SURFACELESS_PLATFORM
    if (disp && disp->Platform == _EGL_PLATFORM_SURFACELESS) {
       /* From the EGL_MESA_platform_surfaceless spec (v1):
