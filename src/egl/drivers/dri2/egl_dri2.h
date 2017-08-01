@@ -450,4 +450,20 @@ dri2_set_WL_bind_wayland_display(_EGLDriver *drv, _EGLDisplay *disp)
 void
 dri2_display_destroy(_EGLDisplay *disp);
 
+
+static inline __DRIimage *
+dri2_create_dri_image(struct dri2_egl_surface *dri2_surf, int format,
+                         unsigned int use)
+{
+   struct dri2_egl_display *dri2_dpy =
+      dri2_egl_display(dri2_surf->base.Resource.Display);
+
+   return dri2_dpy->image->createImage(dri2_dpy->dri_screen,
+                                       dri2_surf->base.Width,
+                                       dri2_surf->base.Height,
+                                       format,
+                                       use,
+                                       dri2_surf);
+}
+
 #endif /* EGL_DRI2_INCLUDED */

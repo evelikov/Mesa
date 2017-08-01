@@ -426,13 +426,8 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
                                                       NULL);
       } else {
          dri2_surf->back->linear_copy =
-            dri2_dpy->image->createImage(dri2_dpy->dri_screen,
-                                         dri2_surf->base.Width,
-                                         dri2_surf->base.Height,
-                                         dri_image_format,
-                                         use_flags |
-                                         __DRI_IMAGE_USE_LINEAR,
-                                         NULL);
+            dri2_create_dri_image(dri2_surf, dri_image_format,
+                                  use_flags | __DRI_IMAGE_USE_LINEAR);
       }
       if (dri2_surf->back->linear_copy == NULL)
           return -1;
@@ -455,13 +450,8 @@ get_back_bo(struct dri2_egl_surface *dri2_surf)
                                                      NULL);
       } else {
          dri2_surf->back->dri_image =
-            dri2_dpy->image->createImage(dri2_dpy->dri_screen,
-                                         dri2_surf->base.Width,
-                                         dri2_surf->base.Height,
-                                         dri_image_format,
-                                         dri2_dpy->is_different_gpu ?
-                                              0 : use_flags,
-                                         NULL);
+            dri2_create_dri_image(dri2_surf, dri_image_format,
+                                  dri2_dpy->is_different_gpu ? 0 : use_flags);
       }
 
       dri2_surf->back->age = 0;

@@ -458,9 +458,6 @@ update_buffers(struct dri2_egl_surface *dri2_surf)
 static int
 get_front_bo(struct dri2_egl_surface *dri2_surf, unsigned int format)
 {
-   struct dri2_egl_display *dri2_dpy =
-      dri2_egl_display(dri2_surf->base.Resource.Display);
-
    if (dri2_surf->dri_image_front)
       return 0;
 
@@ -472,13 +469,7 @@ get_front_bo(struct dri2_egl_surface *dri2_surf, unsigned int format)
        */
       _eglLog(_EGL_DEBUG, "DRI driver requested unsupported front buffer for window surface");
    } else if (dri2_surf->base.Type == EGL_PBUFFER_BIT) {
-      dri2_surf->dri_image_front =
-          dri2_dpy->image->createImage(dri2_dpy->dri_screen,
-                                              dri2_surf->base.Width,
-                                              dri2_surf->base.Height,
-                                              format,
-                                              0,
-                                              dri2_surf);
+      dri2_surf->dri_image_front = dri2_create_dri_image(dri2_surf, format, 0);
       if (!dri2_surf->dri_image_front) {
          _eglLog(_EGL_WARNING, "dri2_image_front allocation failed");
          return -1;
