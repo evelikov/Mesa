@@ -652,13 +652,12 @@ dri2_x11_connect(struct dri2_egl_display *dri2_dpy)
 
    dri2_query =
       xcb_dri2_query_version_reply (dri2_dpy->conn, dri2_query_cookie, &error);
-   if (dri2_query == NULL || error != NULL) {
+   if (dri2_query == NULL || error != NULL || dri2_query->minor_version < 3) {
       _eglLog(_EGL_WARNING, "DRI2: failed to query version");
       free(error);
+      free(dri2_query);
       return EGL_FALSE;
    }
-   dri2_dpy->dri2_major = dri2_query->major_version;
-   dri2_dpy->dri2_minor = dri2_query->minor_version;
    free(dri2_query);
 
    connect = xcb_dri2_connect_reply (dri2_dpy->conn, connect_cookie, NULL);
@@ -1382,27 +1381,12 @@ dri2_initialize_x11_dri3(_EGLDriver *drv, _EGLDisplay *disp)
 }
 #endif
 
-static const __DRIdri2LoaderExtension dri2_loader_extension_old = {
-   .base = { __DRI_DRI2_LOADER, 2 },
-
-   .getBuffers           = dri2_x11_get_buffers,
-   .flushFrontBuffer     = dri2_x11_flush_front_buffer,
-   .getBuffersWithFormat = NULL,
-};
-
 static const __DRIdri2LoaderExtension dri2_loader_extension = {
    .base = { __DRI_DRI2_LOADER, 3 },
 
    .getBuffers           = dri2_x11_get_buffers,
    .flushFrontBuffer     = dri2_x11_flush_front_buffer,
    .getBuffersWithFormat = dri2_x11_get_buffers_with_format,
-};
-
-static const __DRIextension *dri2_loader_extensions_old[] = {
-   &dri2_loader_extension_old.base,
-   &image_lookup_extension.base,
-   &background_callable_extension.base,
-   NULL,
 };
 
 static const __DRIextension *dri2_loader_extensions[] = {
@@ -1432,13 +1416,10 @@ dri2_initialize_x11_dri2(_EGLDriver *drv, _EGLDisplay *disp)
    if (!dri2_load_driver(disp))
       goto cleanup;
 
-   if (dri2_dpy->dri2_minor >= 1)
-      dri2_dpy->loader_extensions = dri2_loader_extensions;
-   else
-      dri2_dpy->loader_extensions = dri2_loader_extensions_old;
+   dri2_dpy->loader_extensions = dri2_loader_extensions;
 
-   dri2_dpy->swap_available = (dri2_dpy->dri2_minor >= 2);
-   dri2_dpy->invalidate_available = (dri2_dpy->dri2_minor >= 3);
+   dri2_dpy->swap_available = true;
+   dri2_dpy->invalidate_available = true;
 
    if (!dri2_create_screen(disp))
       goto cleanup;
