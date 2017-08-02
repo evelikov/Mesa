@@ -75,16 +75,16 @@ wl_buffer_release(void *data, struct wl_buffer *buffer)
    struct dri2_egl_surface *dri2_surf = data;
    int i;
 
-   for (i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); ++i)
-      if (dri2_surf->color_buffers[i].wl_buffer == buffer)
-         break;
-
-   if (i == ARRAY_SIZE(dri2_surf->color_buffers)) {
-      wl_buffer_destroy(buffer);
-      return;
+   /* Unlock the buffer if it's in our color_buffers[] list. It will be
+    * destroyed at a later stage. */
+   for (i = 0; i < ARRAY_SIZE(dri2_surf->color_buffers); ++i) {
+      if (dri2_surf->color_buffers[i].wl_buffer == buffer) {
+         dri2_surf->color_buffers[i].locked = false;
+         return;
+      }
    }
 
-   dri2_surf->color_buffers[i].locked = false;
+   wl_buffer_destroy(buffer);
 }
 
 static const struct wl_buffer_listener wl_buffer_listener = {
