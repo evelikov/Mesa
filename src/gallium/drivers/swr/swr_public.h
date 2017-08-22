@@ -36,7 +36,7 @@ extern "C" {
 struct pipe_screen *swr_create_screen(struct sw_winsys *winsys);
 
 // arch-specific dll entry point
-PUBLIC struct pipe_screen *swr_create_screen_internal(struct sw_winsys *winsys);
+struct pipe_screen *swr_create_screen_internal(struct sw_winsys *winsys);
 
 #ifdef _WIN32
 void swr_gdi_swap(struct pipe_screen *screen,
