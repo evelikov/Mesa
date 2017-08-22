@@ -37,7 +37,7 @@ $(intermediates)/dummy.c:
 	$(hide) touch $@
 
 # This is the list of auto-generated files headers
-LOCAL_GENERATED_SOURCES += $(addprefix $(intermediates)/broadcom/, $(BROADCOM_GENXML_GENERATED_FILES))
+LOCAL_GENERATED_SOURCES += $(addprefix $(intermediates)/, $(BROADCOM_GENXML_GENERATED_FILES))
 
 define header-gen
 	@mkdir -p $(dir $@)
@@ -45,24 +45,23 @@ define header-gen
 	$(hide) $(PRIVATE_SCRIPT) $(PRIVATE_SCRIPT_FLAGS) $(PRIVATE_XML) > $@
 endef
 
-$(intermediates)/broadcom/cle/v3d_packet_v21_pack.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/cle/gen_pack_header.py
-$(intermediates)/broadcom/cle/v3d_packet_v21_pack.h: PRIVATE_XML := $(LOCAL_PATH)/cle/v3d_packet_v21.xml
-$(intermediates)/broadcom/cle/v3d_packet_v21_pack.h: $(LOCAL_PATH)/cle/v3d_packet_v21.xml $(LOCAL_PATH)/cle/gen_pack_header.py
+$(intermediates)/cle/v3d_packet_v21_pack.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/cle/gen_pack_header.py
+$(intermediates)/cle/v3d_packet_v21_pack.h: PRIVATE_XML := $(LOCAL_PATH)/cle/v3d_packet_v21.xml
+$(intermediates)/cle/v3d_packet_v21_pack.h: $(LOCAL_PATH)/cle/v3d_packet_v21.xml $(LOCAL_PATH)/cle/gen_pack_header.py
 	$(call header-gen)
 
-$(intermediates)/broadcom/cle/v3d_packet_v33_pack.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/cle/gen_pack_header.py
-$(intermediates)/broadcom/cle/v3d_packet_v33_pack.h: PRIVATE_XML := $(LOCAL_PATH)/cle/v3d_packet_v33.xml
-$(intermediates)/broadcom/cle/v3d_packet_v33_pack.h: $(LOCAL_PATH)/cle/v3d_packet_v33.xml $(LOCAL_PATH)/cle/gen_pack_header.py
+$(intermediates)/cle/v3d_packet_v33_pack.h: PRIVATE_SCRIPT := $(MESA_PYTHON2) $(LOCAL_PATH)/cle/gen_pack_header.py
+$(intermediates)/cle/v3d_packet_v33_pack.h: PRIVATE_XML := $(LOCAL_PATH)/cle/v3d_packet_v33.xml
+$(intermediates)/cle/v3d_packet_v33_pack.h: $(LOCAL_PATH)/cle/v3d_packet_v33.xml $(LOCAL_PATH)/cle/gen_pack_header.py
 	$(call header-gen)
 
-$(intermediates)/broadcom/cle/v3d_xml.h: $(addprefix $(MESA_TOP)/src/broadcom/,$(BROADCOM_GENXML_XML_FILES)) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py
+$(intermediates)/cle/v3d_xml.h: $(addprefix $(MESA_TOP)/src/broadcom/,$(BROADCOM_GENXML_XML_FILES)) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py
 	@mkdir -p $(dir $@)
 	@echo "Gen Header: $(PRIVATE_MODULE) <= $(notdir $(@))"
 	$(hide) $(MESA_PYTHON2) $(MESA_TOP)/src/intel/genxml/gen_zipped_file.py $(addprefix $(MESA_TOP)/src/broadcom/,$(BROADCOM_GENXML_XML_FILES)) > $@ || (rm -f $@; false)
 
 LOCAL_EXPORT_C_INCLUDE_DIRS := \
 	$(MESA_TOP)/src/broadcom/cle \
-	$(intermediates)/broadcom/cle \
 	$(intermediates)
 
 include $(MESA_COMMON_MK)
