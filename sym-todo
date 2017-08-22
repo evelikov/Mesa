@@ -17,3 +17,6 @@ promote drv/winsys to generic -> kill others
 
 
 vc4 is broken ....
+
+
+kill the winsys symbols - ilia to test vdpau? someone for xinerama?
