@@ -7,10 +7,7 @@
 #include "sw/null/null_sw_winsys.h"
 #include "sw/wrapper/wrapper_sw_winsys.h"
 
-PUBLIC struct pipe_screen *
-swrast_create_screen(struct sw_winsys *ws);
-
-struct pipe_screen *
+static struct pipe_screen *
 swrast_create_screen(struct sw_winsys *ws)
 {
    struct pipe_screen *screen;

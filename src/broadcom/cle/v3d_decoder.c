@@ -36,7 +36,7 @@
 
 #include "v3d_decoder.h"
 #include "v3d_packet_helpers.h"
-#include "broadcom/cle/v3d_xml.h"
+#include "v3d_xml.h"
 
 struct v3d_spec {
         uint32_t ver;
