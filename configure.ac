@@ -624,7 +624,7 @@ dnl Check if linker supports version scripts
 dnl
 AC_MSG_CHECKING([if the linker supports version-scripts])
 save_LDFLAGS=$LDFLAGS
-LDFLAGS="$LDFLAGS -Wl,--version-script=conftest.map"
+LDFLAGS="$LDFLAGS -Wl,--version22-script=conftest.map"
 cat > conftest.map <<EOF
 VERSION_1 {
      global:
