@@ -20,3 +20,5 @@ vc4 is broken ....
 
 
 kill the winsys symbols - ilia to test vdpau? someone for xinerama?
+
+check - xa opencl (with and w/o lloader) deprecate w/o loalder?
