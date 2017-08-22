@@ -1,0 +1,19 @@
+wl generated symbols (egl, gbm, vulkan) - depends on wayland-scanner, can workaround locally - see libva
+wl - overlinking what is client and what is server
+
+egl 1.5 symbols - ABI/API - Chad, Marek
+test we don't break the OpenGL interop again - Marek
+
+wayland-egl -> move the backend ABI to wayland
+
+i965 -> the compiler move - test
+general tests -> check all symbols (_/__ as well?) alike libdrm
+
+
+promote visib to generic cflags - drop elsewhere
+move the srcdir/inc to svga -> kill the custom one
+promote drv/winsys to generic -> kill others
+
+
+
+vc4 is broken ....
