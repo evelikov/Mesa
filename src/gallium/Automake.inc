@@ -10,7 +10,6 @@ GALLIUM_CFLAGS = \
 # different directories, and which one is included by the
 # preprocessor is determined by the ordering of the -I flags.
 GALLIUM_DRIVER_CFLAGS = \
-	-I$(srcdir)/include \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/src/gallium/include \
@@ -21,7 +20,6 @@ GALLIUM_DRIVER_CFLAGS = \
 	$(VISIBILITY_CFLAGS)
 
 GALLIUM_DRIVER_CXXFLAGS = \
-	-I$(srcdir)/include \
 	-I$(top_srcdir)/src \
 	-I$(top_srcdir)/include \
 	-I$(top_srcdir)/src/gallium/include \

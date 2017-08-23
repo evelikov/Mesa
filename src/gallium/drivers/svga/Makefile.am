@@ -24,6 +24,7 @@ include Makefile.sources
 include $(top_srcdir)/src/gallium/Automake.inc
 
 AM_CPPFLAGS = \
+	-I$(srcdir)/include \
 	-I$(top_builddir)/src
 
 AM_CFLAGS = \
