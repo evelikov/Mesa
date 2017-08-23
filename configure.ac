@@ -301,6 +301,7 @@ AX_CHECK_COMPILE_FLAG([-Wall],                                 [CXXFLAGS="$CXXFL
 AX_CHECK_COMPILE_FLAG([-fno-math-errno],                       [CXXFLAGS="$CXXFLAGS -fno-math-errno"])
 AX_CHECK_COMPILE_FLAG([-fno-trapping-math],                    [CXXFLAGS="$CXXFLAGS -fno-trapping-math"])
 AX_CHECK_COMPILE_FLAG([-fvisibility=hidden],                   [VISIBILITY_CXXFLAGS="-fvisibility=hidden"])
+AX_CHECK_COMPILE_FLAG([-fvisibility-inlines-hidden],           [VISIBILITY_CXXFLAGS="-fvisibility-inlines-hidden"])
 AC_LANG_POP([C++])
 
 # Flags to help ensure that certain portions of the code -- and only those
