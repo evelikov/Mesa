@@ -2,7 +2,7 @@ wl generated symbols (egl, gbm, vulkan) - depends on wayland-scanner, can workar
 wl - overlinking what is client and what is server
 
 egl 1.5 symbols - ABI/API - Chad, Marek
-test we don't break the OpenGL interop again - Marek
+tests we don't break the OpenGL interop again - egl, glx, opencl Marek
 
 wayland-egl -> move the backend ABI to wayland
 
@@ -21,9 +21,7 @@ vc4 is broken ....
 
 kill the winsys symbols - ilia to test vdpau? someone for xinerama?
 
-check - xa opencl (with and w/o lloader) deprecate w/o loalder?
-
-
+opencl ok - deprecate w/o loader - only gentoo doesn't do so (yet it has ocl_icd), fedora, debian, suse, arch are fine
 
 0000000000015be0 T _glapi_add_dispatch
 0000000000015ba0 T _glapi_check_multithread
