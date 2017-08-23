@@ -418,7 +418,7 @@ eglGetPlatformDisplayEXT(EGLenum platform, void *native_display,
    return _eglGetPlatformDisplayCommon(platform, native_display, attrib_list);
 }
 
-EGLDisplay EGLAPIENTRY
+static EGLDisplay EGLAPIENTRY
 eglGetPlatformDisplay(EGLenum platform, void *native_display,
                       const EGLAttrib *attrib_list)
 {
@@ -951,7 +951,7 @@ eglCreatePlatformWindowSurfaceEXT(EGLDisplay dpy, EGLConfig config,
 }
 
 
-EGLSurface EGLAPIENTRY
+static EGLSurface EGLAPIENTRY
 eglCreatePlatformWindowSurface(EGLDisplay dpy, EGLConfig config,
                                void *native_window,
                                const EGLAttrib *attrib_list)
@@ -1057,7 +1057,7 @@ eglCreatePlatformPixmapSurfaceEXT(EGLDisplay dpy, EGLConfig config,
 }
 
 
-EGLSurface EGLAPIENTRY
+static EGLSurface EGLAPIENTRY
 eglCreatePlatformPixmapSurface(EGLDisplay dpy, EGLConfig config,
                                void *native_pixmap,
                                const EGLAttrib *attrib_list)
@@ -1678,7 +1678,7 @@ eglCreateImageKHR(EGLDisplay dpy, EGLContext ctx, EGLenum target,
 }
 
 
-EGLImage EGLAPIENTRY
+static EGLImage EGLAPIENTRY
 eglCreateImage(EGLDisplay dpy, EGLContext ctx, EGLenum target,
                EGLClientBuffer buffer, const EGLAttrib *attr_list)
 {
@@ -1716,7 +1716,7 @@ _eglDestroyImageCommon(_EGLDisplay *disp, _EGLImage *img)
    RETURN_EGL_EVAL(disp, ret);
 }
 
-EGLBoolean EGLAPIENTRY
+static EGLBoolean EGLAPIENTRY
 eglDestroyImage(EGLDisplay dpy, EGLImage image)
 {
    _EGLDisplay *disp = _eglLockDisplay(dpy);
@@ -1840,7 +1840,7 @@ eglCreateSync64KHR(EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list)
 }
 
 
-EGLSync EGLAPIENTRY
+static EGLSync EGLAPIENTRY
 eglCreateSync(EGLDisplay dpy, EGLenum type, const EGLAttrib *attrib_list)
 {
    _EGLDisplay *disp = _eglLockDisplay(dpy);
@@ -1867,7 +1867,7 @@ _eglDestroySync(_EGLDisplay *disp, _EGLSync *s)
    RETURN_EGL_EVAL(disp, ret);
 }
 
-EGLBoolean EGLAPIENTRY
+static EGLBoolean EGLAPIENTRY
 eglDestroySync(EGLDisplay dpy, EGLSync sync)
 {
    _EGLDisplay *disp = _eglLockDisplay(dpy);
@@ -1921,7 +1921,7 @@ _eglClientWaitSyncCommon(_EGLDisplay *disp, EGLDisplay dpy,
       RETURN_EGL_EVAL(disp, ret);
 }
 
-EGLint EGLAPIENTRY
+static EGLint EGLAPIENTRY
 eglClientWaitSync(EGLDisplay dpy, EGLSync sync,
                   EGLint flags, EGLTime timeout)
 {
@@ -1975,7 +1975,7 @@ eglWaitSyncKHR(EGLDisplay dpy, EGLSync sync, EGLint flags)
 }
 
 
-EGLBoolean EGLAPIENTRY
+static EGLBoolean EGLAPIENTRY
 eglWaitSync(EGLDisplay dpy, EGLSync sync, EGLint flags)
 {
    /* The KHR version returns EGLint, while the core version returns
@@ -2022,7 +2022,7 @@ _eglGetSyncAttribCommon(_EGLDisplay *disp, _EGLSync *s, EGLint attribute, EGLAtt
    RETURN_EGL_EVAL(disp, ret);
 }
 
-EGLBoolean EGLAPIENTRY
+static EGLBoolean EGLAPIENTRY
 eglGetSyncAttrib(EGLDisplay dpy, EGLSync sync, EGLint attribute, EGLAttrib *value)
 {
    _EGLDisplay *disp = _eglLockDisplay(dpy);
