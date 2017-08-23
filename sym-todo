@@ -22,3 +22,25 @@ vc4 is broken ....
 kill the winsys symbols - ilia to test vdpau? someone for xinerama?
 
 check - xa opencl (with and w/o lloader) deprecate w/o loalder?
+
+
+
+0000000000015be0 T _glapi_add_dispatch
+0000000000015ba0 T _glapi_check_multithread
+0000000000230950 B _glapi_Context
+0000000000230948 B _glapi_Dispatch
+00000000000162c0 T _glapi_get_context
+0000000000016300 T _glapi_get_dispatch
+0000000000015bd0 T _glapi_get_dispatch_table_size
+0000000000015df0 T _glapi_get_proc_address
+0000000000015e50 T _glapi_get_proc_name
+0000000000015d90 T _glapi_get_proc_offset
+0000000000015e80 T _glapi_new_nop_table
+0000000000015ee0 T _glapi_noop_enable_warnings
+0000000000015bb0 T _glapi_set_context
+0000000000015bc0 T _glapi_set_dispatch
+0000000000015ec0 T _glapi_set_nop_handler
+0000000000015ef0 T _glapi_set_warning_func
+0000000000000008 B _glapi_tls_Context
+0000000000000000 D _glapi_tls_Dispatch
+0000000000015ed0 T _glthread_GetID
