@@ -344,8 +344,8 @@ if test "x$GXX" = xyes; then
 
     # Enable -fvisibility=hidden if using a gcc that supports it
     save_CXXFLAGS="$CXXFLAGS"
-    AC_MSG_CHECKING([whether $CXX supports -fvisibility=hidden])
-    VISIBILITY_CXXFLAGS="-fvisibility=hidden"
+    AC_MSG_CHECKING([whether $CXX supports -fvisibility=hidden -fvisibility-inlines-hidden])
+    VISIBILITY_CXXFLAGS="-fvisibility=hidden -fvisibility-inlines-hidden"
     CXXFLAGS="$CXXFLAGS $VISIBILITY_CXXFLAGS"
     AC_LANG_PUSH([C++])
     AC_LINK_IFELSE([AC_LANG_PROGRAM()], AC_MSG_RESULT([yes]),
