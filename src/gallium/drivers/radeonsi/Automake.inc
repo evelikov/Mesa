@@ -1,7 +1,11 @@
 if HAVE_GALLIUM_RADEONSI
 
 TARGET_DRIVERS += radeonsi
-TARGET_CPPFLAGS += -DGALLIUM_RADEONSI
+TARGET_CPPFLAGS += \
+	-DGALLIUM_RADEONSI \
+	-I$(top_builddir)/src/util/ \
+	-I$(top_builddir)/src/gallium/drivers/
+
 TARGET_LIB_DEPS += \
 	$(top_builddir)/src/gallium/drivers/radeonsi/libradeonsi.la \
 	$(RADEON_LIBS) \
