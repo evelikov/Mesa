@@ -1,7 +1,6 @@
 wl generated symbols (egl, gbm, vulkan) - depends on wayland-scanner, can workaround locally - see libva
 wl - overlinking what is client and what is server
 
-egl 1.5 symbols - ABI/API - Chad, Marek
 tests we don't break the OpenGL interop again - egl, glx, opencl Marek
 
 wayland-egl -> move the backend ABI to wayland
@@ -42,3 +41,6 @@ opencl ok - deprecate w/o loader - only gentoo doesn't do so (yet it has ocl_icd
 0000000000000008 B _glapi_tls_Context
 0000000000000000 D _glapi_tls_Dispatch
 0000000000015ed0 T _glthread_GetID
+
+
+wip inverse check - ???/drm/amdgpu
