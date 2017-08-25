@@ -428,6 +428,11 @@ const __DRIconfig *
 dri2_get_dri_config(struct dri2_egl_config *conf, EGLint surface_type,
                     EGLenum colorspace);
 
+/* XXX: WL_bind_wayland_display is only useful/applicable for wl_drm.
+ * Can/should we consider deprecating it as we iron most issues in wl_dmabuf?
+ * How about wl_drm overall - this will allow us to remove a lot of icky code.
+ * Search for server_drm, driver_name and authenticate.
+ */
 static inline void
 dri2_set_WL_bind_wayland_display(_EGLDriver *drv, _EGLDisplay *disp)
 {
