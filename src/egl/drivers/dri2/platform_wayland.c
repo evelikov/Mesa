@@ -925,6 +925,10 @@ dri2_wl_create_wayland_buffer_from_image(_EGLDriver *drv,
       if (!(dri2_dpy->formats & HAS_XRGB8888))
          goto bad_format;
       break;
+   case __DRI_IMAGE_FORMAT_RGB565:
+      if (!(dri2_dpy->formats & HAS_RGB565))
+         goto bad_format;
+      break;
    default:
       goto bad_format;
    }
