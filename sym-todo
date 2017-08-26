@@ -44,3 +44,44 @@ opencl ok - deprecate w/o loader - only gentoo doesn't do so (yet it has ocl_icd
 
 
 wip inverse check - ???/drm/amdgpu
+
+
+# SYSTEM_FUNCS is a list of C runtime/platform specific symbols.
+cat <<EOF > SYSTEM_FUNCS
+__bss_start
+...
+EOF
+
+# ABI_FUNCS should always be present. The list may be expanded but no entries can be removed or altered.
+cat <<EOF > ABI_FUNCS
+amdgpu_bo_alloc
+amdgpu_bo_alloc2
+...
+EOF
+
+# FUNCS=$(nm -D --format=bsd --defined-only ${1-.libs/libdrm_amdgpu.so} | awk '{print $3}') | while read func; do
+# ( grep -q "^$func$" `cat $ABI_FUNCS` || echo $func )
+# done)
+# 
+# test ! -n "$FUNCS" || echo $FUNCS
+# test ! -n "$FUNCS"
+
+AVAIL_FUNCS=$(nm -D --format=bsd --defined-only ${1-.libs/libdrm_amdgpu.so} | awk '{print $3}')
+#FUNCS=$(IFS=' '; echo $AVAIL_FUNCS | while read func; do
+save_IFS=$IFS; IFS=' '; echo $AVAIL_FUNCS | while read func; do
+    # extra symbol?
+    echo func1 - $func
+    grep -q "^$func$" SYSTEM_FUNCS ABI_FUNCS || echo $func - unknown new symbol
+    # missing symbol?
+    IFS=$save_IFS
+    for s in `cat ABI_FUNCS`; do
+        echo ssss - $s
+        echo func - $func
+        test "^$s$" = "^$func$" || continue
+        echo $s - ABI broke, missing symbol
+    done
+done
+
+#test ! -n "$FUNCS" || echo $FUNCS
+#test ! -n "$FUNCS"
+
