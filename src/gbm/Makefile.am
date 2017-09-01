@@ -32,7 +32,7 @@ libgbm_la_LIBADD = \
 
 if HAVE_PLATFORM_WAYLAND
 AM_CFLAGS += $(WAYLAND_SERVER_CFLAGS)
-libgbm_la_LIBADD += $(top_builddir)/src/egl/wayland/wayland-drm/libwayland-drm.la $(WAYLAND_SERVER_LIBS)
+libgbm_la_LIBADD += $(WAYLAND_SERVER_LIBS)
 endif
 
 if HAVE_DRI2

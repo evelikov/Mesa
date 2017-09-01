@@ -29,7 +29,6 @@ files_gbm = files(
 )
 deps_gbm = []
 args_gbm = []
-links_gbm = []
 deps_gbm = []
 
 if with_dri2
@@ -39,7 +38,6 @@ if with_dri2
 endif
 if with_platform_wayland
   deps_gbm += dep_wayland_server
-  links_gbm += libwayland_drm
 endif
 
 # TODO: wayland support (requires egl)
@@ -52,7 +50,7 @@ libgbm = shared_library(
     include_directories('../egl/wayland/wayland-drm')],
   c_args : args_gbm,
   link_args : [ld_args_gc_sections],
-  link_with : [links_gbm, libloader, libmesa_util, libxmlconfig],
+  link_with : [libloader, libmesa_util, libxmlconfig],
   dependencies : [deps_gbm, dep_dl],
   version : '1.0',
   install : true,
