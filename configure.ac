@@ -2684,18 +2684,27 @@ if test "x$enable_llvm" = xyes; then
     dnl this was causing the same libraries to be appear multiple times
     dnl in LLVM_LIBS.
 
-    LLVM_LIBS="`$LLVM_CONFIG --libs ${LLVM_COMPONENTS}`"
-
-    if test "x$enable_llvm_shared_libs" = xyes; then
-        if test $LLVM_VERSION_MAJOR -lt 4 -o "`$LLVM_CONFIG --shared-mode ${LLVM_COMPONENTS}`" = static; then
-            detect_old_buggy_llvm
+    if test $LLVM_VERSION_MAJOR -ge 4 -o $LLVM_VERSION_MAJOR -eq 3 -a $LLVM_VERSION_MINOR -ge 9; then
+        if test "x$enable_llvm_shared_libs" = xyes; then
+            LLVM_LIBS="`$LLVM_CONFIG --link-shared --libs ${LLVM_COMPONENTS}`"
+        else
+            LLVM_LIBS="`$LLVM_CONFIG --link-static --libs ${LLVM_COMPONENTS} --system-libs`"
+            dnl llvm-config lists the system libs on a separate line. While
+            dnl invoking --system-libs without --link-static assumes shared link.
+            dnl Everybody now, say - Thank you LLVM developers
+            LLVM_LIBS="`echo $LLVM_LIBS | $SED 's/\n//g'`"
         fi
     else
-        AC_MSG_WARN([Building mesa with statically linked LLVM may cause compilation issues])
-        dnl We need to link to llvm system libs when using static libs
-        dnl However, only llvm 3.5+ provides --system-libs
-        if test $LLVM_VERSION_MAJOR -ge 4 -o $LLVM_VERSION_MAJOR -eq 3 -a $LLVM_VERSION_MINOR -ge 5; then
-            LLVM_LIBS="$LLVM_LIBS `$LLVM_CONFIG --system-libs`"
+        LLVM_LIBS="`$LLVM_CONFIG --libs ${LLVM_COMPONENTS}`"
+        if test "x$enable_llvm_shared_libs" = xyes; then
+            detect_old_buggy_llvm
+        else
+            AC_MSG_WARN([Building mesa with statically linked LLVM may cause compilation issues])
+            dnl We need to link to llvm system libs when using static libs
+            dnl However, only llvm 3.5+ provides --system-libs
+            if test $LLVM_VERSION_MAJOR -ge 4 -o $LLVM_VERSION_MAJOR -eq 3 -a $LLVM_VERSION_MINOR -ge 5; then
+                LLVM_LIBS="$LLVM_LIBS `$LLVM_CONFIG --system-libs`"
+            fi
         fi
     fi
 fi
