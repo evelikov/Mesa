@@ -917,9 +917,9 @@ dnl LLVM
 dnl
 AC_ARG_ENABLE([llvm-shared-libs],
     [AS_HELP_STRING([--enable-llvm-shared-libs],
-        [link with LLVM shared libraries @<:@default=enabled@:>@])],
+        [link with LLVM shared libraries @<:@default=disabled@:>@])],
     [enable_llvm_shared_libs="$enableval"],
-    [enable_llvm_shared_libs=yes])
+    [enable_llvm_shared_libs=no])
 
 AC_ARG_WITH([llvm-prefix],
     [AS_HELP_STRING([--with-llvm-prefix],

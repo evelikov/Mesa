@@ -40,7 +40,7 @@ AM_DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-vdpau \
 	--enable-xa \
 	--enable-xvmc \
-	--enable-llvm-shared-libs \
+	--disable-llvm-shared-libs \
 	--enable-libunwind \
 	--with-platforms=x11,wayland,drm,surfaceless \
 	--with-dri-drivers=i915,i965,nouveau,radeon,r200,swrast \
