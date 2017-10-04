@@ -955,6 +955,14 @@ llvm_add_component() {
     fi
 }
 
+llvm_add_optional_component() {
+    new_llvm_component=$1
+    driver_name=$2
+
+    if $LLVM_CONFIG --components | grep -iqw $new_llvm_component ; then
+        LLVM_COMPONENTS="${LLVM_COMPONENTS} ${new_llvm_component}"
+    fi
+}
 llvm_add_default_components() {
     driver_name=$1
 
