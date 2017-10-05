@@ -1,12 +1,21 @@
 #!/bin/sh
 
+AVAIL_FUNCS="$(nm -D --format=bsd --defined-only ${1-.libs/libGLESv2.so.2} | awk '{print $3}')"
+
+# Platform specific, "optional", symbols.
+PLAT_FUNCS="__bss_start
+_edata
+_end
+_fini
+_init
+"
+
+# Official ABI, taken from the public headers.
 # Print defined gl.* functions not in GL ES 3.0 or in
 # (FIXME, none of these should be part of the ABI)
 # GL_EXT_multi_draw_arrays
 # GL_OES_EGL_image
-
-FUNCS=$(nm -D --defined-only ${1-.libs/libGLESv2.so.2} | grep -o 'T gl.*' | cut -c 3- | while read func; do
-( grep -q "^$func$" || echo $func )  <<EOF
+REQ_FUNCS="
 glActiveTexture
 glAttachShader
 glBeginQuery
@@ -257,8 +266,24 @@ glVertexAttribIPointer
 glVertexAttribPointer
 glViewport
 glWaitSync
-EOF
+"
+
+NEW_ABI=$(echo "$AVAIL_FUNCS" | while read func
+do
+    echo "$REQ_FUNCS" | grep -q "^$func$" && continue
+    echo "$PLAT_FUNCS" | grep -q "^$func$" && continue
+
+    echo $func
 done)
 
-test ! -n "$FUNCS" || echo $FUNCS
-test ! -n "$FUNCS"
+test ! -n "$NEW_ABI" || echo "New ABI detected - If intentional, update the test."; echo "$NEW_ABI"
+
+REMOVED_ABI=$(echo "$REQ_FUNCS" | while read func
+do
+    echo "$AVAIL_FUNCS" | grep -q "^$func$" && continue
+
+    echo $func
+done)
+
+test ! -n "$REMOVED_ABI" || echo "ABI break detected - Required symbol(s) no longer exported!"; echo "$REMOVED_ABI"
+test ! -n "$NEW_ABI" || test ! -n "$REMOVED_ABI"
