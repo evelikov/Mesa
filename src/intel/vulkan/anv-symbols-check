@@ -1,0 +1,38 @@
+#!/bin/sh
+
+AVAIL_FUNCS="$(nm -D --format=bsd --defined-only ${1-vulkan/.libs/libvulkan_intel.so} | awk '{print $3}')"
+
+# Platform specific, "optional", symbols.
+PLAT_FUNCS="__bss_start
+_edata
+_end
+_fini
+_init
+"
+
+# Official ABI, taken from the public headers.
+# Note: wl_drm_interface should not be here, but that requires wayland-scanner fixes.
+REQ_FUNCS="vk_icdGetInstanceProcAddr
+vk_icdNegotiateLoaderICDInterfaceVersion
+wl_drm_interface
+"
+
+NEW_ABI=$(echo "$AVAIL_FUNCS" | while read func
+do
+    echo "$REQ_FUNCS" | grep -q "^$func$" && continue
+    echo "$PLAT_FUNCS" | grep -q "^$func$" && continue
+
+    echo $func
+done)
+
+test ! -n "$NEW_ABI" || echo "New ABI detected - If intentional, update the test."; echo "$NEW_ABI"
+
+REMOVED_ABI=$(echo "$REQ_FUNCS" | while read func
+do
+    echo "$AVAIL_FUNCS" | grep -q "^$func$" && continue
+
+    echo $func
+done)
+
+test ! -n "$REMOVED_ABI" || echo "ABI break detected - Required symbol(s) no longer exported!"; echo "$REMOVED_ABI"
+test ! -n "$NEW_ABI" || test ! -n "$REMOVED_ABI"
