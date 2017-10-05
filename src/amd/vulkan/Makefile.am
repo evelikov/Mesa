@@ -158,3 +158,5 @@ radeon_icd.@host_cpu@.json : radeon_icd.json.in
 		< $(srcdir)/radeon_icd.json.in > $@
 
 include $(top_srcdir)/install-lib-links.mk
+
+TESTS = radv-symbols-check
