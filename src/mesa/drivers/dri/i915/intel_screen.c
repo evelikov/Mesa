@@ -334,8 +334,9 @@ intel_create_image_from_name(__DRIscreen *screen,
 }
 
 static __DRIimage *
-intel_create_image_from_renderbuffer(__DRIcontext *context,
-				     int renderbuffer, void *loaderPrivate)
+intel_create_image_from_renderbuffer2(__DRIcontext *context,
+				      int renderbuffer, void *loaderPrivate,
+				      unsigned *error)
 {
    __DRIimage *image;
    struct intel_context *intel = context->driverPrivate;
@@ -344,15 +345,16 @@ intel_create_image_from_renderbuffer(__DRIcontext *context,
 
    rb = _mesa_lookup_renderbuffer(&intel->ctx, renderbuffer);
    if (!rb) {
-      _mesa_error(&intel->ctx,
-		  GL_INVALID_OPERATION, "glRenderbufferExternalMESA");
+      *error = __DRI_IMAGE_ERROR_BAD_PARAMETER;
       return NULL;
    }
 
    irb = intel_renderbuffer(rb);
    image = calloc(1, sizeof *image);
-   if (image == NULL)
+   if (image == NULL) {
+      *error = __DRI_IMAGE_ERROR_BAD_ALLOC;
       return NULL;
+   }
 
    image->internal_format = rb->InternalFormat;
    image->format = rb->Format;
@@ -361,9 +363,25 @@ intel_create_image_from_renderbuffer(__DRIcontext *context,
    intel_region_reference(&image->region, irb->mt->region);
    intel_setup_image_from_dimensions(image);
    image->dri_format = driGLFormatToImageFormat(image->format);
+   if (image->dri_format == __DRI_IMAGE_FORMAT_NONE) {
+      *error = __DRI_IMAGE_ERROR_BAD_PARAMETER;
+      intel_region_release(&image->region);
+      free(image);
+      return NULL;
+   }
 
    rb->NeedsFinishRenderTexture = true;
+   *error = __DRI_IMAGE_ERROR_SUCCESS;
    return image;
+}
+
+static __DRIimage *
+intel_create_image_from_renderbuffer(__DRIcontext *context,
+				     int renderbuffer, void *loaderPrivate)
+{
+   unsigned error;
+   return intel_create_image_from_renderbuffer2(context, renderbuffer,
+                                                loaderPrivate, &error);
 }
 
 static __DRIimage *
@@ -694,7 +712,7 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
 }
 
 static const __DRIimageExtension intelImageExtension = {
-    .base = { __DRI_IMAGE, 7 },
+    .base = { __DRI_IMAGE, 17 },
 
     .createImageFromName                = intel_create_image_from_name,
     .createImageFromRenderbuffer        = intel_create_image_from_renderbuffer,
@@ -706,7 +724,8 @@ static const __DRIimageExtension intelImageExtension = {
     .createImageFromNames               = intel_create_image_from_names,
     .fromPlanar                         = intel_from_planar,
     .createImageFromTexture             = intel_create_image_from_texture,
-    .createImageFromFds                 = intel_create_image_from_fds
+    .createImageFromFds                 = intel_create_image_from_fds,
+    .createImageFromRenderbuffer2       = intel_create_image_from_renderbuffer2,
 };
 
 static int
