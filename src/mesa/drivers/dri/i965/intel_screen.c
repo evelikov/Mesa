@@ -474,8 +474,9 @@ intel_create_image_from_name(__DRIscreen *dri_screen,
 }
 
 static __DRIimage *
-intel_create_image_from_renderbuffer(__DRIcontext *context,
-				     int renderbuffer, void *loaderPrivate)
+intel_create_image_from_renderbuffer2(__DRIcontext *context,
+				      int renderbuffer, void *loaderPrivate,
+				      unsigned *error)
 {
    __DRIimage *image;
    struct brw_context *brw = context->driverPrivate;
@@ -485,15 +486,17 @@ intel_create_image_from_renderbuffer(__DRIcontext *context,
 
    rb = _mesa_lookup_renderbuffer(ctx, renderbuffer);
    if (!rb) {
-      _mesa_error(ctx, GL_INVALID_OPERATION, "glRenderbufferExternalMESA");
+      *error = __DRI_IMAGE_ERROR_BAD_PARAMETER;
       return NULL;
    }
 
    irb = intel_renderbuffer(rb);
    intel_miptree_make_shareable(brw, irb->mt);
    image = calloc(1, sizeof *image);
-   if (image == NULL)
+   if (image == NULL) {
+      *error = __DRI_IMAGE_ERROR_BAD_ALLOC;
       return NULL;
+   }
 
    image->internal_format = rb->InternalFormat;
    image->format = rb->Format;
@@ -508,10 +511,27 @@ intel_create_image_from_renderbuffer(__DRIcontext *context,
    image->height = rb->Height;
    image->pitch = irb->mt->surf.row_pitch;
    image->dri_format = driGLFormatToImageFormat(image->format);
+   if (image->dri_format == __DRI_IMAGE_FORMAT_NONE) {
+      *error = __DRI_IMAGE_ERROR_BAD_PARAMETER;
+      brw_bo_unreference(irb->mt->bo);
+      free(image);
+      return NULL;
+   }
+
    image->has_depthstencil = irb->mt->stencil_mt? true : false;
 
    rb->NeedsFinishRenderTexture = true;
+   *error = __DRI_IMAGE_ERROR_SUCCESS;
    return image;
+}
+
+static __DRIimage *
+intel_create_image_from_renderbuffer(__DRIcontext *context,
+				     int renderbuffer, void *loaderPrivate)
+{
+   unsigned error;
+   return intel_create_image_from_renderbuffer2(context, renderbuffer,
+                                                loaderPrivate, &error);
 }
 
 static __DRIimage *
@@ -1289,7 +1309,7 @@ intel_from_planar(__DRIimage *parent, int plane, void *loaderPrivate)
 }
 
 static const __DRIimageExtension intelImageExtension = {
-    .base = { __DRI_IMAGE, 16 },
+    .base = { __DRI_IMAGE, 17 },
 
     .createImageFromName                = intel_create_image_from_name,
     .createImageFromRenderbuffer        = intel_create_image_from_renderbuffer,
@@ -1312,6 +1332,7 @@ static const __DRIimageExtension intelImageExtension = {
     .queryDmaBufFormats                 = intel_query_dma_buf_formats,
     .queryDmaBufModifiers               = intel_query_dma_buf_modifiers,
     .queryDmaBufFormatModifierAttribs   = intel_query_format_modifier_attribs,
+    .createImageFromRenderbuffer2       = intel_create_image_from_renderbuffer2,
 };
 
 static uint64_t
