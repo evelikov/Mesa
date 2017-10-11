@@ -891,6 +891,7 @@ gbm_dri_bo_import(struct gbm_device *gbm,
    __DRIimage *image;
    unsigned dri_use = 0;
    int gbm_format;
+   unsigned query; /* EGLBoolean, but we cannot include the header */
 
    /* Required for query image WIDTH & HEIGHT */
    if (dri->image == NULL || dri->image->base.version < 4) {
@@ -934,7 +935,12 @@ gbm_dri_bo_import(struct gbm_device *gbm,
 
       image = dri->lookup_image(dri->screen, buffer, dri->lookup_user_data);
       image = dri->image->dupImage(image, NULL);
-      dri->image->queryImage(image, __DRI_IMAGE_ATTRIB_FORMAT, &dri_format);
+      query = dri->image->queryImage(image, __DRI_IMAGE_ATTRIB_FORMAT, &dri_format);
+      if (!query) {
+         errno = EINVAL;
+         dri->image->destroyImage(image);
+         break;
+      }
       gbm_format = gbm_dri_to_gbm_format(dri_format);
       if (gbm_format == 0) {
          errno = EINVAL;
