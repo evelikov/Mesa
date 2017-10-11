@@ -977,7 +977,7 @@ gbm_dri_bo_import(struct gbm_device *gbm,
       int fourcc;
 
       /* Import with modifier requires createImageFromDmaBufs2 */
-      if (dri->image == NULL || dri->image->base.version < 15 ||
+      if (dri->image->base.version < 15 ||
           dri->image->createImageFromDmaBufs2 == NULL) {
          errno = ENOSYS;
          return NULL;
