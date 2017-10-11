@@ -950,6 +950,12 @@ gbm_dri_bo_import(struct gbm_device *gbm,
       int stride = fd_data->stride, offset = 0;
       int fourcc;
 
+      if (dri->image->base.version < 7 ||
+          dri->image->createImageFromFds == NULL) {
+         errno = ENOSYS;
+         return NULL;
+      }
+
       /* GBM's GBM_FORMAT_* tokens are a strict superset of the DRI FourCC
        * tokens accepted by createImageFromFds, except for not supporting
        * the sARGB format. */
