@@ -241,8 +241,9 @@ radeon_create_image_from_name(__DRIscreen *screen,
 }
 
 static __DRIimage *
-radeon_create_image_from_renderbuffer(__DRIcontext *context,
-                                      int renderbuffer, void *loaderPrivate)
+radeon_create_image_from_renderbuffer2(__DRIcontext *context,
+                                       int renderbuffer, void *loaderPrivate,
+                                       unsigned *error)
 {
    __DRIimage *image;
    radeonContextPtr radeon = context->driverPrivate;
@@ -251,15 +252,16 @@ radeon_create_image_from_renderbuffer(__DRIcontext *context,
 
    rb = _mesa_lookup_renderbuffer(&radeon->glCtx, renderbuffer);
    if (!rb) {
-      _mesa_error(&radeon->glCtx,
-                  GL_INVALID_OPERATION, "glRenderbufferExternalMESA");
+      *error = __DRI_IMAGE_ERROR_BAD_PARAMETER;
       return NULL;
    }
 
    rrb = radeon_renderbuffer(rb);
    image = calloc(1, sizeof *image);
-   if (image == NULL)
+   if (image == NULL) {
+      *error = __DRI_IMAGE_ERROR_BAD_ALLOC;
       return NULL;
+   }
 
    image->internal_format = rb->InternalFormat;
    image->format = rb->Format;
@@ -273,7 +275,17 @@ radeon_create_image_from_renderbuffer(__DRIcontext *context,
    image->height = rb->Height;
    image->pitch = rrb->pitch / image->cpp;
 
+   *error = __DRI_IMAGE_ERROR_SUCCESS;
    return image;
+}
+
+static __DRIimage *
+radeon_create_image_from_renderbuffer(__DRIcontext *context,
+                                      int renderbuffer, void *loaderPrivate)
+{
+   unsigned error;
+   return radeon_create_image_from_renderbuffer2(context, renderbuffer,
+                                                 loaderPrivate, &error);
 }
 
 static void
@@ -359,13 +371,14 @@ radeon_query_image(__DRIimage *image, int attrib, int *value)
 }
 
 static const __DRIimageExtension radeonImageExtension = {
-   .base = { __DRI_IMAGE, 1 },
+   .base = { __DRI_IMAGE, 17 },
 
-   .createImageFromName         = radeon_create_image_from_name,
-   .createImageFromRenderbuffer = radeon_create_image_from_renderbuffer,
-   .destroyImage                = radeon_destroy_image,
-   .createImage                 = radeon_create_image,
-   .queryImage                  = radeon_query_image
+   .createImageFromName          = radeon_create_image_from_name,
+   .createImageFromRenderbuffer  = radeon_create_image_from_renderbuffer,
+   .destroyImage                 = radeon_destroy_image,
+   .createImage                  = radeon_create_image,
+   .queryImage                   = radeon_query_image,
+   .createImageFromRenderbuffer2 = radeon_create_image_from_renderbuffer2,
 };
 
 static int radeon_set_screen_flags(radeonScreenPtr screen, int device_id)
