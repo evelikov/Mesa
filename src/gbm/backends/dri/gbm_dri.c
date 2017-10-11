@@ -1031,6 +1031,7 @@ gbm_dri_bo_import(struct gbm_device *gbm,
    if (usage & GBM_BO_USE_CURSOR)
       dri_use |= __DRI_IMAGE_USE_CURSOR;
    if (dri->image->base.version >= 2 &&
+       dri->image->validateUsage &&
        !dri->image->validateUsage(bo->image, dri_use)) {
       errno = EINVAL;
       dri->image->destroyImage(bo->image);
