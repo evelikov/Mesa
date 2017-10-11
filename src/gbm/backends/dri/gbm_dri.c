@@ -893,8 +893,7 @@ gbm_dri_bo_import(struct gbm_device *gbm,
    int gbm_format;
    unsigned query; /* EGLBoolean, but we cannot include the header */
 
-   /* Required for query image WIDTH & HEIGHT */
-   if (dri->image == NULL || dri->image->base.version < 4) {
+   if (dri->image == NULL) {
       errno = ENOSYS;
       return NULL;
    }
