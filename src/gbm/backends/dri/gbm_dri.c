@@ -888,9 +888,9 @@ gbm_dri_bo_import(struct gbm_device *gbm,
 {
    struct gbm_dri_device *dri = gbm_dri_device(gbm);
    struct gbm_dri_bo *bo;
-   __DRIimage *image;
+   __DRIimage *image = NULL;
    unsigned dri_use = 0;
-   int gbm_format;
+   int gbm_format = 0;
    unsigned query; /* EGLBoolean, but we cannot include the header */
 
    if (dri->image == NULL) {
@@ -935,17 +935,9 @@ gbm_dri_bo_import(struct gbm_device *gbm,
       image = dri->lookup_image(dri->screen, buffer, dri->lookup_user_data);
       image = dri->image->dupImage(image, NULL);
       query = dri->image->queryImage(image, __DRI_IMAGE_ATTRIB_FORMAT, &dri_format);
-      if (!query) {
-         errno = EINVAL;
-         dri->image->destroyImage(image);
+      if (!query)
          break;
-      }
       gbm_format = gbm_dri_to_gbm_format(dri_format);
-      if (gbm_format == 0) {
-         errno = EINVAL;
-         dri->image->destroyImage(image);
-         return NULL;
-      }
       break;
    }
 
@@ -973,10 +965,6 @@ gbm_dri_bo_import(struct gbm_device *gbm,
                                              &fd_data->fd, 1,
                                              &stride, &offset,
                                              NULL);
-      if (image == NULL) {
-         errno = EINVAL;
-         return NULL;
-      }
       gbm_format = fd_data->format;
       break;
    }
@@ -1008,20 +996,23 @@ gbm_dri_bo_import(struct gbm_device *gbm,
                                                   fd_data->offsets,
                                                   0, 0, 0, 0,
                                                   &error, NULL);
-      if (image == NULL) {
-         errno = ENOSYS;
-         return NULL;
-      }
-
       gbm_format = fourcc;
       break;
    }
 
    default:
-      errno = ENOSYS;
-      return NULL;
+      break;
    }
 
+   if (image == NULL) {
+      errno = EINVAL;
+      return NULL;
+   }
+   if (gbm_format == 0) {
+      errno = EINVAL;
+      dri->image->destroyImage(image);
+      return NULL;
+   }
 
    bo = calloc(1, sizeof *bo);
    if (bo == NULL) {
