@@ -1048,14 +1048,21 @@ gbm_dri_bo_import(struct gbm_device *gbm,
    bo->base.gbm = gbm;
    bo->base.format = gbm_format;
 
-   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_WIDTH,
-                          (int*)&bo->base.width);
-   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HEIGHT,
-                          (int*)&bo->base.height);
-   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_STRIDE,
-                          (int*)&bo->base.stride);
-   dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HANDLE,
-                          &bo->base.handle.s32);
+   query = dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_WIDTH,
+                                  (int*)&bo->base.width);
+   query &= dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HEIGHT,
+                                   (int*)&bo->base.height);
+   query &= dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_STRIDE,
+                                   (int*)&bo->base.stride);
+   query &= dri->image->queryImage(bo->image, __DRI_IMAGE_ATTRIB_HANDLE,
+                                   &bo->base.handle.s32);
+
+   if (!query) {
+      errno = EINVAL;
+      dri->image->destroyImage(bo->image);
+      free(bo);
+      return NULL;
+   }
 
    return &bo->base;
 }
