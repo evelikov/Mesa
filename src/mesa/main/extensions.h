@@ -106,9 +106,6 @@ _mesa_has_##name_str(const struct gl_context *ctx) \
 #include "extensions_table.h"
 #undef EXT
 
-extern struct gl_extensions _mesa_extension_override_enables;
-extern struct gl_extensions _mesa_extension_override_disables;
-
 #ifdef __cplusplus
 }
 #endif

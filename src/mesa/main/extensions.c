@@ -37,8 +37,8 @@
 #include "macros.h"
 #include "mtypes.h"
 
-struct gl_extensions _mesa_extension_override_enables;
-struct gl_extensions _mesa_extension_override_disables;
+static struct gl_extensions extension_override_enables;
+static struct gl_extensions extension_override_disables;
 static char *extra_extensions = NULL;
 
 
@@ -74,16 +74,16 @@ name_to_index(const char* name)
 
 /**
  * Overrides extensions in \c ctx based on the values in
- * _mesa_extension_override_enables and _mesa_extension_override_disables.
+ * extension_override_enables and extension_override_disables.
  */
 void
 _mesa_override_extensions(struct gl_context *ctx)
 {
    unsigned i;
    const GLboolean *enables =
-      (GLboolean*) &_mesa_extension_override_enables;
+      (GLboolean*) &extension_override_enables;
    const GLboolean *disables =
-      (GLboolean*) &_mesa_extension_override_disables;
+      (GLboolean*) &extension_override_disables;
    GLboolean *ctx_ext = (GLboolean*)&ctx->Extensions;
 
    for (i = 0; i < MESA_EXTENSION_COUNT; ++i) {
@@ -247,9 +247,6 @@ _mesa_one_time_init_extension_overrides(void)
 
    atexit(free_unknown_extensions_strings);
 
-   memset(&_mesa_extension_override_enables, 0, sizeof(struct gl_extensions));
-   memset(&_mesa_extension_override_disables, 0, sizeof(struct gl_extensions));
-
    if (env_const == NULL) {
       return;
    }
@@ -286,8 +283,8 @@ _mesa_one_time_init_extension_overrides(void)
       }
 
       i = name_to_index(ext);
-      offset = set_extension(&_mesa_extension_override_enables, i, enable);
-      offset = set_extension(&_mesa_extension_override_disables, i, !enable);
+      offset = set_extension(&extension_override_enables, i, enable);
+      offset = set_extension(&extension_override_disables, i, !enable);
       if (offset != 0)
          recognized = true;
       else
