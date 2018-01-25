@@ -53,3 +53,7 @@ e85aaec1489b00f24ebef4ae5b1da598091275e1 anv/cmd_buffer: Move dirty bits into an
 # fixes: The commit depends on earlier commit 02c1c25b1a6 which did not land in
 #        branch
 c7dcee58b5fe183e1653c13bff6a212f0d157b29 i965: Avoid problems from referencing orphaned BOs after growing
+
+# fixes: The commit requires earlier commit 49d035122ee which did not land in
+#        branch
+766589d89a211e67f313e8cb38f2d05b09975f96 radv: fix sample_mask_in loading. (v3.1)
