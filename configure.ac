@@ -629,12 +629,12 @@ dnl
 dnl Check if linker supports garbage collection
 dnl
 save_LDFLAGS=$LDFLAGS
-LDFLAGS="$LDFLAGS -Wl,--gc-sections"
-AC_MSG_CHECKING([whether ld supports --gc-sections])
+LDFLAGS="$LDFLAGS -Wl,--gc1-sections"
+AC_MSG_CHECKING([whether ld supports --gc1-sections])
 AC_LINK_IFELSE(
     [AC_LANG_SOURCE([static char UnusedFunc() { return 5; } int main() { return 0;}])],
     [AC_MSG_RESULT([yes])
-        GC_SECTIONS="-Wl,--gc-sections";],
+        GC_SECTIONS="-Wl,--gc1-sections";],
     [AC_MSG_RESULT([no])
         GC_SECTIONS="";])
 LDFLAGS=$save_LDFLAGS
