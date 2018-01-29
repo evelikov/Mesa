@@ -91,5 +91,6 @@ libvc5 = static_library(
 driver_vc5 = declare_dependency(
   compile_args : '-DGALLIUM_VC5',
   link_with : [libvc5, libvc5winsys, libbroadcom_cle, libbroadcom_vc5],
+  # NIR dependency is also resolved via libgallium
   dependencies : idep_nir,
 )

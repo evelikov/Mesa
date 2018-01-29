@@ -86,5 +86,6 @@ driver_radeonsi = declare_dependency(
   link_with : [
     libradeonsi, libradeon, libradeonwinsys, libamdgpuwinsys, libamd_common,
   ],
+  # NIR dependency is also resolved via libgallium
   dependencies : idep_nir,
 )

@@ -116,5 +116,6 @@ libvc4 = static_library(
 driver_vc4 = declare_dependency(
   compile_args : '-DGALLIUM_VC4',
   link_with : [libvc4, libvc4winsys, libbroadcom_cle],
+  # NIR dependency is also resolved via libgallium
   dependencies : idep_nir,
 )
