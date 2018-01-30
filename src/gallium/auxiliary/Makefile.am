@@ -21,6 +21,8 @@ libgallium_la_SOURCES = \
 	$(NIR_SOURCES) \
 	$(GENERATED_SOURCES)
 
+libgallium_la_LIBADD =
+
 # libgallium uses NIR hence we'd want libnir.
 # The nunk is commented out as it would lead to link-time error due to
 # "multiple definition of nir..."
@@ -34,6 +36,9 @@ AM_CFLAGS += \
 
 libgallium_la_SOURCES += \
 	$(RENDERONLY_SOURCES)
+
+libgallium_la_LIBADD += \
+	$(LIBDRM_LIBS)
 
 endif
 
