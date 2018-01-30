@@ -35,6 +35,12 @@ noinst_LTLIBRARIES = libradeonsi.la
 
 libradeonsi_la_SOURCES = $(C_SOURCES)
 
+# Driver uses NIR hence we'd want libnir.
+# The nunk is commented out as it would lead to link-time error due to
+# "multiple definition of nir..."
+#libradeonsi_la_LIBADD = \
+#	$(top_builddir)/src/compiler/nir/libnir.la
+
 GEN_DRIINFO_INPUTS = \
 	$(top_srcdir)/src/gallium/auxiliary/pipe-loader/driinfo_gallium.h \
 	$(srcdir)/driinfo_radeonsi.h

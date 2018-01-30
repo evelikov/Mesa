@@ -48,6 +48,7 @@ PIPE_LIBS += \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvl_stub.la
 endif
 
+# libnir is required by libgallium and nir enabled drivers
 PIPE_LIBS += \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
 	$(top_builddir)/src/compiler/nir/libnir.la \

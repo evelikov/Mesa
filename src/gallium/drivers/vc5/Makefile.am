@@ -53,4 +53,10 @@ libvc5_la_LIBADD = \
 	libvc5_v41.la \
 	$()
 
+# Driver uses NIR hence we'd want libnir.
+# The nunk is commented out as it would lead to link-time error due to
+# "multiple definition of nir..."
+#libvc5_la_LIBADD += \
+#	$(top_builddir)/src/compiler/nir/libnir.la
+
 EXTRA_DIST = meson.build

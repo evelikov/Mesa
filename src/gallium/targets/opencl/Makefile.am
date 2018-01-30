@@ -14,10 +14,12 @@ lib@OPENCL_LIBNAME@_la_LDFLAGS += \
 	-Wl,--version-script=$(top_srcdir)/src/gallium/targets/opencl/opencl.sym
 endif
 
+# libnir is required by libgallium and nir enabled drivers
 lib@OPENCL_LIBNAME@_la_LIBADD = \
 	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader_dynamic.la \
 	$(top_builddir)/src/gallium/state_trackers/clover/libclover.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+	$(top_builddir)/src/compiler/nir/libnir.la \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(EXPAT_LIBS) \
 	$(LIBELF_LIBS) \

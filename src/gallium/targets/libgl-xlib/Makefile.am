@@ -57,6 +57,7 @@ lib@GL_LIB@_la_LDFLAGS += \
 	-Wl,--version-script=$(top_srcdir)/src/gallium/targets/libgl-xlib/libgl-xlib.sym
 endif
 
+# libnir is required by libgallium and nir enabled drivers and resolved by libmesagallium
 lib@GL_LIB@_la_LIBADD = \
 	$(top_builddir)/src/gallium/state_trackers/glx/xlib/libxlib.la \
 	$(top_builddir)/src/gallium/winsys/sw/xlib/libws_xlib.la \

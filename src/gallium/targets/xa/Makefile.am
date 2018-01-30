@@ -33,6 +33,7 @@ lib_LTLIBRARIES = libxatracker.la
 nodist_EXTRA_libxatracker_la_SOURCES = dummy.cpp
 libxatracker_la_SOURCES =
 
+# libnir is required by libgallium and nir enabled drivers
 libxatracker_la_LIBADD = \
 	$(top_builddir)/src/gallium/state_trackers/xa/libxatracker.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvl_stub.la \

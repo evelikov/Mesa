@@ -23,11 +23,13 @@ gallium_drv_video_la_LDFLAGS += \
 endif # HAVE_LD_VERSION_SCRIPT
 
 # NOTE: gallium_drv_video does not use(link against) libva
+# libnir is required by libgallium and nir enabled drivers
 gallium_drv_video_la_LIBADD = \
 	$(top_builddir)/src/gallium/state_trackers/va/libvatracker.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvlwinsys.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvl.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+	$(top_builddir)/src/compiler/nir/libnir.la \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(LIBDRM_LIBS) \
 	$(GALLIUM_COMMON_LIB_DEPS)
@@ -58,7 +60,6 @@ gallium_drv_video_la_LIBADD += \
 	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader_static.la \
 	$(GALLIUM_PIPE_LOADER_WINSYS_LIBS) \
 	$(TARGET_LIB_DEPS) \
-	$(TARGET_COMPILER_LIB_DEPS) \
 	$(TARGET_RADEON_WINSYS) $(TARGET_RADEON_COMMON)
 
 else # HAVE_GALLIUM_STATIC_TARGETS

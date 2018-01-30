@@ -25,6 +25,12 @@ libfreedreno_la_SOURCES = \
 	$(ir3_SOURCES) \
 	$(ir3_GENERATED_FILES)
 
+# Driver uses NIR hence we'd want libnir.
+# The nunk is commented out as it would lead to link-time error due to
+# "multiple definition of nir..."
+#libfreedreno_la_LIBADD = \
+#	$(top_builddir)/src/compiler/nir/libnir.la
+
 BUILT_SOURCES := $(ir3_GENERATED_FILES)
 CLEANFILES := $(BUILT_SOURCES)
 EXTRA_DIST = ir3/ir3_nir_trig.py
@@ -36,6 +42,7 @@ nodist_EXTRA_ir3_compiler_SOURCES = dummy.cpp
 ir3_compiler_SOURCES = \
 	ir3/ir3_cmdline.c
 
+# libnir is required by libgallium + driver and resolved by libmesagallium
 ir3_compiler_LDADD = \
 	libfreedreno.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \

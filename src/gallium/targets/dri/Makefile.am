@@ -40,6 +40,7 @@ gallium_dri_la_LDFLAGS += \
 	-Wl,--dynamic-list=$(top_srcdir)/src/gallium/targets/dri-vdpau.dyn
 endif # HAVE_LD_DYNAMIC_LIST
 
+# libnir is required by libgallium and nir enabled drivers and resolved by libmesagallium
 gallium_dri_la_LIBADD = \
 	$(top_builddir)/src/mesa/libmesagallium.la \
 	$(top_builddir)/src/mesa/drivers/dri/common/libdricommon.la \

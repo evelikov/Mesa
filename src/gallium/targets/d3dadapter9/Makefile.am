@@ -65,9 +65,11 @@ d3dadapter9_la_LDFLAGS += \
 	-Wl,--version-script=$(top_srcdir)/src/gallium/targets/d3dadapter9/d3dadapter9.sym
 endif # HAVE_LD_VERSION_SCRIPT
 
+# libnir is required by libgallium and nir enabled drivers
 d3dadapter9_la_LIBADD = \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvl_stub.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+	$(top_builddir)/src/compiler/nir/libnir.la \
 	$(top_builddir)/src/gallium/state_trackers/nine/libninetracker.la \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(top_builddir)/src/gallium/drivers/ddebug/libddebug.la \
@@ -103,7 +105,6 @@ d3dadapter9_la_LIBADD += \
 	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader_static.la \
 	$(GALLIUM_PIPE_LOADER_WINSYS_LIBS) \
 	$(TARGET_LIB_DEPS) \
-	$(TARGET_COMPILER_LIB_DEPS) \
 	$(TARGET_RADEON_WINSYS) $(TARGET_RADEON_COMMON)
 
 else # HAVE_GALLIUM_STATIC_TARGETS

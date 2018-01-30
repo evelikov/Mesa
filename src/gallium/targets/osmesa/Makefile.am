@@ -56,6 +56,7 @@ if HAVE_SHARED_GLAPI
 SHARED_GLAPI_LIB = $(top_builddir)/src/mapi/shared-glapi/libglapi.la
 endif
 
+# libnir is required by libgallium and nir enabled drivers and resolved by libmesagallium
 lib@OSMESA_LIB@_la_LIBADD = \
 	$(top_builddir)/src/mesa/libmesagallium.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \

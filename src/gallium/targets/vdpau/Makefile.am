@@ -28,11 +28,13 @@ libvdpau_gallium_la_LDFLAGS += \
 endif # HAVE_LD_DYNAMIC_LIST
 
 # NOTE: libvdpau_gallium does not use(link against) libvdpau
+# libnir is required by libgallium and nir enabled drivers
 libvdpau_gallium_la_LIBADD = \
 	$(top_builddir)/src/gallium/state_trackers/vdpau/libvdpautracker.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvlwinsys.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvl.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+	$(top_builddir)/src/compiler/nir/libnir.la \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(VL_LIBS) \
 	$(XCB_DRI3_LIBS) \
@@ -65,7 +67,6 @@ libvdpau_gallium_la_LIBADD += \
 	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader_static.la \
 	$(GALLIUM_PIPE_LOADER_WINSYS_LIBS) \
 	$(TARGET_LIB_DEPS) \
-	$(TARGET_COMPILER_LIB_DEPS) \
 	$(TARGET_RADEON_WINSYS) $(TARGET_RADEON_COMMON)
 
 else # HAVE_GALLIUM_STATIC_TARGETS

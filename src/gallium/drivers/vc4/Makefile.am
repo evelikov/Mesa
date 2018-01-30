@@ -45,6 +45,12 @@ libvc4_la_LIBADD = \
 	$(SIM_LIB) \
 	$()
 
+# Driver uses NIR hence we'd want libnir.
+# The nunk is commented out as it would lead to link-time error due to
+# "multiple definition of nir..."
+#libvc4_la_LIBADD += \
+#	$(top_builddir)/src/compiler/nir/libnir.la
+
 if HAVE_ARM_ASM
 noinst_LTLIBRARIES += libvc4_neon.la
 libvc4_la_LIBADD += libvc4_neon.la

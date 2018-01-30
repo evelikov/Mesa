@@ -22,11 +22,13 @@ libomx_mesa_la_LDFLAGS += \
 	-Wl,--version-script=$(top_srcdir)/src/gallium/targets/omx-bellagio/omx.sym
 endif # HAVE_LD_VERSION_SCRIPT
 
+# libnir is required by libgallium and nir enabled drivers
 libomx_mesa_la_LIBADD = \
 	$(top_builddir)/src/gallium/state_trackers/omx_bellagio/libomxtracker.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvlwinsys.la \
 	$(top_builddir)/src/gallium/auxiliary/libgalliumvl.la \
 	$(top_builddir)/src/gallium/auxiliary/libgallium.la \
+	$(top_builddir)/src/compiler/nir/libnir.la \
 	$(top_builddir)/src/util/libmesautil.la \
 	$(OMX_BELLAGIO_LIBS) \
 	$(LIBDRM_LIBS) \
@@ -59,7 +61,6 @@ libomx_mesa_la_LIBADD += \
 	$(top_builddir)/src/gallium/auxiliary/pipe-loader/libpipe_loader_static.la \
 	$(GALLIUM_PIPE_LOADER_WINSYS_LIBS) \
 	$(TARGET_LIB_DEPS) \
-	$(TARGET_COMPILER_LIB_DEPS) \
 	$(TARGET_RADEON_WINSYS) $(TARGET_RADEON_COMMON)
 
 else # HAVE_GALLIUM_STATIC_TARGETS
