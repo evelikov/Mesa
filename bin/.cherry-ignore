@@ -85,3 +85,6 @@ b99c88037bf64b033579f237ec287857c53b0ad6 i965: fix disk_cache leak when destroyi
 
 # stable: The commit covers nir serialise, which did not land in branch
 d0343bef6680cc660ba691bbed31a2a1b7449f79 nir: mark unused space in packed_tex_data
+
+# fixes: The commit addresses the meson build, which is disabled in branch
+4a0bab1d7f942ad0ac9b98ab34e6a9e4694f3c04 meson: libdrm shouldn't appear in Requires.private: if it wasn't found
