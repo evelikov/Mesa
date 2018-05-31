@@ -125,7 +125,7 @@ if with_platform_wayland
     wayland_drm_client_protocol_h,
   ]
   incs_for_egl += include_directories(
-    'wayland/wayland-egl', 'wayland/wayland-drm',
+    'wayland/wayland-drm',
   )
 endif
 if with_platform_android

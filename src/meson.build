@@ -75,9 +75,6 @@ if with_gbm
 else
   inc_gbm = []
 endif
-if with_egl and build_wayland_egl
-  subdir('egl')
-endif
 if with_gallium
   subdir('gallium')
   # This has to be here since it requires libgallium, and subdir cannot

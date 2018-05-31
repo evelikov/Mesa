@@ -1232,13 +1232,11 @@ if with_platform_wayland
   # TODO: Bump to 1.15 -> the first version that ships wayland-egl-backend
   dep_wayland_client = dependency('wayland-client', version : '>=1.11')
   dep_wayland_server = dependency('wayland-server', version : '>=1.11')
-  build_wayland_egl = get_option('bundled-wayland-egl')
-  if with_egl and not build_wayland_egl
+  if with_egl
     dep_wayland_egl = dependency('wayland-egl-backend', version : '>= 3')
     dep_wayland_egl_headers = declare_dependency(
       compile_args : run_command(prog_pkgconfig, ['wayland-egl-backend', '--cflags']).stdout().split()
     )
-    pre_args += ['-DUSE_EXTERNAL_WAYLAND_EGL']
   else
     dep_wayland_egl_headers = null_dep
   endif

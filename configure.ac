@@ -1768,16 +1768,19 @@ if test "x$enable_glx_read_only_text" = xyes; then
 fi
 
 dnl
-dnl TEMPORARY: mostly for stable releases
+dnl DEPRECATED: used for stable releases
 dnl
 dnl It will allow easier management as the wayland-egl library was
 dnl moved to the Wayland project
 dnl
 AC_ARG_ENABLE(bundled-wayland-egl,
    [AS_HELP_STRING([--disable-bundled-wayland-egl],
-		   [disable shipping of the wayland-egl library and pkg-config file @<:@default=enabled@:>@])],
-   [enable_wayland_egl=$enableval], [enable_wayland_egl=yes])
-AM_CONDITIONAL(BUILD_WAYLAND_EGL, test "x$enable_wayland_egl" = xyes)
+		   [DEPRECATED: disable shipping of the wayland-egl library and pkg-config file @<:@default=disabled@:>@])],
+    [enable_wayland_egl=$enableval], [enable_wayland_egl=no])
+if test "x$enable_wayland_egl" != xno; then
+    AC_MSG_ERROR([--enable-bundled-wayland-egl is deprecated. The library is shipped by Wayland 1.15 or later])
+fi
+
 
 dnl
 dnl DEPRECATED: EGL Platforms configuration
@@ -1820,9 +1823,8 @@ for plat in $platforms; do
 
         PKG_CHECK_MODULES([WAYLAND_CLIENT], [wayland-client >= $WAYLAND_REQUIRED])
         PKG_CHECK_MODULES([WAYLAND_SERVER], [wayland-server >= $WAYLAND_REQUIRED])
-        if test "x$enable_egl" = xyes -a "x$enable_wayland_egl" != xyes; then
+        if test "x$enable_egl" = xyes; then
             PKG_CHECK_MODULES([WAYLAND_EGL], [wayland-egl-backend >= 3])
-            DEFINES="$DEFINES -DUSE_EXTERNAL_WAYLAND_EGL"
         fi
         PKG_CHECK_MODULES([WAYLAND_PROTOCOLS], [wayland-protocols >= $WAYLAND_PROTOCOLS_REQUIRED])
         WAYLAND_PROTOCOLS_DATADIR=`$PKG_CONFIG --variable=pkgdatadir wayland-protocols`
@@ -3036,8 +3038,6 @@ AC_CONFIG_FILES([Makefile
                  src/egl/Makefile
                  src/egl/main/egl.pc
                  src/egl/wayland/wayland-drm/Makefile
-                 src/egl/wayland/wayland-egl/Makefile
-                 src/egl/wayland/wayland-egl/wayland-egl.pc
                  src/gallium/Makefile
                  src/gallium/auxiliary/Makefile
                  src/gallium/auxiliary/pipe-loader/Makefile

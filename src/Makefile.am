@@ -95,13 +95,6 @@ if HAVE_GBM
 SUBDIRS += gbm
 endif
 
-## Optionally required by EGL
-if HAVE_PLATFORM_WAYLAND
-if BUILD_WAYLAND_EGL
-SUBDIRS += egl/wayland/wayland-egl
-endif
-endif
-
 if HAVE_EGL
 SUBDIRS += egl
 endif
