@@ -87,6 +87,7 @@ libEGL_common_la_LIBADD += $(LIBDRM_LIBS)
 AM_CFLAGS += $(WAYLAND_SERVER_CFLAGS)
 libEGL_common_la_LIBADD += $(top_builddir)/src/egl/wayland/wayland-drm/libwayland-drm.la
 libEGL_common_la_LIBADD += $(WAYLAND_SERVER_LIBS)
+AM_CFLAGS += $(WAYLAND_EGL_CFLAGS)
 dri2_backend_FILES += \
 	drivers/dri2/platform_wayland.c
 dri2_backend_GENERATED_FILES += \

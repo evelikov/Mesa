@@ -75,7 +75,7 @@ if with_gbm
 else
   inc_gbm = []
 endif
-if with_egl
+if with_egl and build_wayland_egl
   subdir('egl')
 endif
 if with_gallium

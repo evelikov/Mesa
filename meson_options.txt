@@ -213,6 +213,12 @@ option(
   description : 'Build support for EGL platform'
 )
 option(
+  'bundled-wayland-egl',
+  type : 'boolean',
+  value : true,
+  description : 'Build/ship the wayland-egl library and pkg-config file'
+)
+option(
   'glvnd',
   type : 'boolean',
   value : false,

@@ -1229,8 +1229,19 @@ endif
 if with_platform_wayland
   prog_wl_scanner = find_program('wayland-scanner')
   dep_wl_protocols = dependency('wayland-protocols', version : '>= 1.8')
+  # TODO: Bump to 1.15 -> the first version that ships wayland-egl-backend
   dep_wayland_client = dependency('wayland-client', version : '>=1.11')
   dep_wayland_server = dependency('wayland-server', version : '>=1.11')
+  build_wayland_egl = get_option('bundled-wayland-egl')
+  if with_egl and not build_wayland_egl
+    dep_wayland_egl = dependency('wayland-egl-backend', version : '>= 3')
+    dep_wayland_egl_headers = declare_dependency(
+      compile_args : run_command(prog_pkgconfig, ['wayland-egl-backend', '--cflags']).stdout().split()
+    )
+    pre_args += ['-DUSE_EXTERNAL_WAYLAND_EGL']
+  else
+    dep_wayland_egl_headers = null_dep
+  endif
   wayland_dmabuf_xml = join_paths(
     dep_wl_protocols.get_pkgconfig_variable('pkgdatadir'), 'unstable',
     'linux-dmabuf', 'linux-dmabuf-unstable-v1.xml'
@@ -1241,6 +1252,7 @@ else
   dep_wl_protocols = null_dep
   dep_wayland_client = null_dep
   dep_wayland_server = null_dep
+  dep_wayland_egl_headers = null_dep
   wayland_dmabuf_xml = ''
 endif
 
