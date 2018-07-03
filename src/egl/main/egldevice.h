@@ -38,6 +38,8 @@
 extern "C" {
 #endif
 
+extern _EGLDevice _eglSoftwareDevice;
+
 void
 _eglFiniDevice(void);
 
@@ -57,7 +59,7 @@ _EGLDevice *
 _eglAddDevice(int fd, bool software);
 
 enum _egl_device_extension {
-   EGL_FOOBAR,
+   _EGL_DEVICE_SOFTWARE,
 };
 
 typedef enum _egl_device_extension _EGLDeviceExtension;
