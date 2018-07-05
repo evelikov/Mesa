@@ -97,6 +97,7 @@ if with_dri2
     '-DDEFAULT_DRIVER_DIR="@0@"'.format(dri_search_path),
   ]
 
+  files_egl += files('drivers/dri2/platform_device.c')
   if with_platform_x11
     files_egl += files('drivers/dri2/platform_x11.c')
     incs_for_egl += inc_loader

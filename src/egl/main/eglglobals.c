@@ -83,6 +83,7 @@ struct _egl_global _eglGlobal =
 #ifdef HAVE_SURFACELESS_PLATFORM
    " EGL_MESA_platform_surfaceless"
 #endif
+   " EGL_EXT_platform_device"
    "",
 
    .ClientExtensionString = NULL,

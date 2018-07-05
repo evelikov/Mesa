@@ -107,6 +107,9 @@ if HAVE_PLATFORM_SURFACELESS
 dri2_backend_FILES += drivers/dri2/platform_surfaceless.c
 endif
 
+# Unconditionally enable platform_device
+dri2_backend_FILES += drivers/dri2/platform_device.c
+
 if HAVE_PLATFORM_ANDROID
 AM_CFLAGS += $(ANDROID_CFLAGS)
 libEGL_common_la_LIBADD += $(ANDROID_LIBS)

@@ -50,6 +50,7 @@ enum _egl_platform_type {
    _EGL_PLATFORM_ANDROID,
    _EGL_PLATFORM_HAIKU,
    _EGL_PLATFORM_SURFACELESS,
+   _EGL_PLATFORM_DEVICE,
 
    _EGL_NUM_PLATFORMS,
    _EGL_INVALID_PLATFORM = -1
@@ -148,6 +149,12 @@ struct _egl_extensions
    EGLBoolean WL_create_wayland_buffer_from_image;
 };
 
+struct _egl_device_display_options
+{
+   int attrib_fd;
+   int internal_fd;
+};
+typedef struct _egl_device_display_options _EGLDeviceDisplayOptions;
 
 struct _egl_display
 {
@@ -299,6 +306,10 @@ _EGLDisplay*
 _eglGetSurfacelessDisplay(void *native_display,
                           const EGLAttrib *attrib_list);
 #endif
+
+_EGLDisplay*
+_eglGetDeviceDisplay(void *native_display,
+                     const EGLAttrib *attrib_list);
 
 #ifdef __cplusplus
 }
