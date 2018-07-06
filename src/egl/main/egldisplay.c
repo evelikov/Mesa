@@ -466,7 +466,7 @@ _eglParseX11DisplayAttribList(_EGLDisplay *display,
       if (attrib != EGL_PLATFORM_X11_SCREEN_EXT)
          return _eglError(EGL_BAD_ATTRIBUTE, "eglGetPlatformDisplay");
 
-      display->Options.Platform = (void *)(uintptr_t)value;
+      display->Options.Platform = (void *)(intptr_t)value;
    }
 
    return EGL_TRUE;
