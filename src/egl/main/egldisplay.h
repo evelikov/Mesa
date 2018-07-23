@@ -201,7 +201,7 @@ _eglFiniDisplay(void);
 
 
 extern _EGLDisplay *
-_eglFindDisplay(_EGLPlatformType plat, void *plat_dpy);
+_eglFindDisplay(_EGLPlatformType plat, void *plat_dpy, void *plat_opt);
 
 
 extern void

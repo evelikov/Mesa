@@ -211,9 +211,11 @@ _eglFiniDisplay(void)
 /**
  * Find the display corresponding to the specified native display, or create a
  * new one.
+ *
+ * Certain platform types can use plat_opt.
  */
 _EGLDisplay *
-_eglFindDisplay(_EGLPlatformType plat, void *plat_dpy)
+_eglFindDisplay(_EGLPlatformType plat, void *plat_dpy, void *plat_opt)
 {
    _EGLDisplay *dpy;
 
@@ -477,7 +479,7 @@ _eglGetX11Display(Display *native_display,
                   const EGLAttrib *attrib_list)
 {
    _EGLDisplay *display = _eglFindDisplay(_EGL_PLATFORM_X11,
-                                          native_display);
+                                          native_display, NULL);
 
    if (!display) {
       _eglError(EGL_BAD_ALLOC, "eglGetPlatformDisplay");
@@ -503,7 +505,7 @@ _eglGetGbmDisplay(struct gbm_device *native_display,
       return NULL;
    }
 
-   return _eglFindDisplay(_EGL_PLATFORM_DRM, native_display);
+   return _eglFindDisplay(_EGL_PLATFORM_DRM, native_display, NULL);
 }
 #endif /* HAVE_DRM_PLATFORM */
 
@@ -518,7 +520,7 @@ _eglGetWaylandDisplay(struct wl_display *native_display,
       return NULL;
    }
 
-   return _eglFindDisplay(_EGL_PLATFORM_WAYLAND, native_display);
+   return _eglFindDisplay(_EGL_PLATFORM_WAYLAND, native_display, NULL);
 }
 #endif /* HAVE_WAYLAND_PLATFORM */
 
@@ -539,6 +541,6 @@ _eglGetSurfacelessDisplay(void *native_display,
       return NULL;
    }
 
-   return _eglFindDisplay(_EGL_PLATFORM_SURFACELESS, native_display);
+   return _eglFindDisplay(_EGL_PLATFORM_SURFACELESS, native_display, NULL);
 }
 #endif /* HAVE_SURFACELESS_PLATFORM */
