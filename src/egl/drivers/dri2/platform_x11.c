@@ -1238,7 +1238,7 @@ dri2_get_xcb_connection(_EGLDriver *drv, _EGLDisplay *disp,
                         struct dri2_egl_display *dri2_dpy)
 {
    xcb_screen_iterator_t s;
-   int screen = (intptr_t)disp->Options.Platform;
+   int screen = (uintptr_t)disp->Options.Platform;
    const char *msg;
 
    disp->DriverData = (void *) dri2_dpy;
