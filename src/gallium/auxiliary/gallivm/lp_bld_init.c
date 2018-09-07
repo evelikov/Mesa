@@ -46,19 +46,6 @@
 #include <llvm-c/BitWriter.h>
 
 
-/* Only MCJIT is available as of LLVM SVN r216982 */
-#if HAVE_LLVM >= 0x0306
-#  define USE_MCJIT 1
-#elif defined(PIPE_ARCH_PPC_64) || defined(PIPE_ARCH_S390) || defined(PIPE_ARCH_ARM) || defined(PIPE_ARCH_AARCH64)
-#  define USE_MCJIT 1
-#endif
-
-#if defined(USE_MCJIT)
-static const bool use_mcjit = USE_MCJIT;
-#else
-static bool use_mcjit = FALSE;
-#endif
-
 unsigned gallivm_perf = 0;
 
 static const struct debug_named_value lp_bld_perf_flags[] = {
@@ -130,11 +117,6 @@ create_pass_manager(struct gallivm_state *gallivm)
     * simple, or constant propagation into them, etc.
     */
 
-#if HAVE_LLVM < 0x0309
-   // Old versions of LLVM get the DataLayout from the pass manager.
-   LLVMAddTargetData(gallivm->target, gallivm->passmgr);
-#endif
-
    {
       char *td_str;
       // New ones from the Module.
@@ -201,13 +183,8 @@ gallivm_free_ir(struct gallivm_state *gallivm)
 
    FREE(gallivm->module_name);
 
-   if (!use_mcjit) {
-      /* Don't free the TargetData, it's owned by the exec engine */
-   } else {
-      if (gallivm->target) {
-         LLVMDisposeTargetData(gallivm->target);
-      }
-   }
+   if (gallivm->target)
+      LLVMDisposeTargetData(gallivm->target);
 
    if (gallivm->builder)
       LLVMDisposeBuilder(gallivm->builder);
@@ -259,7 +236,6 @@ init_gallivm_engine(struct gallivm_state *gallivm)
                                                     gallivm->module,
                                                     gallivm->memorymgr,
                                                     (unsigned) optlevel,
-                                                    use_mcjit,
                                                     &error);
       if (ret) {
          _debug_printf("%s\n", error);
@@ -268,11 +244,7 @@ init_gallivm_engine(struct gallivm_state *gallivm)
       }
    }
 
-   if (!use_mcjit) {
-      gallivm->target = LLVMGetExecutionEngineTargetData(gallivm->engine);
-      if (!gallivm->target)
-         goto fail;
-   } else {
+   {
       if (0) {
           /*
            * Dump the data layout strings.
@@ -347,11 +319,8 @@ init_gallivm_state(struct gallivm_state *gallivm, const char *name,
     * complete when MC-JIT is created. So defer the MC-JIT engine creation for
     * now.
     */
-   if (!use_mcjit) {
-      if (!init_gallivm_engine(gallivm)) {
-         goto fail;
-      }
-   } else {
+   // XXX: nuke above comment?
+   {
       /*
        * MC-JIT engine compiles the module immediately on creation, so we can't
        * obtain the target data from it.  Instead we create a target data layout
@@ -406,22 +375,7 @@ lp_build_init(void)
    if (gallivm_initialized)
       return TRUE;
 
-
-   /* LLVMLinkIn* are no-ops at runtime.  They just ensure the respective
-    * component is linked at buildtime, which is sufficient for its static
-    * constructors to be called at load time.
-    */
-#if defined(USE_MCJIT)
-#  if USE_MCJIT
-      LLVMLinkInMCJIT();
-#  else
-      LLVMLinkInJIT();
-#  endif
-#else
-   use_mcjit = debug_get_bool_option("GALLIVM_MCJIT", FALSE);
-   LLVMLinkInJIT();
    LLVMLinkInMCJIT();
-#endif
 
 #ifdef DEBUG
    gallivm_debug = debug_get_option_gallivm_debug();
@@ -480,11 +434,6 @@ lp_build_init(void)
       util_cpu_caps.has_avx2 = 0;
       util_cpu_caps.has_f16c = 0;
       util_cpu_caps.has_fma = 0;
-   }
-   if (HAVE_LLVM < 0x0304 || !use_mcjit) {
-      /* AVX2 support has only been tested with LLVM 3.4, and it requires
-       * MCJIT. */
-      util_cpu_caps.has_avx2 = 0;
    }
 
 #ifdef PIPE_ARCH_PPC_64
@@ -602,7 +551,7 @@ gallivm_compile_module(struct gallivm_state *gallivm)
                    "-sroa -early-cse -simplifycfg -reassociate "
                    "-mem2reg -constprop -instcombine -gvn",
                    filename, gallivm_debug & GALLIVM_PERF_NO_OPT ? 0 : 2,
-                   (HAVE_LLVM >= 0x0305) ? "[-mcpu=<-mcpu option>] " : "",
+                   "[-mcpu=<-mcpu option>] ",
                    "[-mattr=<-mattr option(s)>]");
    }
 
@@ -619,8 +568,7 @@ gallivm_compile_module(struct gallivm_state *gallivm)
 
    /* Disable frame pointer omission on debug/profile builds */
    /* XXX: And workaround http://llvm.org/PR21435 */
-#if HAVE_LLVM >= 0x0307 && \
-    (defined(DEBUG) || defined(PROFILE) || \
+#if (defined(DEBUG) || defined(PROFILE) || \
      defined(PIPE_ARCH_X86) || defined(PIPE_ARCH_X86_64))
       LLVMAddTargetDependentFunctionAttr(func, "no-frame-pointer-elim", "true");
       LLVMAddTargetDependentFunctionAttr(func, "no-frame-pointer-elim-non-leaf", "true");
@@ -639,7 +587,7 @@ gallivm_compile_module(struct gallivm_state *gallivm)
                    gallivm->module_name, time_msec);
    }
 
-   if (use_mcjit) {
+   {
       /* Setting the module's DataLayout to an empty string will cause the
        * ExecutionEngine to copy to the DataLayout string from its target
        * machine to the module.  As of LLVM 3.8 the module and the execution

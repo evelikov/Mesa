@@ -317,9 +317,8 @@ lp_build_select(struct lp_build_context *bld,
       mask = LLVMBuildTrunc(builder, mask, LLVMInt1TypeInContext(lc), "");
       res = LLVMBuildSelect(builder, mask, a, b, "");
    }
-   else if (!(HAVE_LLVM == 0x0307) &&
-            (LLVMIsConstant(mask) ||
-             LLVMGetInstructionOpcode(mask) == LLVMSExt)) {
+   else if (LLVMIsConstant(mask) ||
+             LLVMGetInstructionOpcode(mask) == LLVMSExt) {
       /* Generate a vector select.
        *
        * Using vector selects should avoid emitting intrinsics hence avoid

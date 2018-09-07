@@ -142,49 +142,6 @@ lp_build_min_simple(struct lp_build_context *bld,
          intrinsic = "llvm.ppc.altivec.vminfp";
          intr_size = 128;
       }
-   } else if (HAVE_LLVM < 0x0309 &&
-              util_cpu_caps.has_avx2 && type.length > 4) {
-      intr_size = 256;
-      switch (type.width) {
-      case 8:
-         intrinsic = type.sign ? "llvm.x86.avx2.pmins.b" : "llvm.x86.avx2.pminu.b";
-         break;
-      case 16:
-         intrinsic = type.sign ? "llvm.x86.avx2.pmins.w" : "llvm.x86.avx2.pminu.w";
-         break;
-      case 32:
-         intrinsic = type.sign ? "llvm.x86.avx2.pmins.d" : "llvm.x86.avx2.pminu.d";
-         break;
-      }
-   } else if (HAVE_LLVM < 0x0309 &&
-              util_cpu_caps.has_sse2 && type.length >= 2) {
-      intr_size = 128;
-      if ((type.width == 8 || type.width == 16) &&
-          (type.width * type.length <= 64) &&
-          (gallivm_debug & GALLIVM_DEBUG_PERF)) {
-         debug_printf("%s: inefficient code, bogus shuffle due to packing\n",
-                      __FUNCTION__);
-      }
-      if (type.width == 8 && !type.sign) {
-         intrinsic = "llvm.x86.sse2.pminu.b";
-      }
-      else if (type.width == 16 && type.sign) {
-         intrinsic = "llvm.x86.sse2.pmins.w";
-      }
-      if (util_cpu_caps.has_sse4_1) {
-         if (type.width == 8 && type.sign) {
-            intrinsic = "llvm.x86.sse41.pminsb";
-         }
-         if (type.width == 16 && !type.sign) {
-            intrinsic = "llvm.x86.sse41.pminuw";
-         }
-         if (type.width == 32 && !type.sign) {
-            intrinsic = "llvm.x86.sse41.pminud";
-         }
-         if (type.width == 32 && type.sign) {
-            intrinsic = "llvm.x86.sse41.pminsd";
-         }
-      }
    } else if (util_cpu_caps.has_altivec) {
       intr_size = 128;
       if (type.width == 8) {
@@ -285,12 +242,6 @@ lp_build_fmuladd(LLVMBuilderRef builder,
    LLVMTypeRef type = LLVMTypeOf(a);
    assert(type == LLVMTypeOf(b));
    assert(type == LLVMTypeOf(c));
-   if (HAVE_LLVM < 0x0304) {
-      /* XXX: LLVM 3.3 does not breakdown llvm.fmuladd into mul+add when FMA is
-       * not supported, and instead it falls-back to a C function.
-       */
-      return LLVMBuildFAdd(builder, LLVMBuildFMul(builder, a, b, ""), c, "");
-   }
    char intrinsic[32];
    lp_format_intrinsic(intrinsic, sizeof intrinsic, "llvm.fmuladd", type);
    LLVMValueRef args[] = { a, b, c };
@@ -359,50 +310,6 @@ lp_build_max_simple(struct lp_build_context *bld,
       if (type.width == 32 || type.length == 4) {
          intrinsic = "llvm.ppc.altivec.vmaxfp";
          intr_size = 128;
-      }
-   } else if (HAVE_LLVM < 0x0309 &&
-              util_cpu_caps.has_avx2 && type.length > 4) {
-      intr_size = 256;
-      switch (type.width) {
-      case 8:
-         intrinsic = type.sign ? "llvm.x86.avx2.pmaxs.b" : "llvm.x86.avx2.pmaxu.b";
-         break;
-      case 16:
-         intrinsic = type.sign ? "llvm.x86.avx2.pmaxs.w" : "llvm.x86.avx2.pmaxu.w";
-         break;
-      case 32:
-         intrinsic = type.sign ? "llvm.x86.avx2.pmaxs.d" : "llvm.x86.avx2.pmaxu.d";
-         break;
-      }
-   } else if (HAVE_LLVM < 0x0309 &&
-              util_cpu_caps.has_sse2 && type.length >= 2) {
-      intr_size = 128;
-      if ((type.width == 8 || type.width == 16) &&
-          (type.width * type.length <= 64) &&
-          (gallivm_debug & GALLIVM_DEBUG_PERF)) {
-         debug_printf("%s: inefficient code, bogus shuffle due to packing\n",
-                      __FUNCTION__);
-         }
-      if (type.width == 8 && !type.sign) {
-         intrinsic = "llvm.x86.sse2.pmaxu.b";
-         intr_size = 128;
-      }
-      else if (type.width == 16 && type.sign) {
-         intrinsic = "llvm.x86.sse2.pmaxs.w";
-      }
-      if (util_cpu_caps.has_sse4_1) {
-         if (type.width == 8 && type.sign) {
-            intrinsic = "llvm.x86.sse41.pmaxsb";
-         }
-         if (type.width == 16 && !type.sign) {
-            intrinsic = "llvm.x86.sse41.pmaxuw";
-         }
-         if (type.width == 32 && !type.sign) {
-            intrinsic = "llvm.x86.sse41.pmaxud";
-        }
-         if (type.width == 32 && type.sign) {
-            intrinsic = "llvm.x86.sse41.pmaxsd";
-         }
       }
    } else if (util_cpu_caps.has_altivec) {
      intr_size = 128;
@@ -1816,16 +1723,7 @@ lp_build_abs(struct lp_build_context *bld,
       return a;
 
    if(type.floating) {
-      if (0x0306 <= HAVE_LLVM && HAVE_LLVM < 0x0309) {
-         /* Workaround llvm.org/PR27332 */
-         LLVMTypeRef int_vec_type = lp_build_int_vec_type(bld->gallivm, type);
-         unsigned long long absMask = ~(1ULL << (type.width - 1));
-         LLVMValueRef mask = lp_build_const_int_vec(bld->gallivm, type, ((unsigned long long) absMask));
-         a = LLVMBuildBitCast(builder, a, int_vec_type, "");
-         a = LLVMBuildAnd(builder, a, mask, "");
-         a = LLVMBuildBitCast(builder, a, vec_type, "");
-         return a;
-      } else {
+      {
          char intrinsic[32];
          lp_format_intrinsic(intrinsic, sizeof intrinsic, "llvm.fabs", vec_type);
          return lp_build_intrinsic_unary(builder, intrinsic, vec_type, a);

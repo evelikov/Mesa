@@ -302,8 +302,8 @@ lp_build_gather_avx2(struct gallivm_state *gallivm,
 
    if (0) {
       /*
-       * XXX: This will cause LLVM pre 3.7 to hang; it works on LLVM 3.8 but
-       * will not use the AVX2 gather instrinsics (even with llvm 4.0), at
+       * XXX: Check with LLVM 5.0 and later
+       * XXX: This will not use the AVX2 gather instrinsics with llvm 4.0, at
        * least with Haswell. See
        * http://lists.llvm.org/pipermail/llvm-dev/2016-January/094448.html
        * And the generated code doing the emulation is quite a bit worse
