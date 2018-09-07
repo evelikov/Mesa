@@ -756,25 +756,18 @@ dnl
 dnl LIB_EXT is the extension used when creating symlinks for alternate
 dnl filenames for a shared library which will be dynamically loaded
 dnl
-dnl IMP_LIB_EXT is the extension used when checking for the presence of a
-dnl the file for a shared library we wish to link with
-dnl
 case "$host_os" in
 darwin* )
     LIB_EXT='dylib'
-    IMP_LIB_EXT=$LIB_EXT
     ;;
 cygwin* )
     LIB_EXT='dll'
-    IMP_LIB_EXT='dll.a'
     ;;
 aix* )
     LIB_EXT='a'
-    IMP_LIB_EXT=$LIB_EXT
     ;;
 * )
     LIB_EXT='so'
-    IMP_LIB_EXT=$LIB_EXT
     ;;
 esac
 
