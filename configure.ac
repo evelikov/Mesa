@@ -1019,9 +1019,9 @@ AC_ARG_ENABLE([llvm-shared-libs],
 
 AC_ARG_WITH([llvm-prefix],
     [AS_HELP_STRING([--with-llvm-prefix],
-        [Prefix for LLVM installations in non-standard locations])],
-    [llvm_prefix="$withval"],
-    [llvm_prefix=''])
+         [DEPRECATED: Use export LLVM_CONFIG=... if needed.])],
+   [AC_MSG_ERROR([--with-llvm-prefix is deprecated. Use export LLVM_CONFIG=... if needed.])],
+   [])
 
 PKG_CHECK_MODULES([LIBELF], [libelf], [have_libelf=yes], [have_libelf=no])
 if test "x$have_libelf" = xno; then
@@ -1033,11 +1033,7 @@ if test "x$have_libelf" = xno; then
 fi
 
 if test -z "$LLVM_CONFIG"; then
-    if test -n "$llvm_prefix"; then
-        AC_PATH_TOOL([LLVM_CONFIG], [llvm-config], [no], ["$llvm_prefix/bin"])
-    else
-        AC_PATH_TOOL([LLVM_CONFIG], [llvm-config], [no])
-    fi
+    AC_PATH_TOOL([LLVM_CONFIG], [llvm-config], [no])
 fi
 
 llvm_add_component() {
