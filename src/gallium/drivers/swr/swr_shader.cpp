@@ -596,13 +596,7 @@ BuilderSWR::CompileGS(struct swr_context *ctx, swr_jit_gs_key &key)
                                      GlobalValue::ExternalLinkage,
                                      "GS",
                                      JM()->mpCurrentModule);
-#if HAVE_LLVM < 0x0500
-   AttributeSet attrSet = AttributeSet::get(
-      JM()->mContext, AttributeSet::FunctionIndex, attrBuilder);
-   pFunction->addAttributes(AttributeSet::FunctionIndex, attrSet);
-#else
    pFunction->addAttributes(AttributeList::FunctionIndex, attrBuilder);
-#endif
 
    BasicBlock *block = BasicBlock::Create(JM()->mContext, "entry", pFunction);
    IRB()->SetInsertPoint(block);
@@ -767,13 +761,7 @@ BuilderSWR::CompileVS(struct swr_context *ctx, swr_jit_vs_key &key)
                                      GlobalValue::ExternalLinkage,
                                      "VS",
                                      JM()->mpCurrentModule);
-#if HAVE_LLVM < 0x0500
-   AttributeSet attrSet = AttributeSet::get(
-      JM()->mContext, AttributeSet::FunctionIndex, attrBuilder);
-   pFunction->addAttributes(AttributeSet::FunctionIndex, attrSet);
-#else
    pFunction->addAttributes(AttributeList::FunctionIndex, attrBuilder);
-#endif
 
    BasicBlock *block = BasicBlock::Create(JM()->mContext, "entry", pFunction);
    IRB()->SetInsertPoint(block);
@@ -1052,13 +1040,7 @@ BuilderSWR::CompileFS(struct swr_context *ctx, swr_jit_fs_key &key)
                                      GlobalValue::ExternalLinkage,
                                      "FS",
                                      JM()->mpCurrentModule);
-#if HAVE_LLVM < 0x0500
-   AttributeSet attrSet = AttributeSet::get(
-      JM()->mContext, AttributeSet::FunctionIndex, attrBuilder);
-   pFunction->addAttributes(AttributeSet::FunctionIndex, attrSet);
-#else
    pFunction->addAttributes(AttributeList::FunctionIndex, attrBuilder);
-#endif
 
    BasicBlock *block = BasicBlock::Create(JM()->mContext, "entry", pFunction);
    IRB()->SetInsertPoint(block);

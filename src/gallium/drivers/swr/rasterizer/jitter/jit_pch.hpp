@@ -115,7 +115,6 @@ using PassManager         = llvm::legacy::PassManager;
 #include "llvm/ExecutionEngine/JITEventListener.h"
 #endif
 
-#if LLVM_VERSION_MAJOR >= 5
 static const auto                Sync_CrossThread     = llvm::SyncScope::System;
 static const auto                Attrib_FunctionIndex = llvm::AttributeList::FunctionIndex;
 static inline llvm::AttributeSet GetFuncAttribSet(llvm::LLVMContext&       ctx,
@@ -123,15 +122,6 @@ static inline llvm::AttributeSet GetFuncAttribSet(llvm::LLVMContext&       ctx,
 {
     return llvm::AttributeSet::get(ctx, b);
 }
-#else
-static const auto                Sync_CrossThread     = llvm::SynchronizationScope::CrossThread;
-static const auto                Attrib_FunctionIndex = llvm::AttributeSet::FunctionIndex;
-static inline llvm::AttributeSet GetFuncAttribSet(llvm::LLVMContext&       ctx,
-                                                  const llvm::AttrBuilder& b)
-{
-    return llvm::AttributeSet::get(ctx, Attrib_FunctionIndex, b);
-}
-#endif
 
 #pragma pop_macro("DEBUG")
 
