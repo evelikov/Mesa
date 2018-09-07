@@ -2424,9 +2424,9 @@ dnl
 
 AC_ARG_WITH([clang-libdir],
    [AS_HELP_STRING([--with-clang-libdir],
-         [Path to Clang libraries @<:@default=llvm-config --libdir@:>@])],
-   [CLANG_LIBDIR="$withval"],
-   [CLANG_LIBDIR=''])
+         [DEPRECATED: Detected automatically based on llvm-config])],
+   [AC_MSG_ERROR([--with-clang-libdir is deprecated. Detected automatically based on llvm-config])],
+   [])
 
 PKG_CHECK_EXISTS([libclc], [have_libclc=yes], [have_libclc=no])
 
@@ -2492,13 +2492,7 @@ if test "x$enable_opencl" = xyes; then
     llvm_add_component "profiledata" "opencl"
     llvm_add_optional_component "coroutines" "opencl"
 
-    dnl Check for Clang internal headers
-    if test -z "$CLANG_LIBDIR"; then
-        CLANG_LIBDIR=${LLVM_LIBDIR}
-    fi
-    CLANG_RESOURCE_DIR=$CLANG_LIBDIR/clang/${LLVM_VERSION}
-    AS_IF([test ! -f "$CLANG_RESOURCE_DIR/include/stddef.h"],
-        [AC_MSG_ERROR([Could not find clang internal header stddef.h in $CLANG_RESOURCE_DIR Use --with-clang-libdir to specify the correct path to the clang libraries.])])
+    CLANG_RESOURCE_DIR=${LLVM_LIBDIR}/clang/${LLVM_VERSION}
 fi
 AM_CONDITIONAL(HAVE_CLOVER, test "x$enable_opencl" = xyes)
 AM_CONDITIONAL(HAVE_CLOVER_ICD, test "x$enable_opencl_icd" = xyes)
