@@ -36,23 +36,15 @@
 
 #include "util/algorithm.hpp"
 
-#if HAVE_LLVM < 0x0400
-#include <llvm/Bitcode/ReaderWriter.h>
-#else
 #include <llvm/Bitcode/BitcodeReader.h>
 #include <llvm/Bitcode/BitcodeWriter.h>
-#endif
 
 #include <llvm/IR/LLVMContext.h>
 #include <llvm/Linker/Linker.h>
 #include <llvm/Transforms/IPO.h>
 #include <llvm/Transforms/Utils/Cloning.h>
 #include <llvm/Target/TargetMachine.h>
-#if HAVE_LLVM >= 0x0400
 #include <llvm/Support/Error.h>
-#else
-#include <llvm/Support/ErrorOr.h>
-#endif
 
 #include <llvm/IR/LegacyPassManager.h>
 #include <llvm/Analysis/TargetLibraryInfo.h>
@@ -67,34 +59,21 @@ namespace clover {
          template<typename T, typename AS>
          unsigned target_address_space(const T &target, const AS lang_as) {
             const auto &map = target.getAddressSpaceMap();
-#if HAVE_LLVM >= 0x0500
             return map[static_cast<unsigned>(lang_as)];
-#else
-            return map[lang_as - clang::LangAS::Offset];
-#endif
          }
 
-#if HAVE_LLVM >= 0x0500
          const clang::InputKind ik_opencl = clang::InputKind::OpenCL;
          const clang::LangStandard::Kind lang_opencl10 = clang::LangStandard::lang_opencl10;
-#else
-         const clang::InputKind ik_opencl = clang::IK_OpenCL;
-         const clang::LangStandard::Kind lang_opencl10 = clang::LangStandard::lang_opencl;
-#endif
 
          inline void
          add_link_bitcode_file(clang::CodeGenOptions &opts,
                                const std::string &path) {
-#if HAVE_LLVM >= 0x0500
             clang::CodeGenOptions::BitcodeFileToLink F;
 
             F.Filename = path;
             F.PropagateAttrs = true;
             F.LinkFlags = ::llvm::Linker::Flags::None;
             opts.LinkBitcodeFiles.emplace_back(F);
-#else
-            opts.LinkBitcodeFiles.emplace_back(::llvm::Linker::Flags::None, path);
-#endif
          }
 
 #if HAVE_LLVM >= 0x0600
@@ -105,15 +84,10 @@ namespace clover {
 
          template<typename M, typename F> void
          handle_module_error(M &mod, const F &f) {
-#if HAVE_LLVM >= 0x0400
             if (::llvm::Error err = mod.takeError())
                ::llvm::handleAllErrors(std::move(err), [&](::llvm::ErrorInfoBase &eib) {
                      f(eib.message());
                   });
-#else
-            if (!mod)
-               f(mod.getError().message());
-#endif
          }
 
         template<typename T> void
