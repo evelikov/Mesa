@@ -1179,10 +1179,8 @@ if with_amd_vk or with_gallium_radeonsi
   _llvm_version = '>= 6.0.0'
 elif with_gallium_swr
   _llvm_version = '>= 6.0.0'
-elif with_gallium_opencl or with_gallium_r600
-  _llvm_version = '>= 3.9.0'
 else
-  _llvm_version = '>= 3.3.0'
+  _llvm_version = '>= 5.0.1'
 endif
 
 _shared_llvm = get_option('shared-llvm')
@@ -1207,16 +1205,9 @@ endif
 if with_llvm
   _llvm_version = dep_llvm.version().split('.')
 
-  # 3 digits versions in LLVM only started from 3.4.1 on
-  if dep_llvm.version().version_compare('>= 3.4.1')
-    _llvm_patch = _llvm_version[2]
-  else
-    _llvm_patch = '0'
-  endif
-
   pre_args += [
     '-DHAVE_LLVM=0x0@0@0@1@'.format(_llvm_version[0], _llvm_version[1]),
-    '-DMESA_LLVM_VERSION_PATCH=@0@'.format(_llvm_patch),
+    '-DMESA_LLVM_VERSION_PATCH=@0@'.format(_llvm_version[2]),
   ]
 
   # LLVM can be built without rtti, turning off rtti changes the ABI of C++
