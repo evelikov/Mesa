@@ -64,6 +64,7 @@ gallium_drivers := \
 
 ifeq ($(BOARD_GPU_DRIVERS),all)
 MESA_BUILD_CLASSIC := $(filter HAVE_%, $(subst ., , $(classic_drivers)))
+# XXX: tweak the following list to include LLVM requiring drivers only where LLVM is new enough?
 MESA_BUILD_GALLIUM := $(filter HAVE_%, $(subst ., , $(gallium_drivers)))
 else
 # Warn if we have any invalid driver names
@@ -94,16 +95,12 @@ MESA_ENABLE_LLVM := true
 endif
 
 define mesa-build-with-llvm
-  $(if $(filter $(MESA_ANDROID_MAJOR_VERSION), 4 5), \
+  $(if $(filter $(MESA_ANDROID_MAJOR_VERSION), 4 5 6 7), \
     $(warning Unsupported LLVM version in Android $(MESA_ANDROID_MAJOR_VERSION)),) \
-  $(if $(filter 6,$(MESA_ANDROID_MAJOR_VERSION)), \
-    $(eval LOCAL_CFLAGS += -DHAVE_LLVM=0x0307 -DMESA_LLVM_VERSION_PATCH=0)) \
-  $(if $(filter 7,$(MESA_ANDROID_MAJOR_VERSION)), \
-    $(eval LOCAL_CFLAGS += -DHAVE_LLVM=0x0308 -DMESA_LLVM_VERSION_PATCH=0)) \
   $(if $(filter 8,$(MESA_ANDROID_MAJOR_VERSION)), \
-    $(eval LOCAL_CFLAGS += -DHAVE_LLVM=0x0309 -DMESA_LLVM_VERSION_PATCH=0)) \
+    $(eval LOCAL_CFLAGS += -DHAVE_LLVM=0x0500 -DMESA_LLVM_VERSION_PATCH=1)) \
   $(if $(filter P,$(MESA_ANDROID_MAJOR_VERSION)), \
-    $(eval LOCAL_CFLAGS += -DHAVE_LLVM=0x0309 -DMESA_LLVM_VERSION_PATCH=0)) \
+    $(eval LOCAL_CFLAGS += -DHAVE_LLVM=0x0500 -DMESA_LLVM_VERSION_PATCH=1)) \
   $(eval LOCAL_SHARED_LIBRARIES += libLLVM)
 endef
 
