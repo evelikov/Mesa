@@ -91,7 +91,7 @@ static const struct debug_control debug_control[] = {
 uint64_t
 intel_debug_flag_for_shader_stage(gl_shader_stage stage)
 {
-   uint64_t flags[] = {
+   static const uint64_t flags[] = {
       [MESA_SHADER_VERTEX] = DEBUG_VS,
       [MESA_SHADER_TESS_CTRL] = DEBUG_TCS,
       [MESA_SHADER_TESS_EVAL] = DEBUG_TES,
