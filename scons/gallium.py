@@ -86,7 +86,6 @@ def install_shared_library(env, sources, version = ()):
 def msvc2013_compat(env):
     if env['gcc']:
         env.Append(CCFLAGS = [
-            '-Werror=vla',
             '-Werror=pointer-arith',
         ])
 
@@ -451,6 +450,7 @@ def generate(env):
         # - http://gcc.gnu.org/onlinedocs/gcc/Warning-Options.html
         ccflags += [
             '-Wall',
+            '-Werror=vla',
             '-Wno-long-long',
             '-fmessage-length=0', # be nice to Eclipse
         ]
