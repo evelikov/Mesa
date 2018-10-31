@@ -369,7 +369,7 @@ blorp_emit_vertex_elements(struct blorp_batch *batch,
    bool need_ndc = batch->blorp->compiler->devinfo->gen <= 5;
    const unsigned num_elements = 2 + need_ndc + num_varyings;
 
-   struct GENX(VERTEX_ELEMENT_STATE) ve[num_elements];
+   struct GENX(VERTEX_ELEMENT_STATE) ve[num_elements];// fixme
    memset(ve, 0, num_elements * sizeof(*ve));
 
    /* Setup VBO for the rectangle primitive..

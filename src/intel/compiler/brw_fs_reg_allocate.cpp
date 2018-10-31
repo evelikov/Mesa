@@ -44,7 +44,7 @@ assign_reg(unsigned *reg_hw_locations, fs_reg *reg)
 void
 fs_visitor::assign_regs_trivial()
 {
-   unsigned hw_reg_mapping[this->alloc.count + 1];
+   unsigned hw_reg_mapping[this->alloc.count + 1]; // FIXME
    unsigned i;
    int reg_width = dispatch_width / 8;
 
@@ -501,7 +501,7 @@ static void
 setup_mrf_hack_interference(fs_visitor *v, struct ra_graph *g,
                             int first_mrf_node, int *first_used_mrf)
 {
-   bool mrf_used[BRW_MAX_MRF(v->devinfo->gen)];
+   bool mrf_used[BRW_MAX_MRF(v->devinfo->gen)]; // FIXME
    get_used_mrfs(v, mrf_used);
 
    *first_used_mrf = BRW_MAX_MRF(v->devinfo->gen);
@@ -537,7 +537,7 @@ fs_visitor::assign_regs(bool allow_spilling, bool spill_all)
     * for reg_width == 2.
     */
    int reg_width = dispatch_width / 8;
-   unsigned hw_reg_mapping[this->alloc.count];
+   unsigned hw_reg_mapping[this->alloc.count]; // FIXME
    int payload_node_count = ALIGN(this->first_non_payload_grf, reg_width);
    int rsi = _mesa_logbase2(reg_width); /* Which compiler->fs_reg_sets[] to use */
    calculate_live_intervals();
@@ -601,7 +601,7 @@ fs_visitor::assign_regs(bool allow_spilling, bool spill_all)
 
    setup_payload_interference(g, payload_node_count, first_payload_node);
    if (devinfo->gen >= 7) {
-      int first_used_mrf = BRW_MAX_MRF(devinfo->gen);
+      int first_used_mrf = BRW_eAX_MRF(devinfo->gen);
       setup_mrf_hack_interference(this, g, first_mrf_hack_node,
                                   &first_used_mrf);
 
@@ -849,8 +849,8 @@ int
 fs_visitor::choose_spill_reg(struct ra_graph *g)
 {
    float block_scale = 1.0;
-   float spill_costs[this->alloc.count];
-   bool no_spill[this->alloc.count];
+   float spill_costs[this->alloc.count]; // FIXME
+   bool no_spill[this->alloc.count]; // FIXME
 
    for (unsigned i = 0; i < this->alloc.count; i++) {
       spill_costs[i] = 0.0;

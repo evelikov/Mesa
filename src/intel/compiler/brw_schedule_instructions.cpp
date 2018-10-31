@@ -662,7 +662,7 @@ fs_instruction_scheduler::setup_liveness(cfg_t *cfg)
       }
    }
 
-   int payload_last_use_ip[hw_reg_count];
+   int payload_last_use_ip[hw_reg_count]; // FIXME
    v->calculate_payload_ranges(hw_reg_count, payload_last_use_ip);
 
    for (int i = 0; i < hw_reg_count; i++) {
@@ -973,8 +973,8 @@ fs_instruction_scheduler::calculate_deps()
     * After register allocation, reg_offsets are gone and we track individual
     * GRF registers.
     */
-   schedule_node *last_grf_write[grf_count * 16];
-   schedule_node *last_mrf_write[BRW_MAX_MRF(v->devinfo->gen)];
+   schedule_node *last_grf_write[grf_count * 16]; // FIXME
+   schedule_node *last_mrf_write[BRW_MAX_MRF(v->devinfo->gen)]; // FIXME
    schedule_node *last_conditional_mod[8] = {};
    schedule_node *last_accumulator_write = NULL;
    /* Fixed HW registers are assumed to be separate from the virtual
@@ -1232,8 +1232,8 @@ fs_instruction_scheduler::calculate_deps()
 void
 vec4_instruction_scheduler::calculate_deps()
 {
-   schedule_node *last_grf_write[grf_count];
-   schedule_node *last_mrf_write[BRW_MAX_MRF(v->devinfo->gen)];
+   schedule_node *last_grf_write[grf_count]; // FIXME
+   schedule_node *last_mrf_write[BRW_MAX_MRF(v->devinfo->gen)]; // FIXME 
    schedule_node *last_conditional_mod = NULL;
    schedule_node *last_accumulator_write = NULL;
    /* Fixed HW registers are assumed to be separate from the virtual

@@ -407,7 +407,7 @@ namespace {
       void
       require_contiguous(unsigned reg, unsigned n)
       {
-         unsigned r = atoms[reg];
+         unsigned r = atoms[reg]; // FIXME
 
          /* Renumber atoms[reg...] = { r... } and their offsets[r...] for the
           * case that the specified contiguity requirement leads to the fusion

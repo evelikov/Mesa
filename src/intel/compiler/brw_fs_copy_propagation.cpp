@@ -860,7 +860,7 @@ fs_visitor::opt_copy_propagation()
 {
    bool progress = false;
    void *copy_prop_ctx = ralloc_context(NULL);
-   exec_list *out_acp[cfg->num_blocks];
+   exec_list *out_acp[cfg->num_blocks]; // FIXME
 
    for (int i = 0; i < cfg->num_blocks; i++)
       out_acp[i] = new exec_list [ACP_HASH_SIZE];

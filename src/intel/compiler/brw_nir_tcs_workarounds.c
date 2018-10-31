@@ -136,7 +136,7 @@ brw_nir_apply_tcs_quads_workaround(nir_shader *nir)
     * save it off to an array first.
     */
    const unsigned num_end_preds = impl->end_block->predecessors->entries;
-   nir_block *end_preds[num_end_preds];
+   nir_block *end_preds[num_end_preds]; // FIXME
    unsigned i = 0;
 
    set_foreach(impl->end_block->predecessors, entry) {

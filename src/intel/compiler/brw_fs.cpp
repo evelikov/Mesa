@@ -1803,7 +1803,7 @@ fs_visitor::split_virtual_grfs()
 
    /* Count the total number of registers */
    int reg_count = 0;
-   int vgrf_to_reg[num_vars];
+   int vgrf_to_reg[num_vars]; // FIXME
    for (int i = 0; i < num_vars; i++) {
       vgrf_to_reg[i] = reg_count;
       reg_count += alloc.sizes[i];
@@ -1815,7 +1815,7 @@ fs_visitor::split_virtual_grfs()
     * destination), we mark the used slots as inseparable.  Then we go
     * through and split the registers into the smallest pieces we can.
     */
-   bool split_points[reg_count];
+   bool split_points[reg_count]; // FIXME
    memset(split_points, 0, sizeof(split_points));
 
    /* Mark all used registers as fully splittable */
@@ -1850,8 +1850,8 @@ fs_visitor::split_virtual_grfs()
       }
    }
 
-   int new_virtual_grf[reg_count];
-   int new_reg_offset[reg_count];
+   int new_virtual_grf[reg_count]; // FIXME
+   int new_reg_offset[reg_count]; // FIXME
 
    int reg = 0;
    for (int i = 0; i < num_vars; i++) {
@@ -1922,7 +1922,7 @@ bool
 fs_visitor::compact_virtual_grfs()
 {
    bool progress = false;
-   int remap_table[this->alloc.count];
+   int remap_table[this->alloc.count]; // FIXME
    memset(remap_table, -1, sizeof(remap_table));
 
    /* Mark which virtual GRFs are used. */
@@ -2117,7 +2117,7 @@ fs_visitor::assign_constant_locations()
       return;
    }
 
-   struct uniform_slot_info slots[uniforms];
+   struct uniform_slot_info slots[uniforms]; // FIXME
    memset(slots, 0, sizeof(slots));
 
    foreach_block_and_inst_safe(block, fs_inst, inst, cfg) {
@@ -2799,7 +2799,7 @@ fs_visitor::opt_register_renaming()
    bool progress = false;
    int depth = 0;
 
-   int remap[alloc.count];
+   int remap[alloc.count]; // FIXME
    memset(remap, -1, sizeof(int) * alloc.count);
 
    foreach_block_and_inst(block, fs_inst, inst, cfg) {
@@ -3322,7 +3322,7 @@ fs_visitor::emit_repclear_shader()
 bool
 fs_visitor::remove_duplicate_mrf_writes()
 {
-   fs_inst *last_mrf_move[BRW_MAX_MRF(devinfo->gen)];
+   fs_inst *last_mrf_move[BRW_MAX_MRF(devinfo->gen)]; // FIXME and all other BRW_MAX_MRF
    bool progress = false;
 
    /* Need to update the MRF tracking for compressed instructions. */

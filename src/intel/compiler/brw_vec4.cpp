@@ -639,12 +639,12 @@ set_push_constant_loc(const int nr_uniforms, int *new_uniform_count,
 void
 vec4_visitor::pack_uniform_registers()
 {
-   uint8_t chans_used[this->uniforms];
-   int new_loc[this->uniforms];
-   int new_chan[this->uniforms];
-   bool is_aligned_to_dvec4[this->uniforms];
-   int new_chans_used[this->uniforms];
-   int channel_sizes[this->uniforms];
+   uint8_t chans_used[this->uniforms]; // FIXME
+   int new_loc[this->uniforms]; // FIXME
+   int new_chan[this->uniforms]; // FIXME
+   bool is_aligned_to_dvec4[this->uniforms]; // FIXME
+   int new_chans_used[this->uniforms]; // FIXME
+   int channel_sizes[this->uniforms]; // FIXME and many more in this file
 
    memset(chans_used, 0, sizeof(chans_used));
    memset(new_loc, 0, sizeof(new_loc));
