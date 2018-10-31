@@ -31,12 +31,14 @@
  * <rdar://problem/6729006>
  */
 
+#include <stdlib.h>
 #include <stdbool.h>
 
 #define GL_GLEXT_PROTOTYPES
 #include <GL/gl.h>
 #include <GL/glext.h>
 
+#include "util/macros.h"
 #include "glxclient.h"
 #include "apple_glx_context.h"
 #include "apple_xgl_api.h"
@@ -90,10 +92,18 @@ __applegl_glDrawBuffers(GLsizei n, const GLenum * bufs)
    struct glx_context * gc = __glXGetCurrentContext();
 
    if (gc != &dummyContext && apple_glx_context_uses_stereo(gc->driContext)) {
-      GLenum newbuf[n + 2];
+      GLenum stack_newbuf[128], *newbuf;
       GLsizei i, outi = 0;
       bool have_back = false;
       bool have_front = false;
+
+      if ((n + 2) > ARRAY_SIZE(stack_newbuf)) {
+         newbuf = malloc((n + 2) * sizeof(GLenum));
+         if (!newbuf)
+            return;
+      } else {
+         newbuf = stack_newbuf;
+      }
 
       for (i = 0; i < n; ++i) {
          if (GL_BACK == bufs[i]) {
@@ -118,6 +128,8 @@ __applegl_glDrawBuffers(GLsizei n, const GLenum * bufs)
       }
 
       __ogl_framework_api->DrawBuffers(outi, newbuf);
+      if (newbuf != stack_newbuf)
+         free(newbuf);
    }
    else {
       __ogl_framework_api->DrawBuffers(n, bufs);
