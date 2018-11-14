@@ -625,7 +625,7 @@ class ES1APIPrinter(GLAPIPrinter):
 
     def _override_for_api(self, ent):
         if ent.xml_data is None:
-            raise Exception('ES2 API printer requires XML input')
+            raise Exception('ES1 API printer requires XML input')
         ent.hidden = (ent.name not in \
             ent.xml_data.entry_points_for_api_version('es1')) \
             or ent.hidden
