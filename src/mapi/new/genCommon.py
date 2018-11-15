@@ -30,6 +30,11 @@ import collections
 import re
 import xml.etree.cElementTree as etree
 
+import os
+GLAPI = os.path.join(os.path.dirname(sys.argv[0]), "..", "glapi/gen")
+sys.path.append(GLAPI)
+import static_data
+
 MAPI_TABLE_NUM_DYNAMIC = 4096
 
 _LIBRARY_FEATURE_NAMES = {
@@ -71,8 +76,31 @@ def getFunctionsFromRoots(roots):
     # Assign a slot number to each function. This isn't strictly necessary,
     # since you can just look at the index in the list, but it makes it easier
     # to include the slot when formatting output.
+
+    next_slot = 0
     for i in range(len(functions)):
-        functions[i] = functions[i]._replace(slot=i)
+        name = functions[i].name[2:]
+        slot_set = False
+
+        if name in static_data.offsets:
+            functions[i] = functions[i]._replace(slot=static_data.offsets[name])
+            slot_set = True
+
+        if slot_set == False and name[-3:] != "ARB":
+            lname = name + "ARB"
+            if lname in static_data.offsets:
+                functions[i] = functions[i]._replace(slot=static_data.offsets[lname])
+                slot_set = True
+
+        if slot_set == False and name[-3:] != "EXT":
+            lname = name + "EXT"
+            if lname in static_data.offsets:
+                functions[i] = functions[i]._replace(slot=static_data.offsets[lname])
+                slot_set = True
+
+        if slot_set == False:
+            functions[i] = functions[i]._replace(slot=next_slot)
+            next_slot += 1
 
     # Sort the function list by slot.... to simplify the diff
     functions = sorted(functions, key=lambda f: f.slot)
