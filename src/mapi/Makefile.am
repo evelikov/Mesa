@@ -31,6 +31,8 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA =
 
 EXTRA_DIST = \
+	new/genCommon.py \
+	new/gen_gldispatch_mapi.py \
 	es1api/ABI-check \
 	es2api/ABI-check \
 	mapi_abi.py \
