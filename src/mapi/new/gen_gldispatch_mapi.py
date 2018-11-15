@@ -63,9 +63,10 @@ typedef void (APIENTRY  *GLDEBUGPROCKHR)(GLenum source,GLenum type,GLuint id,GLe
 """.lstrip("\n"))
 
     print(generate_defines(functions))
-    print(generate_table(functions, allFunctions))
-    print(generate_noop_array(functions))
-    print(generate_public_stubs(functions))
+    if (target not in ("glesv1", "glesv2")):
+        print(generate_table(functions, allFunctions))
+        print(generate_noop_array(functions))
+        print(generate_public_stubs(functions))
     print(generate_public_entries(functions))
     print(generate_stub_asm_gcc(functions))
 
