@@ -37,6 +37,13 @@ import xml.etree.cElementTree as etree
 
 import genCommon
 
+#_LIBRARY_DISPATCH_INFO = {
+#    "gl" : frozenset((									"non_hidded")),
+#    "shared-glapi" : frozenset(("table_size", "noop_array", "stubs", "all_entries"		    )),
+#    "glesv1" : frozenset(), #' as gl
+#    "glesv2" : frozenset(), # as gl
+#}
+
 def _main():
     target = sys.argv[1]
     xmlFiles = sys.argv[2:]
@@ -63,9 +70,10 @@ typedef void (APIENTRY  *GLDEBUGPROCKHR)(GLenum source,GLenum type,GLuint id,GLe
 """.lstrip("\n"))
 
     print(generate_defines(functions))
-    print(generate_table(functions, allFunctions))
-    print(generate_noop_array(functions))
-    print(generate_public_stubs(functions))
+    if (target not in ("glesv1", "glesv2")):
+        print(generate_table(functions, allFunctions))
+        print(generate_noop_array(functions))
+        print(generate_public_stubs(functions))
     print(generate_public_entries(functions))
     print(generate_stub_asm_gcc(functions))
 
