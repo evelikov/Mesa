@@ -963,7 +963,7 @@ const struct name_offset known_dispatch[] = {
    { "glMultiTexCoord3sv", _O(MultiTexCoord3sv) },
    { "glMultiTexCoord4d", _O(MultiTexCoord4d) },
    { "glMultiTexCoord4dv", _O(MultiTexCoord4dv) },
-   { "glMultiTexCoord4fARB", _O(MultiTexCoord4f) },
+   { "glMultiTexCoord4f", _O(MultiTexCoord4f) },
    { "glMultiTexCoord4fvARB", _O(MultiTexCoord4fvARB) },
    { "glMultiTexCoord4i", _O(MultiTexCoord4i) },
    { "glMultiTexCoord4iv", _O(MultiTexCoord4iv) },

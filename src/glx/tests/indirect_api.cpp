@@ -1195,7 +1195,7 @@ TEST_F(IndirectAPI, ARB_multitexture)
    EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord3sv, table[_gloffset_MultiTexCoord3sv]);
    EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4d, table[_gloffset_MultiTexCoord4d]);
    EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4dv, table[_gloffset_MultiTexCoord4dv]);
-   EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4fARB, table[_gloffset_MultiTexCoord4fARB]);
+   EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4fARB, table[_gloffset_MultiTexCoord4f]);
    EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4fvARB, table[_gloffset_MultiTexCoord4fvARB]);
    EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4i, table[_gloffset_MultiTexCoord4i]);
    EXPECT_EQ((_glapi_proc) __indirect_glMultiTexCoord4iv, table[_gloffset_MultiTexCoord4iv]);
