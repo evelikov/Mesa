@@ -45,10 +45,12 @@ class PrintGlTable(gl_XML.gl_print_base):
         return
 
     def printBody(self, api):
-        for f in api.functionIterateByOffset():
-            arg_string = f.get_parameter_string()
-            print('   %s (GLAPIENTRYP %s)(%s); /* %d */' % (
-                f.return_type, f.name, arg_string, f.offset))
+        with open('/tmp/dispatch', 'w') as ff:
+            for f in api.functionIterateByOffset():
+                arg_string = f.get_parameter_string()
+                print('    "%s": %d,' % (f.name, f.offset), file=ff)
+                print('   %s (GLAPIENTRYP %s)(%s); /* %d */' % (
+                    f.return_type, f.name, arg_string, f.offset))
 
     def printRealHeader(self):
         print('#ifndef GLAPIENTRYP')
