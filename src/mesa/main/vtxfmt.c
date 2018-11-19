@@ -65,7 +65,7 @@ install_vtxfmt(struct gl_context *ctx, struct _glapi_table *tab,
 
    if (ctx->API != API_OPENGL_CORE && ctx->API != API_OPENGLES2) {
       SET_Materialfv(tab, vfmt->Materialfv);
-      SET_MultiTexCoord4fARB(tab, vfmt->MultiTexCoord4fARB);
+      SET_MultiTexCoord4f(tab, vfmt->MultiTexCoord4fARB);
       SET_Normal3f(tab, vfmt->Normal3f);
    }
 

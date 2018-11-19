@@ -426,7 +426,7 @@ offsets = {
     "MultiTexCoord3sv": 399,
     "MultiTexCoord4d": 400,
     "MultiTexCoord4dv": 401,
-    "MultiTexCoord4fARB": 402,
+    "MultiTexCoord4f": 402,
     "MultiTexCoord4fvARB": 403,
     "MultiTexCoord4i": 404,
     "MultiTexCoord4iv": 405,
