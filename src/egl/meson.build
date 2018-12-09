@@ -69,7 +69,7 @@ g_egldispatchstubs_c = custom_target(
   command : [
     prog_python, '@INPUT0@', 'source', '@INPUT1@', '@INPUT2@', '@INPUT3@'
   ],
-  depend_files : files('generate/genCommon.py'),
+  depend_files : glapi_gen_mapi_py,
   capture : true,
 )
 
@@ -83,7 +83,7 @@ g_egldispatchstubs_h = custom_target(
   command : [
     prog_python, '@INPUT0@', 'header', '@INPUT1@', '@INPUT2@', '@INPUT3@'
   ],
-  depend_files : files('generate/genCommon.py'),
+  depend_files : glapi_gen_mapi_py,
   capture : true,
 )
 
