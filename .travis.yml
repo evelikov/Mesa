@@ -841,6 +841,6 @@ script:
                    -Dgallium-drivers=${GALLIUM_DRIVERS:-[]} \
                    -Dvulkan-drivers=${VULKAN_DRIVERS:-[]}
       meson configure _build
-      ninja -C _build
-      ninja -C _build test
+      ninja -k 0 -C _build
+      ninja -k 0 -C _build test
     fi
