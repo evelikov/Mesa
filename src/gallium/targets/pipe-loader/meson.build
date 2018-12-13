@@ -40,6 +40,7 @@ endif
 
 if with_ld_version_script
   pipe_loader_link_args += [
+    '-Wl,-v',
     '-Wl,--version-script', join_paths(meson.current_source_dir(), 'pipe.sym')
   ]
   pipe_loader_link_deps += files('pipe.sym')
