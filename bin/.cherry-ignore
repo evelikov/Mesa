@@ -17,3 +17,6 @@ abfe674c54bee6f8fdcae411b07db89c10b9d530 spirv: Handle arbitrary bit sizes for d
 
 # stable Adds defaults for capabilities which are not in branch
 38f542783faa360020b77fdd76b97f207a9e0068 v50,nvc0: add explicit settings for recent caps
+
+# stable The commit addresses functionality not present in branch
+1b8983c25be19073c02fe9630e949be55f8280fa radv: fix using LOAD_CONTEXT_REG with old GFX ME firmwares on GFX8
