@@ -40,3 +40,5 @@ cbd1ad6165f0aea7fb7c6fd1b36ad5317dd65cb7 st/mesa: require RGBA2, RGB4, and RGBA4
 # stable Explicit 19.0 only nominations.
 bf1f49482d677e562993543cd9a9367597ce3ccc glsl: TCS outputs can not be transform feedback candidates on GLES
 4eec3a2a3652317f8e0fa97e0730c297bde8241a glsl: fix recording of variables for XFB in TCS shaders
+8ab95b849e66f3221d80a67eef2ec6e3730901a8 anv: Refactor descriptor pushing a bit
+5c30fffeec1732c21d600c036f95f8cdb1bb5487 anv: Take references to push descriptor set layouts
