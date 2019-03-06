@@ -36,3 +36,7 @@ cbd1ad6165f0aea7fb7c6fd1b36ad5317dd65cb7 st/mesa: require RGBA2, RGB4, and RGBA4
 
 # stable The commit addresses functionality not present in branch
 1b8983c25be19073c02fe9630e949be55f8280fa radv: fix using LOAD_CONTEXT_REG with old GFX ME firmwares on GFX8
+
+# stable Explicit 19.0 only nominations.
+bf1f49482d677e562993543cd9a9367597ce3ccc glsl: TCS outputs can not be transform feedback candidates on GLES
+4eec3a2a3652317f8e0fa97e0730c297bde8241a glsl: fix recording of variables for XFB in TCS shaders
